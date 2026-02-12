@@ -458,6 +458,13 @@
   }
 }
 
+
+@media (max-width: 1023px) {
+  .clip-progress-wrap {
+    bottom: 62px;
+  }
+}
+
 @media (max-width: 480px) {
   .clip-actions {
     right: var(--space-sm);
