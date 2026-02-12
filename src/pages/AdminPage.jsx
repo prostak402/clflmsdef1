@@ -269,7 +269,6 @@ export default function AdminPage() {
         </div>
       )}
 
-      <BottomNav />
     </div>
   );
 }
