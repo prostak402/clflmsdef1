@@ -6,7 +6,6 @@ import {
   AlertTriangle, Check, Link as LinkIcon
 } from 'lucide-react';
 import { GENRES } from '../data/mock';
-import BottomNav from '../components/BottomNav';
 import './AdminPage.css';
 
 export default function AdminPage() {
@@ -35,7 +34,6 @@ export default function AdminPage() {
         <h2>Access Denied</h2>
         <p>You need admin privileges to access this page.</p>
         <button onClick={() => navigate('/feed')}>Go to Feed</button>
-        <BottomNav />
       </div>
     );
   }

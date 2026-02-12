@@ -381,6 +381,26 @@
   to { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
 }
 
+/* Desktop: clip fills container, not viewport */
+@media (min-width: 1024px) {
+  .clip-card {
+    height: calc(100vh - 48px);
+    max-height: 860px;
+  }
+
+  .clip-top-bar {
+    padding-top: var(--space-lg);
+  }
+
+  .clip-info {
+    bottom: var(--space-xl);
+  }
+
+  .clip-actions {
+    bottom: 140px;
+  }
+}
+
 @media (max-width: 480px) {
   .clip-actions {
     right: var(--space-sm);

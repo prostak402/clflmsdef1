@@ -4,7 +4,6 @@ import {
   User, LogOut, Settings, Bookmark, Heart, MessageCircle,
   ChevronRight, Palette, Bell, Shield, HelpCircle
 } from 'lucide-react';
-import BottomNav from '../components/BottomNav';
 import './ProfilePage.css';
 
 export default function ProfilePage() {
@@ -114,7 +113,6 @@ export default function ProfilePage() {
 
       <p className="profile-version">ClipFlow v1.0.0</p>
 
-      <BottomNav />
     </div>
   );
 }

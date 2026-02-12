@@ -162,3 +162,13 @@
 .gpf-clear:hover {
   color: var(--accent-pink);
 }
+
+/* Desktop: position relative to feed container */
+@media (min-width: 1024px) {
+  .gpf-wrap {
+    position: absolute;
+    top: var(--space-md);
+    left: var(--space-md);
+    z-index: var(--z-overlay);
+  }
+}

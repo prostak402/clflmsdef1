@@ -1,0 +1,13 @@
+.app-layout {
+  min-height: 100vh;
+}
+
+.app-main {
+  min-height: 100vh;
+}
+
+@media (min-width: 1024px) {
+  .app-main {
+    margin-left: 220px;
+  }
+}

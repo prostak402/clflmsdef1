@@ -3,7 +3,6 @@ import { useApp } from '../context/AppContext';
 import ClipCard from '../components/ClipCard';
 import CommentsPanel from '../components/CommentsPanel';
 import GenrePickerFloat from '../components/GenrePickerFloat';
-import BottomNav from '../components/BottomNav';
 import './FeedPage.css';
 
 export default function FeedPage() {
@@ -98,7 +97,6 @@ export default function FeedPage() {
       <div className="feed-empty">
         <p>No clips match your selected genres.</p>
         <p>Try selecting different genres.</p>
-        <BottomNav />
       </div>
     );
   }
@@ -113,17 +111,6 @@ export default function FeedPage() {
             clip={clip}
             isActive={index === currentIndex}
             onOpenComments={() => openComments(clip.id)}
-          />
-        ))}
-      </div>
-
-      {/* Progress dots */}
-      <div className="feed-progress">
-        {clips.map((_, index) => (
-          <div
-            key={index}
-            className={`feed-dot ${index === currentIndex ? 'active' : ''}`}
-            onClick={() => scrollToIndex(index)}
           />
         ))}
       </div>

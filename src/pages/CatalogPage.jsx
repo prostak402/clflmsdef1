@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
 import { MOCK_CATALOG, GENRES } from '../data/mock';
 import { Search, Star, ExternalLink, Filter, X } from 'lucide-react';
-import BottomNav from '../components/BottomNav';
 import './CatalogPage.css';
 
 export default function CatalogPage() {
@@ -105,7 +104,6 @@ export default function CatalogPage() {
         </div>
       )}
 
-      <BottomNav />
     </div>
   );
 }

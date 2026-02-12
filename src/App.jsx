@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
+import AppLayout from './components/AppLayout';
 import AuthPage from './pages/AuthPage';
 import GenreSelectPage from './pages/GenreSelectPage';
 import FeedPage from './pages/FeedPage';
@@ -8,10 +9,10 @@ import CatalogPage from './pages/CatalogPage';
 import ProfilePage from './pages/ProfilePage';
 import AdminPage from './pages/AdminPage';
 
-function ProtectedRoute({ children }) {
+function ProtectedRoute({ children, hideNav = false }) {
   const { user } = useApp();
   if (!user) return <Navigate to="/" replace />;
-  return children;
+  return <AppLayout hideNav={hideNav}>{children}</AppLayout>;
 }
 
 function AppRoutes() {
@@ -26,7 +27,7 @@ function AppRoutes() {
       <Route
         path="/genres"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute hideNav>
             <GenreSelectPage />
           </ProtectedRoute>
         }

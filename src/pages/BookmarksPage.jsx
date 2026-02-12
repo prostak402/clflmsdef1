@@ -1,7 +1,6 @@
 import { useApp } from '../context/AppContext';
 import { useNavigate } from 'react-router-dom';
 import { Bookmark, ExternalLink, Trash2, Share2, Star } from 'lucide-react';
-import BottomNav from '../components/BottomNav';
 import './BookmarksPage.css';
 
 export default function BookmarksPage() {
@@ -103,7 +102,6 @@ export default function BookmarksPage() {
         </div>
       )}
 
-      <BottomNav />
     </div>
   );
 }

@@ -65,7 +65,7 @@
   margin-top: 2px;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 768px) and (max-width: 1023px) {
   .bottom-nav {
     max-width: 500px;
     left: 50%;
@@ -73,5 +73,12 @@
     bottom: var(--space-md);
     border-radius: var(--radius-xl);
     border: 1px solid var(--glass-border);
+  }
+}
+
+/* Hide on desktop — SideNav takes over */
+@media (min-width: 1024px) {
+  .bottom-nav {
+    display: none;
   }
 }
