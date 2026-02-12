@@ -122,7 +122,6 @@ export default function FeedPage() {
         />
       )}
 
-      <BottomNav />
     </div>
   );
 }
