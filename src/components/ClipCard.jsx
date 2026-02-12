@@ -18,6 +18,8 @@ export default function ClipCard({ clip, isActive, onOpenComments }) {
   const [muted, setMuted] = useState(true);
   const [showInfo, setShowInfo] = useState(false);
   const [shareToast, setShareToast] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
   const videoRef = useRef(null);
 
   const isLiked = likes[clip.id];
@@ -32,8 +34,26 @@ export default function ClipCard({ clip, isActive, onOpenComments }) {
       videoRef.current.pause();
       videoRef.current.currentTime = 0;
       setPlaying(false);
+      setProgress(0);
     }
   }, [isActive]);
+
+  const handleTimeUpdate = () => {
+    if (!videoRef.current) return;
+    setProgress(videoRef.current.currentTime);
+  };
+
+  const handleLoadedMetadata = () => {
+    if (!videoRef.current) return;
+    setDuration(videoRef.current.duration || 0);
+  };
+
+  const handleSeek = (event) => {
+    if (!videoRef.current) return;
+    const newTime = Number(event.target.value);
+    videoRef.current.currentTime = newTime;
+    setProgress(newTime);
+  };
 
   const togglePlay = () => {
     if (!videoRef.current) return;
@@ -83,6 +103,8 @@ export default function ClipCard({ clip, isActive, onOpenComments }) {
           preload={isActive ? 'auto' : 'none'}
           className="clip-video"
           poster={clip.poster}
+          onTimeUpdate={handleTimeUpdate}
+          onLoadedMetadata={handleLoadedMetadata}
         />
 
         {/* Play/Pause overlay */}
@@ -97,6 +119,21 @@ export default function ClipCard({ clip, isActive, onOpenComments }) {
         {/* Gradient overlays */}
         <div className="clip-gradient-top" />
         <div className="clip-gradient-bottom" />
+      </div>
+
+      <div className="clip-progress-wrap">
+        <input
+          type="range"
+          className="clip-progress"
+          min="0"
+          max={duration || 0}
+          step="0.01"
+          value={Math.min(progress, duration || 0)}
+          onClick={(e) => e.stopPropagation()}
+          onChange={handleSeek}
+          style={{ '--clip-progress': duration ? `${(progress / duration) * 100}%` : '0%' }}
+          aria-label={`Seek ${clip.title}`}
+        />
       </div>
 
       {/* Top bar */}
