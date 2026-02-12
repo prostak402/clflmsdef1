@@ -22,6 +22,7 @@ export default function AdminPage() {
     year: '',
     director: '',
     duration: '',
+    kinopoiskId: '',
     watchUrl: '',
     clipFile: null,
     posterFile: null,
@@ -58,7 +59,7 @@ export default function AdminPage() {
     setUploads([newUpload, ...uploads]);
     setForm({
       title: '', description: '', clipDescription: '', genres: [],
-      year: '', director: '', duration: '', watchUrl: '',
+      year: '', director: '', duration: '', kinopoiskId: '', watchUrl: '',
       clipFile: null, posterFile: null,
     });
     setShowForm(false);
@@ -157,6 +158,21 @@ export default function AdminPage() {
                 onChange={(e) => setForm({ ...form, clipDescription: e.target.value })}
                 rows={2}
               />
+            </div>
+
+            <div className="admin-field full">
+              <label>Kinopoisk ID</label>
+              <div className="admin-kinopoisk-row">
+                <input
+                  type="text"
+                  placeholder="Например: 435"
+                  value={form.kinopoiskId}
+                  onChange={(e) => setForm({ ...form, kinopoiskId: e.target.value })}
+                />
+                <button type="button" className="admin-update-btn">
+                  Update
+                </button>
+              </div>
             </div>
 
             <div className="admin-field full">
