@@ -75,6 +75,7 @@
   left: 0;
   right: 0;
   padding: var(--space-lg) var(--space-md);
+  padding-top: 60px;
   display: flex;
   justify-content: space-between;
   align-items: center;

@@ -21,7 +21,7 @@ function AppRoutes() {
     <Routes>
       <Route
         path="/"
-        element={user ? <Navigate to="/feed" replace /> : <AuthPage />}
+        element={user ? <Navigate to="/genres" replace /> : <AuthPage />}
       />
       <Route
         path="/genres"

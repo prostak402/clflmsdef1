@@ -1,0 +1,164 @@
+.gpf-wrap {
+  position: fixed;
+  top: var(--space-lg);
+  left: var(--space-md);
+  z-index: var(--z-sticky);
+}
+
+.gpf-trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.85);
+  transition: var(--transition-base);
+  max-width: 200px;
+}
+
+.gpf-trigger:hover,
+.gpf-trigger.active {
+  background: var(--glass-bg-hover);
+  border-color: var(--accent-purple);
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.2);
+}
+
+.gpf-trigger-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Dropdown */
+.gpf-dropdown {
+  position: absolute;
+  top: calc(100% + var(--space-sm));
+  left: 0;
+  width: 240px;
+  border-radius: var(--radius-lg);
+  background: rgba(14, 14, 22, 0.96);
+  padding: var(--space-sm);
+  animation: gpfEnter 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-origin: top left;
+  box-shadow: var(--shadow-lg);
+}
+
+@keyframes gpfEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.gpf-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-sm) var(--space-sm) var(--space-sm);
+}
+
+.gpf-title {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.gpf-close {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  transition: var(--transition-fast);
+}
+
+.gpf-close:hover {
+  background: var(--glass-bg-hover);
+  color: var(--text-primary);
+}
+
+.gpf-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 320px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.gpf-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  transition: var(--transition-fast);
+  text-align: left;
+}
+
+.gpf-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+}
+
+.gpf-item.active {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+}
+
+.gpf-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  opacity: 0.5;
+  transition: var(--transition-fast);
+}
+
+.gpf-item.active .gpf-dot {
+  opacity: 1;
+  box-shadow: 0 0 6px var(--gc);
+}
+
+.gpf-name {
+  flex: 1;
+}
+
+.gpf-check {
+  color: var(--accent-purple);
+  flex-shrink: 0;
+  animation: gpfCheckPop 0.2s ease-out;
+}
+
+@keyframes gpfCheckPop {
+  from { transform: scale(0); }
+  to { transform: scale(1); }
+}
+
+.gpf-clear {
+  display: block;
+  width: 100%;
+  padding: 8px;
+  margin-top: var(--space-xs);
+  border-top: 1px solid var(--glass-border);
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  text-align: center;
+  transition: var(--transition-fast);
+}
+
+.gpf-clear:hover {
+  color: var(--accent-pink);
+}
