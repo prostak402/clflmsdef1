@@ -16,13 +16,17 @@ function ProtectedRoute({ children, hideNav = false }) {
 }
 
 function AppRoutes() {
-  const { user } = useApp();
+  const { user, hasCompletedOnboarding } = useApp();
 
   return (
     <Routes>
       <Route
         path="/"
-        element={user ? <Navigate to="/genres" replace /> : <AuthPage />}
+        element={
+          user
+            ? <Navigate to={hasCompletedOnboarding ? '/feed' : '/genres'} replace />
+            : <AuthPage />
+        }
       />
       <Route
         path="/genres"
