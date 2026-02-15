@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../context/useApp';
 import {
-  Heart, MessageCircle, Share2, Bookmark, Play, Pause,
+  Heart, MessageCircle, Share2, Bookmark, Play,
   Volume2, VolumeX, Star, ExternalLink, Info
 } from 'lucide-react';
 import './ClipCard.css';
@@ -29,12 +29,9 @@ export default function ClipCard({ clip, isActive, onOpenComments }) {
     if (!videoRef.current) return;
     if (isActive) {
       videoRef.current.play().catch(() => {});
-      setPlaying(true);
     } else {
-      videoRef.current.pause();
       videoRef.current.currentTime = 0;
-      setPlaying(false);
-      setProgress(0);
+      videoRef.current.pause();
     }
   }, [isActive]);
 
@@ -59,10 +56,10 @@ export default function ClipCard({ clip, isActive, onOpenComments }) {
     if (!videoRef.current) return;
     if (playing) {
       videoRef.current.pause();
-    } else {
-      videoRef.current.play().catch(() => {});
+      return;
     }
-    setPlaying(!playing);
+
+    videoRef.current.play().catch(() => {});
   };
 
   const handleShare = async () => {
@@ -105,6 +102,11 @@ export default function ClipCard({ clip, isActive, onOpenComments }) {
           poster={clip.poster}
           onTimeUpdate={handleTimeUpdate}
           onLoadedMetadata={handleLoadedMetadata}
+          onPlay={() => setPlaying(true)}
+          onPause={() => {
+            setPlaying(false);
+            setProgress(videoRef.current?.currentTime || 0);
+          }}
         />
 
         {/* Play/Pause overlay */}

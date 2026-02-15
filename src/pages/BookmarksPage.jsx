@@ -1,4 +1,4 @@
-import { useApp } from '../context/AppContext';
+import { useApp } from '../context/useApp';
 import { useNavigate } from 'react-router-dom';
 import { Bookmark, ExternalLink, Trash2, Share2, Star } from 'lucide-react';
 import './BookmarksPage.css';

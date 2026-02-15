@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AppProvider, useApp } from './context/AppContext';
+import { AppProvider } from './context/AppContext';
+import { useApp } from './context/useApp';
 import AppLayout from './components/AppLayout';
 import AuthPage from './pages/AuthPage';
 import GenreSelectPage from './pages/GenreSelectPage';
@@ -16,13 +17,17 @@ function ProtectedRoute({ children, hideNav = false }) {
 }
 
 function AppRoutes() {
-  const { user } = useApp();
+  const { user, hasCompletedOnboarding } = useApp();
 
   return (
     <Routes>
       <Route
         path="/"
-        element={user ? <Navigate to="/genres" replace /> : <AuthPage />}
+        element={
+          user
+            ? <Navigate to={hasCompletedOnboarding ? '/feed' : '/genres'} replace />
+            : <AuthPage />
+        }
       />
       <Route
         path="/genres"

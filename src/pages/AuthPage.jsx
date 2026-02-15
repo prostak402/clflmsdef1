@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../context/useApp';
 import { Film, Mail, Lock, User, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import './AuthPage.css';
 
@@ -9,11 +9,17 @@ export default function AuthPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({ name: '', email: '', password: '' });
   const [loading, setLoading] = useState(false);
-  const { login } = useApp();
+  const { user, hasCompletedOnboarding, login } = useApp();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!user) return;
+    navigate(hasCompletedOnboarding ? '/feed' : '/genres', { replace: true });
+  }, [user, hasCompletedOnboarding, navigate]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (loading) return;
     setLoading(true);
     setTimeout(() => {
       login({

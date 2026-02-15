@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../context/useApp';
 import ClipCard from '../components/ClipCard';
 import CommentsPanel from '../components/CommentsPanel';
 import GenrePickerFloat from '../components/GenrePickerFloat';
