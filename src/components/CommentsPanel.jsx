@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../context/useApp';
 import { X, Send, Heart } from 'lucide-react';
 import './CommentsPanel.css';
 

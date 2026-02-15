@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AppProvider, useApp } from './context/AppContext';
+import { AppProvider } from './context/AppContext';
+import { useApp } from './context/useApp';
 import AppLayout from './components/AppLayout';
 import AuthPage from './pages/AuthPage';
 import GenreSelectPage from './pages/GenreSelectPage';

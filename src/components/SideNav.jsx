@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../context/useApp';
 import { Home, Search, Bookmark, User, Shield, Film } from 'lucide-react';
 import './SideNav.css';
 
@@ -29,18 +29,18 @@ export default function SideNav() {
       </div>
 
       <div className="sidenav-items">
-        {items.map(({ path, icon: Icon, label }) => {
-          const isActive = location.pathname === path;
+        {items.map((item) => {
+          const isActive = location.pathname === item.path;
           return (
             <button
-              key={path}
+              key={item.path}
               className={`sidenav-item ${isActive ? 'active' : ''}`}
-              onClick={() => navigate(path)}
+              onClick={() => navigate(item.path)}
             >
               <div className="sidenav-item-icon">
-                <Icon size={20} />
+                {item.icon({ size: 20 })}
               </div>
-              <span className="sidenav-item-label">{label}</span>
+              <span className="sidenav-item-label">{item.label}</span>
               {isActive && <div className="sidenav-active-bar" />}
             </button>
           );

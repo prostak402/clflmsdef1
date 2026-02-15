@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../context/useApp';
 import { GENRES } from '../data/mock';
 import {
   Sword, Laugh, Drama, Ghost, Rocket, Heart,

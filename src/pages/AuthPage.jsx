@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../context/useApp';
 import { Film, Mail, Lock, User, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import './AuthPage.css';
 

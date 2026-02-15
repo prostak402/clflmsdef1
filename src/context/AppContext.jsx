@@ -1,7 +1,7 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { MOCK_CLIPS, MOCK_COMMENTS } from '../data/mock';
 
-const AppContext = createContext(null);
+import { AppContext } from './app-context';
 
 export function AppProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -92,12 +92,4 @@ export function AppProvider({ children }) {
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
-}
-
-export function useApp() {
-  const context = useContext(AppContext);
-  if (!context) {
-    throw new Error('useApp must be used within AppProvider');
-  }
-  return context;
 }

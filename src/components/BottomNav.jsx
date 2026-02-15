@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../context/useApp';
 import { Home, Search, Bookmark, User, Shield } from 'lucide-react';
 import './BottomNav.css';
 
@@ -21,19 +21,19 @@ export default function BottomNav() {
 
   return (
     <nav className="bottom-nav glass-strong">
-      {items.map(({ path, icon: Icon, label }) => {
-        const isActive = location.pathname === path;
+      {items.map((item) => {
+        const isActive = location.pathname === item.path;
         return (
           <button
-            key={path}
+            key={item.path}
             className={`nav-item ${isActive ? 'active' : ''}`}
-            onClick={() => navigate(path)}
+            onClick={() => navigate(item.path)}
           >
             <div className="nav-icon-wrap">
-              <Icon size={22} />
+              {item.icon({ size: 22 })}
               {isActive && <div className="nav-indicator" />}
             </div>
-            <span className="nav-label">{label}</span>
+            <span className="nav-label">{item.label}</span>
           </button>
         );
       })}
