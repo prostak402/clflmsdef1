@@ -5,6 +5,7 @@ const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
   const [user, setUser] = useState(null);
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const [selectedGenres, setSelectedGenres] = useState([]);
   const [bookmarks, setBookmarks] = useState([]);
   const [likes, setLikes] = useState({});
@@ -16,6 +17,7 @@ export function AppProvider({ children }) {
 
   const logout = useCallback(() => {
     setUser(null);
+    setHasCompletedOnboarding(false);
     setSelectedGenres([]);
     setBookmarks([]);
     setLikes({});
@@ -72,12 +74,14 @@ export function AppProvider({ children }) {
 
   const value = {
     user,
+    hasCompletedOnboarding,
     selectedGenres,
     bookmarks,
     likes,
     comments,
     login,
     logout,
+    setHasCompletedOnboarding,
     toggleGenre,
     toggleBookmark,
     toggleLike,
