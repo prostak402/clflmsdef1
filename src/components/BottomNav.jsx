@@ -27,7 +27,9 @@ export default function BottomNav() {
         return (
           <button
             key={item.path}
+            type="button"
             className={`nav-item ${isActive ? 'active' : ''}`}
+            aria-current={isActive ? 'page' : undefined}
             onClick={() => navigate(item.path)}
           >
             <div className="nav-icon-wrap">

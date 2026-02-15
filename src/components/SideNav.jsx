@@ -35,7 +35,9 @@ export default function SideNav() {
           return (
             <button
               key={item.path}
+              type="button"
               className={`sidenav-item ${isActive ? 'active' : ''}`}
+              aria-current={isActive ? 'page' : undefined}
               onClick={() => navigate(item.path)}
             >
               <div className="sidenav-item-icon">
