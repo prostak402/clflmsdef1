@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../context/useApp';
 import { GENRES } from '../data/mock';
 import { SlidersHorizontal, X, Check } from 'lucide-react';
 import './GenrePickerFloat.css';

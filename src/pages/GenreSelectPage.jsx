@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../context/useApp';
 import { GENRES } from '../data/mock';
 import {
   Sword, Laugh, Drama, Ghost, Rocket, Heart,
@@ -13,10 +13,11 @@ const ICON_MAP = {
 };
 
 export default function GenreSelectPage() {
-  const { selectedGenres, toggleGenre } = useApp();
+  const { selectedGenres, toggleGenre, setHasCompletedOnboarding } = useApp();
   const navigate = useNavigate();
 
   const handleContinue = () => {
+    setHasCompletedOnboarding(true);
     navigate('/feed');
   };
 
@@ -80,7 +81,10 @@ export default function GenreSelectPage() {
             <ArrowRight size={20} />
           </button>
           {selectedGenres.length === 0 && (
-            <button className="genre-skip" onClick={() => navigate('/feed')}>
+            <button className="genre-skip" onClick={() => {
+              setHasCompletedOnboarding(true);
+              navigate('/feed');
+            }}>
               Skip and see everything
             </button>
           )}
