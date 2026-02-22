@@ -1,6 +1,8 @@
 import { useNavigate } from 'react-router-dom';
+import { useMemo, useState } from 'react';
 import { useApp } from '../context/useApp';
 import { GENRES } from '../data/mock';
+import { GENRE_SELECTION_MIN, GENRE_SELECTION_MAX } from '../constants/onboarding';
 import {
   Sword, Laugh, Drama, Ghost, Rocket, Heart,
   Zap, Palette, Film, Wand2, Shield, Compass, ArrowRight, Sparkles
@@ -15,8 +17,37 @@ const ICON_MAP = {
 export default function GenreSelectPage() {
   const { selectedGenres, toggleGenre, setHasCompletedOnboarding } = useApp();
   const navigate = useNavigate();
+  const [error, setError] = useState('');
+
+  const selectionCount = selectedGenres.length;
+  const canContinue = selectionCount >= GENRE_SELECTION_MIN && selectionCount <= GENRE_SELECTION_MAX;
+
+  const helperText = useMemo(() => {
+    if (selectionCount < GENRE_SELECTION_MIN) {
+      return `Choose at least ${GENRE_SELECTION_MIN} genres to continue`;
+    }
+
+    return `${selectionCount} genres selected`;
+  }, [selectionCount]);
+
+  const handleToggleGenre = (genreId) => {
+    const isSelected = selectedGenres.includes(genreId);
+
+    if (!isSelected && selectionCount >= GENRE_SELECTION_MAX) {
+      setError(`You can choose up to ${GENRE_SELECTION_MAX} genres`);
+      return;
+    }
+
+    setError('');
+    toggleGenre(genreId);
+  };
 
   const handleContinue = () => {
+    if (selectionCount < GENRE_SELECTION_MIN) {
+      setError(`Please choose at least ${GENRE_SELECTION_MIN} genres`);
+      return;
+    }
+
     setHasCompletedOnboarding(true);
     navigate('/feed');
   };
@@ -44,7 +75,7 @@ export default function GenreSelectPage() {
               <button
                 key={genre.id}
                 className={`genre-chip ${isSelected ? 'selected' : ''}`}
-                onClick={() => toggleGenre(genre.id)}
+                onClick={() => handleToggleGenre(genre.id)}
                 style={{
                   '--chip-color': genre.color,
                   '--chip-delay': `${index * 50}ms`,
@@ -67,27 +98,16 @@ export default function GenreSelectPage() {
         </div>
 
         <div className="genre-footer">
-          <p className="genre-count">
-            {selectedGenres.length === 0
-              ? 'Select at least one genre to continue'
-              : `${selectedGenres.length} genre${selectedGenres.length > 1 ? 's' : ''} selected`}
-          </p>
+          <p className="genre-count">{helperText}</p>
+          {error && <p className="genre-error" role="alert">{error}</p>}
           <button
-            className={`genre-continue ${selectedGenres.length > 0 ? 'active' : ''}`}
+            className={`genre-continue ${canContinue ? 'active' : ''}`}
             onClick={handleContinue}
-            disabled={selectedGenres.length === 0}
+            disabled={!canContinue}
           >
             <span>Explore clips</span>
             <ArrowRight size={20} />
           </button>
-          {selectedGenres.length === 0 && (
-            <button className="genre-skip" onClick={() => {
-              setHasCompletedOnboarding(true);
-              navigate('/feed');
-            }}>
-              Skip and see everything
-            </button>
-          )}
         </div>
       </div>
     </div>

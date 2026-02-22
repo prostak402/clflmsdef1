@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { MOCK_CLIPS, MOCK_COMMENTS } from '../data/mock';
+import { GENRE_SELECTION_MAX } from '../constants/onboarding';
 
 import { AppContext } from './app-context';
 
@@ -24,11 +25,17 @@ export function AppProvider({ children }) {
   }, []);
 
   const toggleGenre = useCallback((genreId) => {
-    setSelectedGenres((prev) =>
-      prev.includes(genreId)
-        ? prev.filter((g) => g !== genreId)
-        : [...prev, genreId]
-    );
+    setSelectedGenres((prev) => {
+      if (prev.includes(genreId)) {
+        return prev.filter((g) => g !== genreId);
+      }
+
+      if (prev.length >= GENRE_SELECTION_MAX) {
+        return prev;
+      }
+
+      return [...prev, genreId];
+    });
   }, []);
 
   const toggleBookmark = useCallback((clipId) => {
