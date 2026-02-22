@@ -1,4 +1,5 @@
 import { mockFeedAdapter, initialComments } from './mock-feed-adapter';
+import { normalizeWritePayload } from './payload-normalizer';
 
 const feedAdapter = mockFeedAdapter;
 
@@ -26,9 +27,15 @@ async function performOptimisticUpdate({
 
 export const feedService = {
   getFeed: feedAdapter.getFeed,
-  toggleLike: feedAdapter.toggleLike,
-  toggleBookmark: feedAdapter.toggleBookmark,
-  createComment: feedAdapter.createComment,
+  toggleLike(params) {
+    return feedAdapter.toggleLike(normalizeWritePayload('toggleLike', params));
+  },
+  toggleBookmark(params) {
+    return feedAdapter.toggleBookmark(normalizeWritePayload('toggleBookmark', params));
+  },
+  createComment(params) {
+    return feedAdapter.createComment(normalizeWritePayload('createComment', params));
+  },
   getBookmarks: feedAdapter.getBookmarks,
   getProfile: feedAdapter.getProfile,
   getInitialComments: () => initialComments,
@@ -37,7 +44,7 @@ export const feedService = {
     return performOptimisticUpdate({
       applyLocal,
       rollbackLocal,
-      persist: () => feedAdapter.persistLikeToggle({ clipId }),
+      persist: () => feedAdapter.persistLikeToggle(normalizeWritePayload('persistLikeToggle', { clipId })),
     });
   },
 
@@ -45,7 +52,8 @@ export const feedService = {
     return performOptimisticUpdate({
       applyLocal,
       rollbackLocal,
-      persist: () => feedAdapter.persistBookmarkToggle({ clipId }),
+      persist: () =>
+        feedAdapter.persistBookmarkToggle(normalizeWritePayload('persistBookmarkToggle', { clipId })),
     });
   },
 
