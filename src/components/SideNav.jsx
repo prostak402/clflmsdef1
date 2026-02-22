@@ -33,17 +33,14 @@ export default function SideNav() {
       <div className="sidenav-items">
         {items.map((item) => {
           const isActive = location.pathname === item.path;
-          const NavIcon = item.icon;
           return (
             <button
               key={item.path}
-              type="button"
               className={`sidenav-item ${isActive ? 'active' : ''}`}
-              aria-current={isActive ? 'page' : undefined}
               onClick={() => navigate(item.path)}
             >
               <div className="sidenav-item-icon">
-                {renderNavIcon(NavIcon, 20)}
+                {item.icon({ size: 20 })}
               </div>
               <span className="sidenav-item-label">{item.label}</span>
               {isActive && <div className="sidenav-active-bar" />}

@@ -26,6 +26,7 @@ export default function BottomNav() {
       {items.map((item) => {
         const isActive = location.pathname === item.path;
         const NavIcon = item.icon;
+
         return (
           <button
             key={item.path}
