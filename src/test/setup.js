@@ -1,3 +1,4 @@
+import { beforeEach } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 
 Object.defineProperty(window.HTMLMediaElement.prototype, 'play', {
@@ -21,3 +22,8 @@ if (!window.HTMLElement.prototype.scrollIntoView) {
     value: () => {},
   });
 }
+
+
+beforeEach(() => {
+  window.localStorage.clear();
+});
