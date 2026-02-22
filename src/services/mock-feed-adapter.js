@@ -1,5 +1,9 @@
 import { MOCK_CLIPS, MOCK_COMMENTS } from '../data/mock';
 
+function simulateNetwork() {
+  return Promise.resolve();
+}
+
 /** @type {import('./feed-adapter').FeedAdapter} */
 export const mockFeedAdapter = {
   getFeed({ selectedGenres = [] } = {}) {
@@ -23,6 +27,14 @@ export const mockFeedAdapter = {
     return bookmarks.includes(clipId)
       ? bookmarks.filter((id) => id !== clipId)
       : [...bookmarks, clipId];
+  },
+
+  async persistLikeToggle() {
+    await simulateNetwork();
+  },
+
+  async persistBookmarkToggle() {
+    await simulateNetwork();
   },
 
   createComment({ clipId, text, comments, userName }) {
