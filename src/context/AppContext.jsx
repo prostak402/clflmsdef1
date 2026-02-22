@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { GENRE_SELECTION_MAX } from '../constants/onboarding';
 import { feedService } from '../services/feed-service';
+import { validateCommentText } from '../services/comment-validation';
 
 import { AppContext } from './app-context';
 
@@ -179,12 +180,25 @@ export function AppProvider({ children }) {
   }, [likes]);
 
   const addComment = useCallback((clipId, text) => {
+    const validation = validateCommentText(text);
+    if (!validation.valid) {
+      return {
+        ok: false,
+        error: validation.error,
+      };
+    }
+
     setComments((prev) => feedService.createComment({
       clipId,
-      text,
+      text: validation.normalizedText,
       comments: prev,
       userName: user?.name,
     }));
+
+    return {
+      ok: true,
+      error: '',
+    };
   }, [user]);
 
   const updateDraftPreferences = useCallback((patch) => {

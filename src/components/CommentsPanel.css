@@ -199,3 +199,28 @@
   box-shadow: var(--shadow-glow-purple);
   transform: scale(1.05);
 }
+
+.comments-input-field {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.comments-input input[aria-invalid='true'] {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.comments-input-error {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: #fca5a5;
+}
+
+.comments-input-hint {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  text-align: right;
+}
