@@ -13,8 +13,20 @@ export default function CommentsPanel({ clipId, onClose }) {
   const [submitError, setSubmitError] = useState('');
   const panelRef = useRef(null);
   const inputRef = useRef(null);
+  const isMountedRef = useRef(false);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const loadComments = useCallback(async () => {
+    if (!isMountedRef.current) {
+      return;
+    }
+
     setLoadState({ status: 'loading', error: '' });
 
     try {
@@ -23,8 +35,14 @@ export default function CommentsPanel({ clipId, onClose }) {
       }
 
       await feedService.wait(180);
+      if (!isMountedRef.current) {
+        return;
+      }
       setLoadState({ status: 'ready', error: '' });
     } catch {
+      if (!isMountedRef.current) {
+        return;
+      }
       setLoadState({ status: 'error', error: 'Failed to load comments for this clip.' });
     }
   }, [clipId]);

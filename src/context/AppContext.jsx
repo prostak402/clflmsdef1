@@ -15,6 +15,8 @@ const DEFAULT_DRAFT_PREFERENCES = {
   preferredLanguage: 'en',
 };
 
+const AUTH_REQUIRED_ERROR = 'auth_required';
+
 const DEFAULT_STATE = {
   user: null,
   hasCompletedOnboarding: false,
@@ -157,6 +159,10 @@ export function AppProvider({ children }) {
   }, []);
 
   const toggleBookmark = useCallback(async (clipId) => {
+    if (!user) {
+      return false;
+    }
+
     if (!isValidClipId(clipId)) {
       return false;
     }
@@ -177,9 +183,13 @@ export function AppProvider({ children }) {
       setBookmarks(prevBookmarks);
       return false;
     }
-  }, [bookmarks]);
+  }, [bookmarks, user]);
 
   const toggleLike = useCallback(async (clipId) => {
+    if (!user) {
+      return false;
+    }
+
     if (!isValidClipId(clipId)) {
       return false;
     }
@@ -200,9 +210,16 @@ export function AppProvider({ children }) {
       setLikes(prevLikes);
       return false;
     }
-  }, [likes]);
+  }, [likes, user]);
 
   const addComment = useCallback((clipId, text) => {
+    if (!user) {
+      return {
+        ok: false,
+        error: AUTH_REQUIRED_ERROR,
+      };
+    }
+
     const validation = validateCommentText(text);
     if (!validation.valid) {
       return {
