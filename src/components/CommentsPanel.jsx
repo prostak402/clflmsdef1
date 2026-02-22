@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Send, Heart } from 'lucide-react';
 import { useApp } from '../context/useApp';
+import { COMMENT_MAX_LENGTH, validateCommentText } from '../services/comment-validation';
 import { feedService } from '../services/feed-service';
 import DataState from './DataState';
 import './CommentsPanel.css';
@@ -9,6 +10,7 @@ export default function CommentsPanel({ clipId, onClose }) {
   const { comments, addComment } = useApp();
   const [text, setText] = useState('');
   const [loadState, setLoadState] = useState({ status: 'loading', error: '' });
+  const [submitError, setSubmitError] = useState('');
   const panelRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -47,8 +49,22 @@ export default function CommentsPanel({ clipId, onClose }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!text.trim()) return;
-    addComment(clipId, text.trim());
+
+    const validation = validateCommentText(text);
+    if (!validation.valid) {
+      setSubmitError(validation.error);
+      inputRef.current?.focus();
+      return;
+    }
+
+    const result = addComment(clipId, validation.normalizedText);
+    if (!result?.ok) {
+      setSubmitError(result?.error || 'Could not submit comment. Please try again.');
+      inputRef.current?.focus();
+      return;
+    }
+
+    setSubmitError('');
     setText('');
     inputRef.current?.focus();
   };
@@ -107,14 +123,24 @@ export default function CommentsPanel({ clipId, onClose }) {
         </div>
 
         <form className="comments-input" onSubmit={handleSubmit}>
-          <input
-            ref={inputRef}
-            type="text"
-            placeholder="Add a comment..."
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-          />
-          <button type="submit" className={`comments-send ${text.trim() ? 'active' : ''}`}>
+          <div className="comments-input-field">
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder="Add a comment..."
+              value={text}
+              onChange={(e) => {
+                setText(e.target.value);
+                if (submitError) {
+                  setSubmitError('');
+                }
+              }}
+              aria-invalid={Boolean(submitError)}
+            />
+            {submitError && <p className="comments-input-error">{submitError}</p>}
+            <p className="comments-input-hint">{text.trim().length}/{COMMENT_MAX_LENGTH}</p>
+          </div>
+          <button type="submit" className={`comments-send ${validateCommentText(text).valid ? 'active' : ''}`}>
             <Send size={18} />
           </button>
         </form>
