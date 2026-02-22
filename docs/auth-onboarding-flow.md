@@ -14,14 +14,13 @@
 
 ### Переходы
 - `AuthPage` -> `GenreSelectPage` после успешного входа.
-- `GenreSelectPage` -> `FeedPage` по кнопке `Explore clips`.
-- `GenreSelectPage` -> `FeedPage` по кнопке `Skip and see everything`.
+- `GenreSelectPage` -> `FeedPage` по кнопке `Explore clips`, если выбрано от 3 до 5 жанров.
 - При выходе (`logout`) состояние сессии и онбординга сбрасывается.
 
 ## Happy path (MVP)
 1. Пользователь открывает `/` и проходит авторизацию.
 2. После авторизации попадает на `/genres`.
-3. Выбирает жанры (или пропускает шаг).
+3. Выбирает 3–5 жанров.
 4. Переходит на `/feed` и работает с лентой.
 
 ## Edge-case: повторный вход при активной сессии

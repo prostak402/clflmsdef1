@@ -179,8 +179,14 @@
 .genre-count {
   font-size: var(--text-sm);
   color: var(--text-secondary);
-  margin-bottom: var(--space-md);
+  margin-bottom: var(--space-xs);
   transition: var(--transition-base);
+}
+
+.genre-error {
+  font-size: var(--text-sm);
+  color: #fb7185;
+  margin-bottom: var(--space-md);
 }
 
 .genre-continue {
@@ -206,18 +212,6 @@
 .genre-continue.active:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-glow-purple), var(--shadow-md);
-}
-
-.genre-skip {
-  display: block;
-  margin: var(--space-md) auto 0;
-  font-size: var(--text-sm);
-  color: var(--text-tertiary);
-  transition: var(--transition-base);
-}
-
-.genre-skip:hover {
-  color: var(--text-accent);
 }
 
 @media (max-width: 480px) {
