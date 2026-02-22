@@ -3,6 +3,8 @@ import { useApp } from '../context/useApp';
 import { Home, Search, Bookmark, User, Shield, Film } from 'lucide-react';
 import './SideNav.css';
 
+const renderNavIcon = (Icon, size) => <Icon size={size} />;
+
 const NAV_ITEMS = [
   { path: '/feed', icon: Home, label: 'Feed' },
   { path: '/catalog', icon: Search, label: 'Catalog' },
