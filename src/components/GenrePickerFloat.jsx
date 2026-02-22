@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context/useApp';
-import { GENRES } from '../data/mock';
+import { contentService } from '../services/content-service';
 import { SlidersHorizontal, X, Check } from 'lucide-react';
 import './GenrePickerFloat.css';
 
@@ -27,7 +27,7 @@ export default function GenrePickerFloat() {
     };
   }, [open]);
 
-  const activeGenreNames = GENRES
+  const activeGenreNames = contentService.getGenres()
     .filter((g) => selectedGenres.includes(g.id))
     .map((g) => g.name);
 
@@ -56,7 +56,7 @@ export default function GenrePickerFloat() {
             </button>
           </div>
           <div className="gpf-list">
-            {GENRES.map((genre) => {
+            {contentService.getGenres().map((genre) => {
               const isActive = selectedGenres.includes(genre.id);
               return (
                 <button

@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { MOCK_CATALOG, GENRES } from '../data/mock';
+import { contentService } from '../services/content-service';
 import { Search, Star, ExternalLink, Filter, X } from 'lucide-react';
 import './CatalogPage.css';
 
@@ -9,7 +9,7 @@ export default function CatalogPage() {
   const [showFilter, setShowFilter] = useState(false);
 
   const filtered = useMemo(() => {
-    return MOCK_CATALOG.filter((movie) => {
+    return contentService.getCatalog().filter((movie) => {
       const matchesSearch = movie.title.toLowerCase().includes(search.toLowerCase());
       const matchesGenre = activeGenre === 'all' || movie.genres.includes(activeGenre);
       return matchesSearch && matchesGenre;
@@ -53,7 +53,7 @@ export default function CatalogPage() {
           >
             All
           </button>
-          {GENRES.map((genre) => (
+          {contentService.getGenres().map((genre) => (
             <button
               key={genre.id}
               className={`catalog-genre-btn ${activeGenre === genre.id ? 'active' : ''}`}

@@ -5,7 +5,7 @@ import {
   Upload, Film, Plus, Trash2, X, Save,
   AlertTriangle, Check, Link as LinkIcon
 } from 'lucide-react';
-import { GENRES } from '../data/mock';
+import { contentService } from '../services/content-service';
 import './AdminPage.css';
 
 export default function AdminPage() {
@@ -192,7 +192,7 @@ export default function AdminPage() {
             <div className="admin-field full">
               <label>Genres</label>
               <div className="admin-genres">
-                {GENRES.map((genre) => (
+                {contentService.getGenres().map((genre) => (
                   <button
                     key={genre.id}
                     type="button"

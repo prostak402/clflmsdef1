@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
-import { MOCK_CLIPS, MOCK_COMMENTS } from '../data/mock';
 import { GENRE_SELECTION_MAX } from '../constants/onboarding';
+import { feedService } from '../services/feed-service';
 
 import { AppContext } from './app-context';
 
@@ -10,7 +10,7 @@ export function AppProvider({ children }) {
   const [selectedGenres, setSelectedGenres] = useState([]);
   const [bookmarks, setBookmarks] = useState([]);
   const [likes, setLikes] = useState({});
-  const [comments, setComments] = useState(MOCK_COMMENTS);
+  const [comments, setComments] = useState(feedService.getInitialComments());
 
   const login = useCallback((userData) => {
     setUser(userData);
@@ -39,45 +39,33 @@ export function AppProvider({ children }) {
   }, []);
 
   const toggleBookmark = useCallback((clipId) => {
-    setBookmarks((prev) =>
-      prev.includes(clipId)
-        ? prev.filter((id) => id !== clipId)
-        : [...prev, clipId]
-    );
+    setBookmarks((prev) => feedService.toggleBookmark({ clipId, bookmarks: prev }));
   }, []);
 
   const toggleLike = useCallback((clipId) => {
-    setLikes((prev) => ({
-      ...prev,
-      [clipId]: !prev[clipId],
-    }));
+    setLikes((prev) => feedService.toggleLike({ clipId, likes: prev }));
   }, []);
 
   const addComment = useCallback((clipId, text) => {
-    const newComment = {
-      id: `cm_${Date.now()}`,
-      user: user?.name || 'Anonymous',
-      avatar: '👤',
+    setComments((prev) => feedService.createComment({
+      clipId,
       text,
-      time: 'Just now',
-      likes: 0,
-    };
-    setComments((prev) => ({
-      ...prev,
-      [clipId]: [newComment, ...(prev[clipId] || [])],
+      comments: prev,
+      userName: user?.name,
     }));
   }, [user]);
 
   const getFilteredClips = useCallback(() => {
-    if (selectedGenres.length === 0) return MOCK_CLIPS;
-    return MOCK_CLIPS.filter((clip) =>
-      clip.genres.some((g) => selectedGenres.includes(g))
-    );
+    return feedService.getFeed({ selectedGenres });
   }, [selectedGenres]);
 
   const getBookmarkedClips = useCallback(() => {
-    return MOCK_CLIPS.filter((clip) => bookmarks.includes(clip.id));
+    return feedService.getBookmarks({ bookmarks });
   }, [bookmarks]);
+
+  const getProfile = useCallback(() => {
+    return feedService.getProfile({ user, bookmarks, likes });
+  }, [bookmarks, likes, user]);
 
   const value = {
     user,
@@ -95,6 +83,7 @@ export function AppProvider({ children }) {
     addComment,
     getFilteredClips,
     getBookmarkedClips,
+    getProfile,
     setSelectedGenres,
   };
 
