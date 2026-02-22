@@ -7,7 +7,7 @@ import {
 import './ProfilePage.css';
 
 export default function ProfilePage() {
-  const { user, logout, bookmarks, likes } = useApp();
+  const { user, logout, getProfile } = useApp();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -15,19 +15,19 @@ export default function ProfilePage() {
     navigate('/');
   };
 
-  const likeCount = Object.values(likes).filter(Boolean).length;
+  const profile = getProfile();
 
   const menuItems = [
     {
       icon: Bookmark,
       label: 'Saved Movies',
-      value: `${bookmarks.length}`,
+      value: `${profile.bookmarkCount}`,
       onClick: () => navigate('/bookmarks'),
     },
     {
       icon: Heart,
       label: 'Liked Clips',
-      value: `${likeCount}`,
+      value: `${profile.likeCount}`,
     },
     {
       icon: Palette,
@@ -70,12 +70,12 @@ export default function ProfilePage() {
 
         <div className="profile-stats">
           <div className="profile-stat">
-            <span className="profile-stat-value">{bookmarks.length}</span>
+            <span className="profile-stat-value">{profile.bookmarkCount}</span>
             <span className="profile-stat-label">Saved</span>
           </div>
           <div className="profile-stat-divider" />
           <div className="profile-stat">
-            <span className="profile-stat-value">{likeCount}</span>
+            <span className="profile-stat-value">{profile.likeCount}</span>
             <span className="profile-stat-label">Liked</span>
           </div>
           <div className="profile-stat-divider" />

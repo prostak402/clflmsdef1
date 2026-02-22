@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useMemo, useState } from 'react';
 import { useApp } from '../context/useApp';
-import { GENRES } from '../data/mock';
+import { contentService } from '../services/content-service';
 import { GENRE_SELECTION_MIN, GENRE_SELECTION_MAX } from '../constants/onboarding';
 import {
   Sword, Laugh, Drama, Ghost, Rocket, Heart,
@@ -68,7 +68,7 @@ export default function GenreSelectPage() {
         </div>
 
         <div className="genre-grid">
-          {GENRES.map((genre, index) => {
+          {contentService.getGenres().map((genre, index) => {
             const Icon = ICON_MAP[genre.icon] || Film;
             const isSelected = selectedGenres.includes(genre.id);
             return (
