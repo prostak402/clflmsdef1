@@ -100,6 +100,11 @@ function readPersistedState() {
   }
 }
 
+
+function isValidClipId(value) {
+  return typeof value === 'string' && value.trim().length > 0 && value.trim().length <= 64;
+}
+
 export function AppProvider({ children }) {
   const [persistedState] = useState(() => readPersistedState());
 
@@ -152,31 +157,49 @@ export function AppProvider({ children }) {
   }, []);
 
   const toggleBookmark = useCallback(async (clipId) => {
+    if (!isValidClipId(clipId)) {
+      return false;
+    }
+
     const prevBookmarks = bookmarks;
 
-    await feedService.optimisticToggleBookmark({
-      clipId,
-      applyLocal: () => {
-        setBookmarks((current) => feedService.toggleBookmark({ clipId, bookmarks: current }));
-      },
-      rollbackLocal: () => {
-        setBookmarks(prevBookmarks);
-      },
-    });
+    try {
+      return await feedService.optimisticToggleBookmark({
+        clipId,
+        applyLocal: () => {
+          setBookmarks((current) => feedService.toggleBookmark({ clipId, bookmarks: current }));
+        },
+        rollbackLocal: () => {
+          setBookmarks(prevBookmarks);
+        },
+      });
+    } catch {
+      setBookmarks(prevBookmarks);
+      return false;
+    }
   }, [bookmarks]);
 
   const toggleLike = useCallback(async (clipId) => {
+    if (!isValidClipId(clipId)) {
+      return false;
+    }
+
     const prevLikes = likes;
 
-    await feedService.optimisticToggleLike({
-      clipId,
-      applyLocal: () => {
-        setLikes((current) => feedService.toggleLike({ clipId, likes: current }));
-      },
-      rollbackLocal: () => {
-        setLikes(prevLikes);
-      },
-    });
+    try {
+      return await feedService.optimisticToggleLike({
+        clipId,
+        applyLocal: () => {
+          setLikes((current) => feedService.toggleLike({ clipId, likes: current }));
+        },
+        rollbackLocal: () => {
+          setLikes(prevLikes);
+        },
+      });
+    } catch {
+      setLikes(prevLikes);
+      return false;
+    }
   }, [likes]);
 
   const addComment = useCallback((clipId, text) => {
