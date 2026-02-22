@@ -1,18 +1,43 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useApp } from '../context/useApp';
+import { feedService } from '../services/feed-service';
 import ClipCard from '../components/ClipCard';
 import CommentsPanel from '../components/CommentsPanel';
 import GenrePickerFloat from '../components/GenrePickerFloat';
+import DataState from '../components/DataState';
 import './FeedPage.css';
 
 export default function FeedPage() {
   const { getFilteredClips } = useApp();
-  const clips = getFilteredClips();
+  const [clips, setClips] = useState([]);
+  const [loadState, setLoadState] = useState({ status: 'loading', error: '' });
   const [currentIndex, setCurrentIndex] = useState(0);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [activeClipId, setActiveClipId] = useState(null);
   const containerRef = useRef(null);
   const isScrolling = useRef(false);
+
+  const loadFeed = useCallback(async () => {
+    setLoadState({ status: 'loading', error: '' });
+
+    try {
+      await feedService.wait(350);
+      const nextClips = getFilteredClips();
+      setClips(nextClips);
+      setLoadState({ status: 'ready', error: '' });
+      setCurrentIndex(0);
+    } catch {
+      setLoadState({ status: 'error', error: 'Failed to load feed. Please try again.' });
+    }
+  }, [getFilteredClips]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      loadFeed();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [loadFeed]);
 
   const scrollToIndex = useCallback((index) => {
     if (containerRef.current && !isScrolling.current) {
@@ -21,14 +46,16 @@ export default function FeedPage() {
       if (target) {
         target.scrollIntoView({ behavior: 'smooth', block: 'start' });
         setCurrentIndex(index);
-        setTimeout(() => { isScrolling.current = false; }, 600);
+        setTimeout(() => {
+          isScrolling.current = false;
+        }, 600);
       }
     }
   }, []);
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container || clips.length === 0 || loadState.status !== 'ready') return;
 
     let touchStartY = 0;
     let touchStartTime = 0;
@@ -85,43 +112,60 @@ export default function FeedPage() {
       container.removeEventListener('touchend', handleTouchEnd);
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [currentIndex, clips.length, scrollToIndex]);
+  }, [clips.length, currentIndex, loadState.status, scrollToIndex]);
 
   const openComments = (clipId) => {
     setActiveClipId(clipId);
     setCommentsOpen(true);
   };
 
-  if (clips.length === 0) {
-    return (
-      <div className="feed-empty">
-        <p>No clips match your selected genres.</p>
-        <p>Try selecting different genres.</p>
-      </div>
-    );
-  }
-
   return (
     <div className="feed-page">
       <GenrePickerFloat />
-      <div className="feed-container" ref={containerRef}>
-        {clips.map((clip, index) => (
-          <ClipCard
-            key={clip.id}
-            clip={clip}
-            isActive={index === currentIndex}
-            onOpenComments={() => openComments(clip.id)}
-          />
-        ))}
-      </div>
 
-      {commentsOpen && (
-        <CommentsPanel
-          clipId={activeClipId}
-          onClose={() => setCommentsOpen(false)}
+      {loadState.status === 'loading' && (
+        <DataState
+          variant="loading"
+          title="Loading clips"
+          description="Preparing your personalized feed..."
         />
       )}
 
+      {loadState.status === 'error' && (
+        <DataState
+          variant="error"
+          title="Could not load clips"
+          description={loadState.error}
+          actionLabel="Retry"
+          onAction={loadFeed}
+        />
+      )}
+
+      {loadState.status === 'ready' && clips.length === 0 && (
+        <DataState
+          title="No clips found"
+          description="No clips match your selected genres. Try changing preferences."
+        />
+      )}
+
+      {loadState.status === 'ready' && clips.length > 0 && (
+        <>
+          <div className="feed-container" ref={containerRef}>
+            {clips.map((clip, index) => (
+              <ClipCard
+                key={clip.id}
+                clip={clip}
+                isActive={index === currentIndex}
+                onOpenComments={() => openComments(clip.id)}
+              />
+            ))}
+          </div>
+
+          {commentsOpen && (
+            <CommentsPanel clipId={activeClipId} onClose={() => setCommentsOpen(false)} />
+          )}
+        </>
+      )}
     </div>
   );
 }

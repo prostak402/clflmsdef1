@@ -1,13 +1,40 @@
-import { useState, useRef, useEffect } from 'react';
-import { useApp } from '../context/useApp';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Send, Heart } from 'lucide-react';
+import { useApp } from '../context/useApp';
+import { feedService } from '../services/feed-service';
+import DataState from './DataState';
 import './CommentsPanel.css';
 
 export default function CommentsPanel({ clipId, onClose }) {
   const { comments, addComment } = useApp();
   const [text, setText] = useState('');
+  const [loadState, setLoadState] = useState({ status: 'loading', error: '' });
   const panelRef = useRef(null);
   const inputRef = useRef(null);
+
+  const loadComments = useCallback(async () => {
+    setLoadState({ status: 'loading', error: '' });
+
+    try {
+      if (!clipId) {
+        throw new Error('Missing clip id');
+      }
+
+      await feedService.wait(180);
+      setLoadState({ status: 'ready', error: '' });
+    } catch {
+      setLoadState({ status: 'error', error: 'Failed to load comments for this clip.' });
+    }
+  }, [clipId]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      loadComments();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [loadComments]);
+
   const clipComments = comments[clipId] || [];
 
   useEffect(() => {
@@ -40,29 +67,43 @@ export default function CommentsPanel({ clipId, onClose }) {
         </div>
 
         <div className="comments-list">
-          {clipComments.length === 0 ? (
+          {loadState.status === 'loading' && (
+            <DataState variant="loading" title="Loading comments" description="Fetching latest discussion..." />
+          )}
+
+          {loadState.status === 'error' && (
+            <DataState
+              variant="error"
+              title="Could not load comments"
+              description={loadState.error}
+              actionLabel="Retry"
+              onAction={loadComments}
+            />
+          )}
+
+          {loadState.status === 'ready' && clipComments.length === 0 && (
             <div className="comments-empty">
               <p>No comments yet</p>
               <p className="comments-empty-sub">Be the first to share your thoughts!</p>
             </div>
-          ) : (
-            clipComments.map((comment) => (
-              <div key={comment.id} className="comment-item">
-                <div className="comment-avatar">{comment.avatar}</div>
-                <div className="comment-body">
-                  <div className="comment-header">
-                    <span className="comment-user">{comment.user}</span>
-                    <span className="comment-time">{comment.time}</span>
-                  </div>
-                  <p className="comment-text">{comment.text}</p>
-                  <button className="comment-like">
-                    <Heart size={14} />
-                    <span>{comment.likes}</span>
-                  </button>
-                </div>
-              </div>
-            ))
           )}
+
+          {loadState.status === 'ready' && clipComments.length > 0 && clipComments.map((comment) => (
+            <div key={comment.id} className="comment-item">
+              <div className="comment-avatar">{comment.avatar}</div>
+              <div className="comment-body">
+                <div className="comment-header">
+                  <span className="comment-user">{comment.user}</span>
+                  <span className="comment-time">{comment.time}</span>
+                </div>
+                <p className="comment-text">{comment.text}</p>
+                <button className="comment-like">
+                  <Heart size={14} />
+                  <span>{comment.likes}</span>
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
 
         <form className="comments-input" onSubmit={handleSubmit}>
