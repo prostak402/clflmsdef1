@@ -38,13 +38,33 @@ export function AppProvider({ children }) {
     });
   }, []);
 
-  const toggleBookmark = useCallback((clipId) => {
-    setBookmarks((prev) => feedService.toggleBookmark({ clipId, bookmarks: prev }));
-  }, []);
+  const toggleBookmark = useCallback(async (clipId) => {
+    const prevBookmarks = bookmarks;
 
-  const toggleLike = useCallback((clipId) => {
-    setLikes((prev) => feedService.toggleLike({ clipId, likes: prev }));
-  }, []);
+    await feedService.optimisticToggleBookmark({
+      clipId,
+      applyLocal: () => {
+        setBookmarks((current) => feedService.toggleBookmark({ clipId, bookmarks: current }));
+      },
+      rollbackLocal: () => {
+        setBookmarks(prevBookmarks);
+      },
+    });
+  }, [bookmarks]);
+
+  const toggleLike = useCallback(async (clipId) => {
+    const prevLikes = likes;
+
+    await feedService.optimisticToggleLike({
+      clipId,
+      applyLocal: () => {
+        setLikes((current) => feedService.toggleLike({ clipId, likes: current }));
+      },
+      rollbackLocal: () => {
+        setLikes(prevLikes);
+      },
+    });
+  }, [likes]);
 
   const addComment = useCallback((clipId, text) => {
     setComments((prev) => feedService.createComment({
