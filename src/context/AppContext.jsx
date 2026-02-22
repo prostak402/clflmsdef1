@@ -1,16 +1,82 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { GENRE_SELECTION_MAX } from '../constants/onboarding';
 import { feedService } from '../services/feed-service';
 
 import { AppContext } from './app-context';
 
+const STORAGE_KEY = 'clipflow.app-state';
+
+const DEFAULT_DRAFT_PREFERENCES = {
+  notificationsEnabled: true,
+  autoplayEnabled: true,
+  preferredLanguage: 'en',
+};
+
+const DEFAULT_STATE = {
+  user: null,
+  hasCompletedOnboarding: false,
+  selectedGenres: [],
+  bookmarks: [],
+  likes: {},
+  draftPreferences: DEFAULT_DRAFT_PREFERENCES,
+};
+
+function sanitizeState(value) {
+  if (!value || typeof value !== 'object') {
+    return DEFAULT_STATE;
+  }
+
+  return {
+    user: value.user && typeof value.user === 'object' ? value.user : null,
+    hasCompletedOnboarding: Boolean(value.hasCompletedOnboarding),
+    selectedGenres: Array.isArray(value.selectedGenres) ? value.selectedGenres : [],
+    bookmarks: Array.isArray(value.bookmarks) ? value.bookmarks : [],
+    likes: value.likes && typeof value.likes === 'object' ? value.likes : {},
+    draftPreferences:
+      value.draftPreferences && typeof value.draftPreferences === 'object'
+        ? { ...DEFAULT_DRAFT_PREFERENCES, ...value.draftPreferences }
+        : DEFAULT_DRAFT_PREFERENCES,
+  };
+}
+
+function readPersistedState() {
+  if (typeof window === 'undefined') return DEFAULT_STATE;
+
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return DEFAULT_STATE;
+    return sanitizeState(JSON.parse(raw));
+  } catch {
+    return DEFAULT_STATE;
+  }
+}
+
 export function AppProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
-  const [selectedGenres, setSelectedGenres] = useState([]);
-  const [bookmarks, setBookmarks] = useState([]);
-  const [likes, setLikes] = useState({});
+  const [persistedState] = useState(() => readPersistedState());
+
+  const [user, setUser] = useState(persistedState.user);
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(persistedState.hasCompletedOnboarding);
+  const [selectedGenres, setSelectedGenres] = useState(persistedState.selectedGenres);
+  const [bookmarks, setBookmarks] = useState(persistedState.bookmarks);
+  const [likes, setLikes] = useState(persistedState.likes);
+  const [draftPreferences, setDraftPreferences] = useState(persistedState.draftPreferences);
   const [comments, setComments] = useState(feedService.getInitialComments());
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    window.localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        user,
+        hasCompletedOnboarding,
+        selectedGenres,
+        bookmarks,
+        likes,
+        draftPreferences,
+      })
+    );
+  }, [user, hasCompletedOnboarding, selectedGenres, bookmarks, likes, draftPreferences]);
 
   const login = useCallback((userData) => {
     setUser(userData);
@@ -22,6 +88,7 @@ export function AppProvider({ children }) {
     setSelectedGenres([]);
     setBookmarks([]);
     setLikes({});
+    setDraftPreferences(DEFAULT_DRAFT_PREFERENCES);
   }, []);
 
   const toggleGenre = useCallback((genreId) => {
@@ -75,6 +142,10 @@ export function AppProvider({ children }) {
     }));
   }, [user]);
 
+  const updateDraftPreferences = useCallback((patch) => {
+    setDraftPreferences((prev) => ({ ...prev, ...patch }));
+  }, []);
+
   const getFilteredClips = useCallback(() => {
     return feedService.getFeed({ selectedGenres });
   }, [selectedGenres]);
@@ -94,6 +165,7 @@ export function AppProvider({ children }) {
     bookmarks,
     likes,
     comments,
+    draftPreferences,
     login,
     logout,
     setHasCompletedOnboarding,
@@ -105,6 +177,8 @@ export function AppProvider({ children }) {
     getBookmarkedClips,
     getProfile,
     setSelectedGenres,
+    setDraftPreferences,
+    updateDraftPreferences,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

@@ -1,0 +1,83 @@
+import { beforeEach, describe, expect, it } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import App from '../App';
+
+const STORAGE_KEY = 'clipflow.app-state';
+
+async function completeAuthAndOnboarding(user) {
+  await user.click(screen.getByRole('button', { name: /demo account/i }));
+
+  const genreButtons = document.querySelectorAll('.genre-chip');
+  await user.click(genreButtons[0]);
+  await user.click(genreButtons[1]);
+  await user.click(genreButtons[2]);
+
+  await user.click(document.querySelector('.genre-continue'));
+  expect((await screen.findAllByText(/Watch Full Movie/i)).length).toBeGreaterThan(0);
+}
+
+describe('TASK-007: localStorage state persistence', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    window.history.replaceState({}, '', '/');
+  });
+
+  it('persists and restores session, genres, likes and bookmarks after reload', async () => {
+    const user = userEvent.setup();
+    const firstRender = render(<App />);
+
+    await completeAuthAndOnboarding(user);
+
+    const actionButtons = document.querySelectorAll('.clip-actions .clip-action-btn');
+    await user.click(actionButtons[0]);
+    await user.click(actionButtons[2]);
+
+    const persisted = JSON.parse(window.localStorage.getItem(STORAGE_KEY));
+    expect(persisted.user?.email).toBe('demo@clipflow.com');
+    expect(persisted.hasCompletedOnboarding).toBe(true);
+    expect(persisted.selectedGenres.length).toBeGreaterThanOrEqual(3);
+    expect(persisted.likes['1']).toBe(true);
+    expect(persisted.bookmarks).toContain('1');
+    expect(persisted.draftPreferences).toEqual(expect.objectContaining({ preferredLanguage: 'en' }));
+
+    firstRender.unmount();
+
+    render(<App />);
+
+    expect((await screen.findAllByText(/Watch Full Movie/i)).length).toBeGreaterThan(0);
+
+    const reloadedActionButtons = document.querySelectorAll('.clip-actions .clip-action-btn');
+    expect(reloadedActionButtons[0].className).toContain('liked');
+    expect(reloadedActionButtons[2].className).toContain('bookmarked');
+  });
+
+  it('hydrates draft preferences from localStorage payload', async () => {
+    window.localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        user: { name: 'Demo User', email: 'demo@clipflow.com' },
+        hasCompletedOnboarding: true,
+        selectedGenres: ['action', 'drama', 'comedy'],
+        bookmarks: [],
+        likes: {},
+        draftPreferences: {
+          notificationsEnabled: false,
+          autoplayEnabled: false,
+          preferredLanguage: 'ru',
+        },
+      })
+    );
+
+    render(<App />);
+
+    expect((await screen.findAllByText(/Watch Full Movie/i)).length).toBeGreaterThan(0);
+
+    const persisted = JSON.parse(window.localStorage.getItem(STORAGE_KEY));
+    expect(persisted.draftPreferences).toEqual({
+      notificationsEnabled: false,
+      autoplayEnabled: false,
+      preferredLanguage: 'ru',
+    });
+  });
+});
