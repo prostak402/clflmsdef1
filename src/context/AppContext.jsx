@@ -4,7 +4,9 @@ import { feedService } from '../services/feed-service';
 
 import { AppContext } from './app-context';
 
-const STORAGE_KEY = 'clipflow.app-state';
+const STORAGE_KEY = 'app_state_v1';
+const LEGACY_STORAGE_KEY = 'clipflow.app-state';
+const STATE_VERSION = 1;
 
 const DEFAULT_DRAFT_PREFERENCES = {
   notificationsEnabled: true,
@@ -39,15 +41,61 @@ function sanitizeState(value) {
   };
 }
 
+function persistStateSnapshot(state) {
+  if (typeof window === 'undefined') return;
+
+  window.localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify({
+      version: STATE_VERSION,
+      state,
+    })
+  );
+}
+
+function parseVersionedState(raw) {
+  const parsed = JSON.parse(raw);
+
+  if (parsed?.version === STATE_VERSION) {
+    return sanitizeState(parsed.state);
+  }
+
+  if (typeof parsed === 'object' && parsed !== null && !('version' in parsed)) {
+    return sanitizeState(parsed);
+  }
+
+  return null;
+}
+
+function migrateFromLegacyState() {
+  const rawLegacy = window.localStorage.getItem(LEGACY_STORAGE_KEY);
+  if (!rawLegacy) return DEFAULT_STATE;
+
+  try {
+    const migrated = sanitizeState(JSON.parse(rawLegacy));
+    persistStateSnapshot(migrated);
+    window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+    return migrated;
+  } catch {
+    return DEFAULT_STATE;
+  }
+}
+
 function readPersistedState() {
   if (typeof window === 'undefined') return DEFAULT_STATE;
 
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_STATE;
-    return sanitizeState(JSON.parse(raw));
+    if (!raw) {
+      return migrateFromLegacyState();
+    }
+
+    const parsed = parseVersionedState(raw);
+    if (parsed) return parsed;
+
+    return migrateFromLegacyState();
   } catch {
-    return DEFAULT_STATE;
+    return migrateFromLegacyState();
   }
 }
 
@@ -65,17 +113,14 @@ export function AppProvider({ children }) {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    window.localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
-        user,
-        hasCompletedOnboarding,
-        selectedGenres,
-        bookmarks,
-        likes,
-        draftPreferences,
-      })
-    );
+    persistStateSnapshot({
+      user,
+      hasCompletedOnboarding,
+      selectedGenres,
+      bookmarks,
+      likes,
+      draftPreferences,
+    });
   }, [user, hasCompletedOnboarding, selectedGenres, bookmarks, likes, draftPreferences]);
 
   const login = useCallback((userData) => {

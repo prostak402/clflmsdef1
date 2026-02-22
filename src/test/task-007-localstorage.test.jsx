@@ -3,7 +3,8 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from '../App';
 
-const STORAGE_KEY = 'clipflow.app-state';
+const STORAGE_KEY = 'app_state_v1';
+const LEGACY_STORAGE_KEY = 'clipflow.app-state';
 
 async function completeAuthAndOnboarding(user) {
   await user.click(screen.getByRole('button', { name: /demo account/i }));
@@ -34,12 +35,13 @@ describe('TASK-007: localStorage state persistence', () => {
     await user.click(actionButtons[2]);
 
     const persisted = JSON.parse(window.localStorage.getItem(STORAGE_KEY));
-    expect(persisted.user?.email).toBe('demo@clipflow.com');
-    expect(persisted.hasCompletedOnboarding).toBe(true);
-    expect(persisted.selectedGenres.length).toBeGreaterThanOrEqual(3);
-    expect(persisted.likes['1']).toBe(true);
-    expect(persisted.bookmarks).toContain('1');
-    expect(persisted.draftPreferences).toEqual(expect.objectContaining({ preferredLanguage: 'en' }));
+    expect(persisted.version).toBe(1);
+    expect(persisted.state.user?.email).toBe('demo@clipflow.com');
+    expect(persisted.state.hasCompletedOnboarding).toBe(true);
+    expect(persisted.state.selectedGenres.length).toBeGreaterThanOrEqual(3);
+    expect(persisted.state.likes['1']).toBe(true);
+    expect(persisted.state.bookmarks).toContain('1');
+    expect(persisted.state.draftPreferences).toEqual(expect.objectContaining({ preferredLanguage: 'en' }));
 
     firstRender.unmount();
 
@@ -52,19 +54,47 @@ describe('TASK-007: localStorage state persistence', () => {
     expect(reloadedActionButtons[2].className).toContain('bookmarked');
   });
 
-  it('hydrates draft preferences from localStorage payload', async () => {
+
+  it('migrates legacy unversioned state and rewrites it under versioned key', async () => {
     window.localStorage.setItem(
-      STORAGE_KEY,
+      LEGACY_STORAGE_KEY,
       JSON.stringify({
         user: { name: 'Demo User', email: 'demo@clipflow.com' },
         hasCompletedOnboarding: true,
         selectedGenres: ['action', 'drama', 'comedy'],
-        bookmarks: [],
-        likes: {},
-        draftPreferences: {
-          notificationsEnabled: false,
-          autoplayEnabled: false,
-          preferredLanguage: 'ru',
+        bookmarks: ['1'],
+        likes: { '1': true },
+        draftPreferences: { preferredLanguage: 'ru' },
+      })
+    );
+
+    render(<App />);
+
+    expect((await screen.findAllByText(/Watch Full Movie/i)).length).toBeGreaterThan(0);
+
+    const persisted = JSON.parse(window.localStorage.getItem(STORAGE_KEY));
+    expect(persisted.version).toBe(1);
+    expect(persisted.state.likes['1']).toBe(true);
+    expect(persisted.state.bookmarks).toContain('1');
+    expect(window.localStorage.getItem(LEGACY_STORAGE_KEY)).toBeNull();
+  });
+
+  it('hydrates draft preferences from localStorage payload', async () => {
+    window.localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        version: 1,
+        state: {
+          user: { name: 'Demo User', email: 'demo@clipflow.com' },
+          hasCompletedOnboarding: true,
+          selectedGenres: ['action', 'drama', 'comedy'],
+          bookmarks: [],
+          likes: {},
+          draftPreferences: {
+            notificationsEnabled: false,
+            autoplayEnabled: false,
+            preferredLanguage: 'ru',
+          },
         },
       })
     );
@@ -74,7 +104,7 @@ describe('TASK-007: localStorage state persistence', () => {
     expect((await screen.findAllByText(/Watch Full Movie/i)).length).toBeGreaterThan(0);
 
     const persisted = JSON.parse(window.localStorage.getItem(STORAGE_KEY));
-    expect(persisted.draftPreferences).toEqual({
+    expect(persisted.state.draftPreferences).toEqual({
       notificationsEnabled: false,
       autoplayEnabled: false,
       preferredLanguage: 'ru',
