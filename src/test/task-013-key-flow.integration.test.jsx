@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import App from '../App';
@@ -20,6 +20,7 @@ async function loginAndOpenFeed(user) {
 
 describe('TASK-013: key business flow integration', () => {
   beforeEach(() => {
+    cleanup();
     window.history.replaceState({}, '', '/');
   });
 
@@ -47,6 +48,14 @@ describe('TASK-013: key business flow integration', () => {
     await user.click(screen.getAllByRole('button', { name: /saved/i })[0]);
     expect(await screen.findByRole('heading', { name: /^Saved Movies$/i })).toBeInTheDocument();
     expect(await screen.findByText(/1 movie saved/i)).toBeInTheDocument();
+  });
+
+  it('redirects unauthenticated user from protected route to auth page', async () => {
+    window.history.replaceState({}, '', '/feed');
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /ClipFlow/i })).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/');
   });
 
   it('covers error path: invalid empty comment is rejected without leaving feed', async () => {

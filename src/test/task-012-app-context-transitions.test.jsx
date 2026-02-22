@@ -38,8 +38,28 @@ async function renderAppContext() {
 }
 
 describe('TASK-012: AppContext state transitions', () => {
+  it('blocks content actions for unauthenticated user', async () => {
+    const { getCurrent } = await renderAppContext();
+
+    const likesSnapshot = { ...getCurrent().likes };
+    const bookmarksSnapshot = [...getCurrent().bookmarks];
+    const commentsSnapshot = { ...getCurrent().comments };
+
+    await expect(getCurrent().toggleLike('1')).resolves.toBe(false);
+    await expect(getCurrent().toggleBookmark('1')).resolves.toBe(false);
+    expect(getCurrent().addComment('1', 'Комментарий без логина')).toEqual({ ok: false, error: 'auth_required' });
+
+    expect(getCurrent().likes).toEqual(likesSnapshot);
+    expect(getCurrent().bookmarks).toEqual(bookmarksSnapshot);
+    expect(getCurrent().comments).toEqual(commentsSnapshot);
+  });
+
   it('applies like and bookmark transitions and supports repeated toggles', async () => {
     const { getCurrent } = await renderAppContext();
+
+    await act(async () => {
+      getCurrent().login({ name: 'State User', email: 'state@example.com' });
+    });
 
     await act(async () => {
       await getCurrent().toggleLike('1');
