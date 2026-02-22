@@ -1,12 +1,36 @@
+import { useState, useEffect, useCallback } from 'react';
 import { useApp } from '../context/useApp';
 import { useNavigate } from 'react-router-dom';
 import { Bookmark, ExternalLink, Trash2, Share2, Star } from 'lucide-react';
+import { feedService } from '../services/feed-service';
+import DataState from '../components/DataState';
 import './BookmarksPage.css';
 
 export default function BookmarksPage() {
   const { getBookmarkedClips, toggleBookmark } = useApp();
   const navigate = useNavigate();
-  const clips = getBookmarkedClips();
+  const [clips, setClips] = useState([]);
+  const [loadState, setLoadState] = useState({ status: 'loading', error: '' });
+
+  const loadBookmarks = useCallback(async () => {
+    setLoadState({ status: 'loading', error: '' });
+
+    try {
+      await feedService.wait(250);
+      setClips(getBookmarkedClips());
+      setLoadState({ status: 'ready', error: '' });
+    } catch {
+      setLoadState({ status: 'error', error: 'Failed to load bookmarks.' });
+    }
+  }, [getBookmarkedClips]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      loadBookmarks();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [loadBookmarks]);
 
   const handleShare = async (clip) => {
     try {
@@ -20,6 +44,11 @@ export default function BookmarksPage() {
     }
   };
 
+  const handleRemoveBookmark = async (clipId) => {
+    await toggleBookmark(clipId);
+    setClips(getBookmarkedClips());
+  };
+
   return (
     <div className="bookmarks-page">
       <div className="bookmarks-header">
@@ -30,7 +59,25 @@ export default function BookmarksPage() {
         <p className="bookmarks-subtitle">{clips.length} movie{clips.length !== 1 ? 's' : ''} saved</p>
       </div>
 
-      {clips.length === 0 ? (
+      {loadState.status === 'loading' && (
+        <DataState
+          variant="loading"
+          title="Loading bookmarks"
+          description="Collecting your saved clips..."
+        />
+      )}
+
+      {loadState.status === 'error' && (
+        <DataState
+          variant="error"
+          title="Could not load bookmarks"
+          description={loadState.error}
+          actionLabel="Retry"
+          onAction={loadBookmarks}
+        />
+      )}
+
+      {loadState.status === 'ready' && clips.length === 0 && (
         <div className="bookmarks-empty">
           <div className="bookmarks-empty-icon">
             <Bookmark size={48} />
@@ -41,7 +88,9 @@ export default function BookmarksPage() {
             Explore Feed
           </button>
         </div>
-      ) : (
+      )}
+
+      {loadState.status === 'ready' && clips.length > 0 && (
         <div className="bookmarks-grid">
           {clips.map((clip, index) => (
             <div
@@ -91,7 +140,7 @@ export default function BookmarksPage() {
                   </button>
                   <button
                     className="bookmark-action-btn remove"
-                    onClick={() => toggleBookmark(clip.id)}
+                    onClick={() => handleRemoveBookmark(clip.id)}
                   >
                     <Trash2 size={14} />
                   </button>
@@ -101,7 +150,6 @@ export default function BookmarksPage() {
           ))}
         </div>
       )}
-
     </div>
   );
 }
