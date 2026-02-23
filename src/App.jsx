@@ -10,23 +10,51 @@ import CatalogPage from './pages/CatalogPage';
 import ProfilePage from './pages/ProfilePage';
 import AdminPage from './pages/AdminPage';
 
-function ProtectedRoute({ children, hideNav = false }) {
-  const { user } = useApp();
-  if (!user) return <Navigate to="/" replace />;
+function getDefaultAuthorizedPath(hasCompletedOnboarding) {
+  return hasCompletedOnboarding ? '/feed' : '/genres';
+}
+
+function AuthOnlyRoute({ children }) {
+  const { user, hasCompletedOnboarding } = useApp();
+
+  if (user) {
+    return <Navigate to={getDefaultAuthorizedPath(hasCompletedOnboarding)} replace />;
+  }
+
+  return children;
+}
+
+function ProtectedRoute({ children, hideNav = false, requireOnboarding = false, requireAdmin = false }) {
+  const { user, hasCompletedOnboarding } = useApp();
+
+  if (!user) {
+    return <Navigate to="/" replace />;
+  }
+
+  if (!hasCompletedOnboarding && requireOnboarding) {
+    return <Navigate to="/genres" replace />;
+  }
+
+  if (hasCompletedOnboarding && hideNav) {
+    return <Navigate to="/feed" replace />;
+  }
+
+  if (requireAdmin && !user.isAdmin) {
+    return <Navigate to="/feed" replace />;
+  }
+
   return <AppLayout hideNav={hideNav}>{children}</AppLayout>;
 }
 
 function AppRoutes() {
-  const { user, hasCompletedOnboarding } = useApp();
-
   return (
     <Routes>
       <Route
         path="/"
         element={
-          user
-            ? <Navigate to={hasCompletedOnboarding ? '/feed' : '/genres'} replace />
-            : <AuthPage />
+          <AuthOnlyRoute>
+            <AuthPage />
+          </AuthOnlyRoute>
         }
       />
       <Route
@@ -40,7 +68,7 @@ function AppRoutes() {
       <Route
         path="/feed"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute requireOnboarding>
             <FeedPage />
           </ProtectedRoute>
         }
@@ -48,7 +76,7 @@ function AppRoutes() {
       <Route
         path="/bookmarks"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute requireOnboarding>
             <BookmarksPage />
           </ProtectedRoute>
         }
@@ -56,7 +84,7 @@ function AppRoutes() {
       <Route
         path="/catalog"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute requireOnboarding>
             <CatalogPage />
           </ProtectedRoute>
         }
@@ -64,7 +92,7 @@ function AppRoutes() {
       <Route
         path="/profile"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute requireOnboarding>
             <ProfilePage />
           </ProtectedRoute>
         }
@@ -72,7 +100,7 @@ function AppRoutes() {
       <Route
         path="/admin"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute requireOnboarding requireAdmin>
             <AdminPage />
           </ProtectedRoute>
         }
