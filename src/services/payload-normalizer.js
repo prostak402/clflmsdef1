@@ -22,6 +22,12 @@ const BACKEND_CONSTRAINTS = Object.freeze({
     maxLength: 120,
     trim: true,
   }),
+  commentId: Object.freeze({
+    required: true,
+    minLength: 1,
+    maxLength: 120,
+    trim: true,
+  }),
 })
 
 function normalizeString(value) {
@@ -71,6 +77,21 @@ function normalizeUserName(value) {
 }
 
 
+function normalizeCommentId(value) {
+  const commentId = normalizeString(value)
+  const { minLength, maxLength, required } = BACKEND_CONSTRAINTS.commentId
+
+  if (required && commentId.length < minLength) {
+    throw new Error('commentId is required')
+  }
+
+  if (commentId.length > maxLength) {
+    throw new Error('commentId exceeds max length')
+  }
+
+  return commentId
+}
+
 function normalizeAuthorId(value) {
   const authorId = normalizeString(value)
 
@@ -115,6 +136,40 @@ export function normalizeWritePayload(operation, payload = {}) {
         userName: normalizeUserName(payload.userName),
         authorId: normalizeAuthorId(payload.authorId),
       }
+
+    case 'blockUserComments': {
+      const authorId = normalizeAuthorId(payload.authorId)
+
+      if (!authorId) {
+        throw new Error('authorId is required')
+      }
+
+      return {
+        authorId,
+        blockedUsers:
+          payload.blockedUsers && typeof payload.blockedUsers === 'object' ? payload.blockedUsers : {},
+      }
+    }
+
+    case 'deleteComment':
+      return {
+        clipId: normalizeClipId(payload.clipId),
+        commentId: normalizeCommentId(payload.commentId),
+        comments: payload.comments && typeof payload.comments === 'object' ? payload.comments : {},
+      }
+
+    case 'deleteCommentsByUser': {
+      const authorId = normalizeAuthorId(payload.authorId)
+
+      if (!authorId) {
+        throw new Error('authorId is required')
+      }
+
+      return {
+        authorId,
+        comments: payload.comments && typeof payload.comments === 'object' ? payload.comments : {},
+      }
+    }
 
     default:
       throw new Error(`Unsupported write operation: ${operation}`)
