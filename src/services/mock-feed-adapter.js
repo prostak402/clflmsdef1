@@ -36,12 +36,14 @@ export const mockFeedAdapter = {
   },
 
   createComment({ clipId, text, comments, userName }) {
+    const createdAt = new Date().toISOString()
     const newComment = {
       id: `cm_${Date.now()}`,
       user: userName || 'Anonymous',
       avatar: '👤',
       text,
       time: 'Just now',
+      createdAt,
       likes: 0,
     }
 

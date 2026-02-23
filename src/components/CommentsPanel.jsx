@@ -6,14 +6,18 @@ import { feedService } from '../services/feed-service'
 import DataState from './DataState'
 import './CommentsPanel.css'
 
+const BLOCKED_ERROR_CODE = 'commenting_blocked'
+
 export default function CommentsPanel({ clipId, onClose }) {
-  const { comments, addComment } = useApp()
+  const { comments, addComment, user, blockedCommentUsers } = useApp()
   const [text, setText] = useState('')
   const [loadState, setLoadState] = useState({ status: 'loading', error: '' })
   const [submitError, setSubmitError] = useState('')
   const panelRef = useRef(null)
   const inputRef = useRef(null)
   const isMountedRef = useRef(false)
+
+  const isBlocked = Boolean(user?.name && blockedCommentUsers?.[user.name])
 
   useEffect(() => {
     isMountedRef.current = true
@@ -77,7 +81,12 @@ export default function CommentsPanel({ clipId, onClose }) {
 
     const result = addComment(clipId, validation.normalizedText)
     if (!result?.ok) {
-      setSubmitError(result?.error || 'Could not submit comment. Please try again.')
+      if (result?.error === BLOCKED_ERROR_CODE) {
+        setSubmitError('Your account is blocked from posting comments.')
+      } else {
+        setSubmitError(result?.error || 'Could not submit comment. Please try again.')
+      }
+
       inputRef.current?.focus()
       return
     }
@@ -150,13 +159,20 @@ export default function CommentsPanel({ clipId, onClose }) {
             ))}
         </div>
 
+        {isBlocked && (
+          <p className="comments-input-error" role="alert">
+            Your account is blocked from posting comments.
+          </p>
+        )}
+
         <form className="comments-input" onSubmit={handleSubmit}>
           <div className="comments-input-field">
             <input
               ref={inputRef}
               type="text"
-              placeholder="Add a comment..."
+              placeholder={isBlocked ? 'Commenting is disabled for your account' : 'Add a comment...'}
               value={text}
+              disabled={isBlocked}
               onChange={(e) => {
                 setText(e.target.value)
                 if (submitError) {
@@ -172,6 +188,7 @@ export default function CommentsPanel({ clipId, onClose }) {
           </div>
           <button
             type="submit"
+            disabled={isBlocked}
             className={`comments-send ${validateCommentText(text).valid ? 'active' : ''}`}
           >
             <Send size={18} />

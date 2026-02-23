@@ -16,6 +16,7 @@ const DEFAULT_DRAFT_PREFERENCES = {
 }
 
 const AUTH_REQUIRED_ERROR = 'auth_required'
+const COMMENT_BLOCKED_ERROR = 'commenting_blocked'
 
 const DEFAULT_STATE = {
   user: null,
@@ -23,6 +24,7 @@ const DEFAULT_STATE = {
   selectedGenres: [],
   bookmarks: [],
   likes: {},
+  blockedCommentUsers: {},
   draftPreferences: DEFAULT_DRAFT_PREFERENCES,
 }
 
@@ -37,6 +39,10 @@ function sanitizeState(value) {
     selectedGenres: Array.isArray(value.selectedGenres) ? value.selectedGenres : [],
     bookmarks: Array.isArray(value.bookmarks) ? value.bookmarks : [],
     likes: value.likes && typeof value.likes === 'object' ? value.likes : {},
+    blockedCommentUsers:
+      value.blockedCommentUsers && typeof value.blockedCommentUsers === 'object'
+        ? value.blockedCommentUsers
+        : {},
     draftPreferences:
       value.draftPreferences && typeof value.draftPreferences === 'object'
         ? { ...DEFAULT_DRAFT_PREFERENCES, ...value.draftPreferences }
@@ -116,6 +122,7 @@ export function AppProvider({ children }) {
   const [selectedGenres, setSelectedGenres] = useState(persistedState.selectedGenres)
   const [bookmarks, setBookmarks] = useState(persistedState.bookmarks)
   const [likes, setLikes] = useState(persistedState.likes)
+  const [blockedCommentUsers, setBlockedCommentUsers] = useState(persistedState.blockedCommentUsers)
   const [draftPreferences, setDraftPreferences] = useState(persistedState.draftPreferences)
   const [comments, setComments] = useState(feedService.getInitialComments())
 
@@ -128,9 +135,18 @@ export function AppProvider({ children }) {
       selectedGenres,
       bookmarks,
       likes,
+      blockedCommentUsers,
       draftPreferences,
     })
-  }, [user, hasCompletedOnboarding, selectedGenres, bookmarks, likes, draftPreferences])
+  }, [
+    user,
+    hasCompletedOnboarding,
+    selectedGenres,
+    bookmarks,
+    likes,
+    blockedCommentUsers,
+    draftPreferences,
+  ])
 
   const login = useCallback((userData) => {
     setUser(userData)
@@ -142,6 +158,7 @@ export function AppProvider({ children }) {
     setSelectedGenres([])
     setBookmarks([])
     setLikes({})
+    setBlockedCommentUsers({})
     setDraftPreferences(DEFAULT_DRAFT_PREFERENCES)
   }, [])
 
@@ -228,6 +245,13 @@ export function AppProvider({ children }) {
         }
       }
 
+      if (blockedCommentUsers[user.name]) {
+        return {
+          ok: false,
+          error: COMMENT_BLOCKED_ERROR,
+        }
+      }
+
       const validation = validateCommentText(text)
       if (!validation.valid) {
         return {
@@ -250,8 +274,41 @@ export function AppProvider({ children }) {
         error: '',
       }
     },
-    [user]
+    [blockedCommentUsers, user]
   )
+
+  const deleteComment = useCallback((clipId, commentId) => {
+    setComments((prev) => {
+      const clipComments = prev[clipId] || []
+      return {
+        ...prev,
+        [clipId]: clipComments.filter((comment) => comment.id !== commentId),
+      }
+    })
+  }, [])
+
+  const deleteAllCommentsByUser = useCallback((userName) => {
+    setComments((prev) => {
+      const next = {}
+
+      Object.entries(prev).forEach(([clipId, clipComments]) => {
+        next[clipId] = clipComments.filter((comment) => comment.user !== userName)
+      })
+
+      return next
+    })
+  }, [])
+
+  const blockUserFromComments = useCallback((userName) => {
+    if (!userName) {
+      return
+    }
+
+    setBlockedCommentUsers((prev) => ({
+      ...prev,
+      [userName]: true,
+    }))
+  }, [])
 
   const updateDraftPreferences = useCallback((patch) => {
     setDraftPreferences((prev) => ({ ...prev, ...patch }))
@@ -276,6 +333,7 @@ export function AppProvider({ children }) {
     bookmarks,
     likes,
     comments,
+    blockedCommentUsers,
     draftPreferences,
     login,
     logout,
@@ -284,6 +342,9 @@ export function AppProvider({ children }) {
     toggleBookmark,
     toggleLike,
     addComment,
+    deleteComment,
+    deleteAllCommentsByUser,
+    blockUserFromComments,
     getFilteredClips,
     getBookmarkedClips,
     getProfile,
