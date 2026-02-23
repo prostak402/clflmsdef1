@@ -52,6 +52,8 @@ describe('TASK-012: AppContext state transitions', () => {
       error: 'auth_required',
     })
 
+    expect(getCurrent().isUserCommentBlocked('random')).toBe(false)
+
     expect(getCurrent().likes).toEqual(likesSnapshot)
     expect(getCurrent().bookmarks).toEqual(bookmarksSnapshot)
     expect(getCurrent().comments).toEqual(commentsSnapshot)
@@ -109,6 +111,70 @@ describe('TASK-012: AppContext state transitions', () => {
 
     expect(invalidResult.ok).toBe(false)
     expect(getCurrent().comments['1']).toHaveLength(beforeCommentsCount + 1)
+  })
+
+  it('blocks comments by author and supports delete operations', async () => {
+    const { getCurrent } = await renderAppContext()
+
+    await act(async () => {
+      getCurrent().login({ name: 'Blocked User', email: 'blocked@example.com' })
+    })
+
+    await act(async () => {
+      getCurrent().blockUserComments('blocked@example.com')
+    })
+
+    expect(getCurrent().isUserCommentBlocked('blocked@example.com')).toBe(true)
+
+    let blockedResult
+    await act(async () => {
+      blockedResult = getCurrent().addComment('1', 'Should not be added')
+    })
+
+    expect(blockedResult).toEqual({ ok: false, error: 'comment_blocked' })
+
+    await act(async () => {
+      getCurrent().unblockUserComments('blocked@example.com')
+    })
+
+    expect(getCurrent().isUserCommentBlocked('blocked@example.com')).toBe(false)
+
+    let allowedResult
+    await act(async () => {
+      allowedResult = getCurrent().addComment('1', 'Allowed now')
+    })
+
+    expect(allowedResult).toEqual({ ok: true, error: '' })
+
+    const createdComment = getCurrent().comments['1'][0]
+
+    await act(async () => {
+      getCurrent().deleteComment({ clipId: '1', commentId: createdComment.id })
+    })
+
+    expect(
+      getCurrent().comments['1'].find((comment) => comment.id === createdComment.id)
+    ).toBeFalsy()
+
+    await act(async () => {
+      getCurrent().addComment('1', 'First by blocked user')
+      getCurrent().addComment('2', 'Second by blocked user')
+    })
+
+    await act(async () => {
+      getCurrent().deleteCommentsByUser({ authorId: 'blocked@example.com' })
+    })
+
+    expect(
+      (getCurrent().comments['1'] || []).every(
+        (comment) => comment.authorId !== 'blocked@example.com'
+      )
+    ).toBe(true)
+    expect(
+      (getCurrent().comments['2'] || []).every(
+        (comment) => comment.authorId !== 'blocked@example.com'
+      )
+    ).toBe(true)
   })
 
   it('toggles genres and keeps state stable on repeated toggle and limit overflow', async () => {
