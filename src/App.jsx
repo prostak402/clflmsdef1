@@ -1,49 +1,54 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AppProvider } from './context/AppContext';
-import { useApp } from './context/useApp';
-import AppLayout from './components/AppLayout';
-import AuthPage from './pages/AuthPage';
-import GenreSelectPage from './pages/GenreSelectPage';
-import FeedPage from './pages/FeedPage';
-import BookmarksPage from './pages/BookmarksPage';
-import CatalogPage from './pages/CatalogPage';
-import ProfilePage from './pages/ProfilePage';
-import AdminPage from './pages/AdminPage';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { AppProvider } from './context/AppContext'
+import { useApp } from './context/useApp'
+import AppLayout from './components/AppLayout'
+import AuthPage from './pages/AuthPage'
+import GenreSelectPage from './pages/GenreSelectPage'
+import FeedPage from './pages/FeedPage'
+import BookmarksPage from './pages/BookmarksPage'
+import CatalogPage from './pages/CatalogPage'
+import ProfilePage from './pages/ProfilePage'
+import AdminPage from './pages/AdminPage'
 
 function getDefaultAuthorizedPath(hasCompletedOnboarding) {
-  return hasCompletedOnboarding ? '/feed' : '/genres';
+  return hasCompletedOnboarding ? '/feed' : '/genres'
 }
 
 function AuthOnlyRoute({ children }) {
-  const { user, hasCompletedOnboarding } = useApp();
+  const { user, hasCompletedOnboarding } = useApp()
 
   if (user) {
-    return <Navigate to={getDefaultAuthorizedPath(hasCompletedOnboarding)} replace />;
+    return <Navigate to={getDefaultAuthorizedPath(hasCompletedOnboarding)} replace />
   }
 
-  return children;
+  return children
 }
 
-function ProtectedRoute({ children, hideNav = false, requireOnboarding = false, requireAdmin = false }) {
-  const { user, hasCompletedOnboarding } = useApp();
+function ProtectedRoute({
+  children,
+  hideNav = false,
+  requireOnboarding = false,
+  requireAdmin = false,
+}) {
+  const { user, hasCompletedOnboarding } = useApp()
 
   if (!user) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/" replace />
   }
 
   if (!hasCompletedOnboarding && requireOnboarding) {
-    return <Navigate to="/genres" replace />;
+    return <Navigate to="/genres" replace />
   }
 
   if (hasCompletedOnboarding && hideNav) {
-    return <Navigate to="/feed" replace />;
+    return <Navigate to="/feed" replace />
   }
 
   if (requireAdmin && !user.isAdmin) {
-    return <Navigate to="/feed" replace />;
+    return <Navigate to="/feed" replace />
   }
 
-  return <AppLayout hideNav={hideNav}>{children}</AppLayout>;
+  return <AppLayout hideNav={hideNav}>{children}</AppLayout>
 }
 
 function AppRoutes() {
@@ -107,7 +112,7 @@ function AppRoutes() {
       />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
-  );
+  )
 }
 
 export default function App() {
@@ -117,5 +122,5 @@ export default function App() {
         <AppRoutes />
       </AppProvider>
     </BrowserRouter>
-  );
+  )
 }

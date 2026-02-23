@@ -71,8 +71,14 @@
 }
 
 @keyframes formEnter {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .admin-form-title {
@@ -133,7 +139,6 @@
 .admin-field textarea::placeholder {
   color: var(--text-tertiary);
 }
-
 
 .admin-kinopoisk-row {
   display: flex;
@@ -352,8 +357,14 @@
 }
 
 @keyframes toastEnter {
-  from { opacity: 0; transform: translate(-50%, 10px); }
-  to { opacity: 1; transform: translate(-50%, 0); }
+  from {
+    opacity: 0;
+    transform: translate(-50%, 10px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
 }
 
 @media (max-width: 480px) {

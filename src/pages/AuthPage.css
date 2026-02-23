@@ -49,8 +49,12 @@
 }
 
 @keyframes orbFloat {
-  0% { transform: translate(0, 0) scale(1); }
-  100% { transform: translate(30px, -30px) scale(1.1); }
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    transform: translate(30px, -30px) scale(1.1);
+  }
 }
 
 .auth-container {
@@ -102,7 +106,10 @@
 }
 
 @keyframes cardEnter {
-  to { opacity: 1; transform: translateY(0); }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .auth-tabs {
@@ -142,12 +149,21 @@
   transform: translateY(10px);
 }
 
-.auth-field:nth-child(1) { animation-delay: 0.1s; }
-.auth-field:nth-child(2) { animation-delay: 0.2s; }
-.auth-field:nth-child(3) { animation-delay: 0.3s; }
+.auth-field:nth-child(1) {
+  animation-delay: 0.1s;
+}
+.auth-field:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.auth-field:nth-child(3) {
+  animation-delay: 0.3s;
+}
 
 @keyframes fieldEnter {
-  to { opacity: 1; transform: translateY(0); }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .auth-input-wrapper {
@@ -239,7 +255,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, rgba(255,255,255,0.2), transparent);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), transparent);
   opacity: 0;
   transition: var(--transition-base);
 }
@@ -272,7 +288,9 @@
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .auth-divider {

@@ -1,10 +1,10 @@
-import { GENRES, MOCK_CATALOG } from '../data/mock';
+import { GENRES, MOCK_CATALOG } from '../data/mock'
 
 export const contentService = {
   getGenres() {
-    return GENRES;
+    return GENRES
   },
   getCatalog() {
-    return MOCK_CATALOG;
+    return MOCK_CATALOG
   },
-};
+}

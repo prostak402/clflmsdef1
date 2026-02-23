@@ -5,17 +5,20 @@
 ## 1) Общие правила
 
 ### 1.1 Базовый формат API
+
 - Base path: `/api/v1`
 - Формат тела запросов/ответов: `application/json`
 - Все timestamp-поля: ISO 8601 UTC (`string`, пример `2026-02-22T10:20:30Z`).
 - Все идентификаторы сущностей: `uuid` (UUID v4).
 
 ### 1.2 Идентификаторы
+
 - Первичный ключ каждой сущности: `id: uuid`.
 - Внешние ключи: `<entity>Id: uuid` (например, `clipId`, `genreId`).
 - Клиент не передает серверные `id` при create-операциях.
 
 ### 1.3 Аутентификация и `me`
+
 - Аутентификация: Bearer token в заголовке `Authorization: Bearer <token>`.
 - Сервер определяет текущего пользователя из токена (`auth subject`).
 - В create-операциях, где пользователь однозначно определяется из токена, клиент **не передает** `userId/authorId`.
@@ -23,6 +26,7 @@
   - `GET /me` — профиль текущего пользователя.
 
 ### 1.4 Роли и ownership
+
 - `user` — обычный пользователь.
 - `admin` — модерация и управление справочниками.
 - Базовые правила:
@@ -31,18 +35,21 @@
   - `admin` может create/update/delete любые ресурсы в рамках модерации.
 
 ### 1.5 Пагинация
+
 - Для стандартных списков (админка/каталоги): offset-пагинация.
   - Query: `page` (integer, `>=1`, default `1`), `limit` (integer, `1..50`, default `20`).
 - Для ленты клипов (бесконечный скролл): cursor-пагинация.
   - Query: `cursor` (string, optional), `limit` (integer, `1..50`, default `20`).
 
 ### 1.6 Сортировка и фильтрация
+
 - `sortBy` — поле из whitelist endpoint-а.
 - `sortOrder` — `asc | desc`.
 - Фильтры передаются query-параметрами.
 - Неизвестные фильтры: `400 Bad Request`.
 
 ### 1.7 Единый формат ошибок
+
 Все ошибки возвращаются в едином формате:
 
 ```json
@@ -50,9 +57,7 @@
   "error": {
     "code": "VALIDATION_ERROR",
     "message": "Validation failed",
-    "details": [
-      { "field": "title", "message": "Must be between 3 and 120 characters" }
-    ],
+    "details": [{ "field": "title", "message": "Must be between 3 and 120 characters" }],
     "requestId": "6f9eec7b-4c43-4f1f-8c2b-5f68d5a9f95d"
   }
 }
@@ -64,6 +69,7 @@
 - `requestId` — корреляционный id для логов.
 
 Коды по статусам:
+
 - `400` → `BAD_REQUEST`
 - `401` → `UNAUTHORIZED`
 - `403` → `FORBIDDEN`
@@ -74,6 +80,7 @@
 - `500` → `INTERNAL_ERROR`
 
 ### 1.8 Валидация
+
 - Все обязательные `uuid` — валидные UUID v4.
 - Строки trim-ятся, затем проверяются по min/max.
 - Enum-поля принимают только значения, зафиксированные в контракте.
@@ -84,78 +91,84 @@
 ## 2) Доменная модель сущностей
 
 ## 2.1 User
-| Поле | Тип | Обязательное | Описание |
-|---|---|---:|---|
-| id | uuid | да | Идентификатор пользователя |
-| email | string | да | Уникальный email, max 254 |
-| displayName | string | да | Публичное имя, 2..50 |
-| avatarUrl | string \| null | нет | URL аватара |
-| role | enum | да | `user` \| `admin` |
-| hasCompletedOnboarding | boolean | да | Завершение онбординга |
-| createdAt | datetime | да | Дата создания |
-| updatedAt | datetime | да | Дата обновления |
-| deletedAt | datetime \| null | нет | Мягкое удаление |
+
+| Поле                   | Тип              | Обязательное | Описание                   |
+| ---------------------- | ---------------- | -----------: | -------------------------- |
+| id                     | uuid             |           да | Идентификатор пользователя |
+| email                  | string           |           да | Уникальный email, max 254  |
+| displayName            | string           |           да | Публичное имя, 2..50       |
+| avatarUrl              | string \| null   |          нет | URL аватара                |
+| role                   | enum             |           да | `user` \| `admin`          |
+| hasCompletedOnboarding | boolean          |           да | Завершение онбординга      |
+| createdAt              | datetime         |           да | Дата создания              |
+| updatedAt              | datetime         |           да | Дата обновления            |
+| deletedAt              | datetime \| null |          нет | Мягкое удаление            |
 
 ## 2.2 Genre
-| Поле | Тип | Обязательное | Описание |
-|---|---|---:|---|
-| id | uuid | да | Идентификатор жанра |
-| slug | string | да | Уникальный slug, `^[a-z0-9-]{2,40}$` |
-| name | string | да | Название, 2..40 |
-| isActive | boolean | да | Активность жанра |
-| createdAt | datetime | да | Дата создания |
-| updatedAt | datetime | да | Дата обновления |
-| deletedAt | datetime \| null | нет | Мягкое удаление |
+
+| Поле      | Тип              | Обязательное | Описание                             |
+| --------- | ---------------- | -----------: | ------------------------------------ |
+| id        | uuid             |           да | Идентификатор жанра                  |
+| slug      | string           |           да | Уникальный slug, `^[a-z0-9-]{2,40}$` |
+| name      | string           |           да | Название, 2..40                      |
+| isActive  | boolean          |           да | Активность жанра                     |
+| createdAt | datetime         |           да | Дата создания                        |
+| updatedAt | datetime         |           да | Дата обновления                      |
+| deletedAt | datetime \| null |          нет | Мягкое удаление                      |
 
 ## 2.3 Clip
-| Поле | Тип | Обязательное | Описание |
-|---|---|---:|---|
-| id | uuid | да | Идентификатор клипа |
-| authorId | uuid | да | `User.id` автора |
-| genreId | uuid | да | `Genre.id` |
-| title | string | да | 3..120 |
-| description | string | нет | max 1000 |
-| videoUrl | string | да | URL видео |
-| thumbnailUrl | string | нет | URL превью |
-| durationSec | integer | да | `1..600` |
-| status | enum | да | `draft` \| `published` \| `archived` |
-| viewsCount | integer | да | `>=0` |
-| likesCount | integer | да | `>=0` |
-| commentsCount | integer | да | `>=0` |
-| createdAt | datetime | да | Дата создания |
-| updatedAt | datetime | да | Дата обновления |
-| publishedAt | datetime \| null | нет | Дата публикации |
-| deletedAt | datetime \| null | нет | Мягкое удаление |
+
+| Поле          | Тип              | Обязательное | Описание                             |
+| ------------- | ---------------- | -----------: | ------------------------------------ |
+| id            | uuid             |           да | Идентификатор клипа                  |
+| authorId      | uuid             |           да | `User.id` автора                     |
+| genreId       | uuid             |           да | `Genre.id`                           |
+| title         | string           |           да | 3..120                               |
+| description   | string           |          нет | max 1000                             |
+| videoUrl      | string           |           да | URL видео                            |
+| thumbnailUrl  | string           |          нет | URL превью                           |
+| durationSec   | integer          |           да | `1..600`                             |
+| status        | enum             |           да | `draft` \| `published` \| `archived` |
+| viewsCount    | integer          |           да | `>=0`                                |
+| likesCount    | integer          |           да | `>=0`                                |
+| commentsCount | integer          |           да | `>=0`                                |
+| createdAt     | datetime         |           да | Дата создания                        |
+| updatedAt     | datetime         |           да | Дата обновления                      |
+| publishedAt   | datetime \| null |          нет | Дата публикации                      |
+| deletedAt     | datetime \| null |          нет | Мягкое удаление                      |
 
 ## 2.4 Comment
-| Поле | Тип | Обязательное | Описание |
-|---|---|---:|---|
-| id | uuid | да | Идентификатор комментария |
-| clipId | uuid | да | `Clip.id` |
-| authorId | uuid | да | `User.id` |
-| body | string | да | 1..500 |
-| createdAt | datetime | да | Дата создания |
-| updatedAt | datetime | да | Дата обновления |
-| isEdited | boolean | да | Признак редактирования |
-| deletedAt | datetime \| null | нет | Мягкое удаление |
+
+| Поле      | Тип              | Обязательное | Описание                  |
+| --------- | ---------------- | -----------: | ------------------------- |
+| id        | uuid             |           да | Идентификатор комментария |
+| clipId    | uuid             |           да | `Clip.id`                 |
+| authorId  | uuid             |           да | `User.id`                 |
+| body      | string           |           да | 1..500                    |
+| createdAt | datetime         |           да | Дата создания             |
+| updatedAt | datetime         |           да | Дата обновления           |
+| isEdited  | boolean          |           да | Признак редактирования    |
+| deletedAt | datetime \| null |          нет | Мягкое удаление           |
 
 ## 2.5 Like
-| Поле | Тип | Обязательное | Описание |
-|---|---|---:|---|
-| id | uuid | да | Идентификатор лайка |
-| userId | uuid | да | `User.id` |
-| clipId | uuid | да | `Clip.id` |
-| createdAt | datetime | да | Дата создания |
+
+| Поле      | Тип      | Обязательное | Описание            |
+| --------- | -------- | -----------: | ------------------- |
+| id        | uuid     |           да | Идентификатор лайка |
+| userId    | uuid     |           да | `User.id`           |
+| clipId    | uuid     |           да | `Clip.id`           |
+| createdAt | datetime |           да | Дата создания       |
 
 Уникальность: `userId + clipId`.
 
 ## 2.6 Bookmark
-| Поле | Тип | Обязательное | Описание |
-|---|---|---:|---|
-| id | uuid | да | Идентификатор закладки |
-| userId | uuid | да | `User.id` |
-| clipId | uuid | да | `Clip.id` |
-| createdAt | datetime | да | Дата создания |
+
+| Поле      | Тип      | Обязательное | Описание               |
+| --------- | -------- | -----------: | ---------------------- |
+| id        | uuid     |           да | Идентификатор закладки |
+| userId    | uuid     |           да | `User.id`              |
+| clipId    | uuid     |           да | `Clip.id`              |
+| createdAt | datetime |           да | Дата создания          |
 
 Уникальность: `userId + clipId`.
 
@@ -178,9 +191,11 @@
 ## 4.1 Me
 
 ### `GET /me`
+
 Возвращает профиль текущего пользователя.
 
 Response `200`:
+
 ```json
 {
   "id": "uuid",
@@ -195,6 +210,7 @@ Response `200`:
 ```
 
 ### `GET /me/bookmarks`
+
 Список закладок текущего пользователя (offset-пагинация).
 
 Query: `page`, `limit`, `sortBy=createdAt`, `sortOrder`.
@@ -204,21 +220,26 @@ Query: `page`, `limit`, `sortBy=createdAt`, `sortOrder`.
 ## 4.2 Genres
 
 ### `GET /genres`
+
 Список жанров.
 
 Query:
+
 - `isActive` (boolean, optional)
 - `q` (string, optional)
 - `page`, `limit`
 - `sortBy` in `name|createdAt`, `sortOrder`
 
 ### `POST /genres` (admin)
+
 Создание жанра.
 
 ### `PATCH /genres/:id` (admin)
+
 Обновление жанра.
 
 ### `DELETE /genres/:id` (admin)
+
 Soft-delete жанра.
 
 ---
@@ -226,9 +247,11 @@ Soft-delete жанра.
 ## 4.3 Clips
 
 ### `GET /clips`
+
 Каталог клипов (offset-пагинация).
 
 Query:
+
 - `authorId`, `genreId`, `status`, `q`
 - `page`, `limit`
 - `sortBy` in `createdAt|publishedAt|viewsCount|likesCount`, `sortOrder`
@@ -236,14 +259,17 @@ Query:
 Правило доступа: если пользователь не `admin`, чужие `draft/archived` исключаются.
 
 ### `GET /feed/clips`
+
 Лента клипов (cursor-пагинация, frontend-first для infinite scroll).
 
 Query:
+
 - `cursor` (optional)
 - `limit` (default 20)
 - `genreId` (optional)
 
 Response `200`:
+
 ```json
 {
   "items": [],
@@ -252,21 +278,27 @@ Response `200`:
 ```
 
 ### `GET /clips/:id`
+
 Детальная карточка клипа с учетом прав доступа.
 
 ### `POST /clips`
+
 Создание клипа.
 
 ### `PATCH /clips/:id`
+
 Частичное обновление клипа.
 
 ### `POST /clips/:id/publish`
+
 Публикация клипа.
 
 ### `POST /clips/:id/archive`
+
 Архивация клипа.
 
 ### `DELETE /clips/:id`
+
 Soft-delete клипа.
 
 ---
@@ -274,17 +306,21 @@ Soft-delete клипа.
 ## 4.4 Comments
 
 ### `GET /clips/:id/comments`
+
 Комментарии клипа (offset-пагинация).
 
 Query: `page`, `limit`, `sortBy=createdAt`, `sortOrder`.
 
 ### `POST /clips/:id/comments`
+
 Создать комментарий к клипу.
 
 ### `PATCH /comments/:id`
+
 Обновить комментарий.
 
 ### `DELETE /comments/:id`
+
 Soft-delete комментария.
 
 ---
@@ -292,9 +328,11 @@ Soft-delete комментария.
 ## 4.5 Likes
 
 ### `POST /clips/:id/like`
+
 Поставить лайк текущим пользователем.
 
 ### `DELETE /clips/:id/like`
+
 Убрать лайк текущего пользователя.
 
 ---
@@ -302,9 +340,11 @@ Soft-delete комментария.
 ## 4.6 Bookmarks
 
 ### `POST /clips/:id/bookmark`
+
 Добавить клип в закладки текущего пользователя.
 
 ### `DELETE /clips/:id/bookmark`
+
 Удалить клип из закладок текущего пользователя.
 
 ---
@@ -312,9 +352,11 @@ Soft-delete комментария.
 ## 4.7 Views
 
 ### `POST /clips/:id/view`
+
 Событие просмотра клипа.
 
 Body (MVP):
+
 ```json
 {
   "watchedMs": 4000
@@ -330,9 +372,11 @@ Body (MVP):
 Для `videoUrl` и `thumbnailUrl` используется flow через signed URL.
 
 ### `POST /uploads`
+
 Запросить signed URL для загрузки.
 
 Request:
+
 ```json
 {
   "type": "clip-video",
@@ -343,6 +387,7 @@ Request:
 ```
 
 Response `200`:
+
 ```json
 {
   "uploadId": "uuid",
@@ -356,9 +401,11 @@ Response `200`:
 ```
 
 ### `POST /uploads/:uploadId/complete`
+
 Подтвердить успешную загрузку.
 
 Response `200`:
+
 ```json
 {
   "assetUrl": "https://cdn.../clip.mp4"
@@ -374,6 +421,7 @@ Response `200`:
 ## 5.1 Clip DTO
 
 ### CreateClipRequest
+
 ```json
 {
   "genreId": "uuid",
@@ -386,11 +434,14 @@ Response `200`:
 ```
 
 Ограничения:
+
 - `authorId` не передается (берется из токена).
 - Нельзя передавать серверные поля: `viewsCount`, `likesCount`, `commentsCount`, `createdAt`, `updatedAt`, `publishedAt`.
 
 ### UpdateClipRequest (`PATCH`)
+
 Все поля опциональны:
+
 ```json
 {
   "genreId": "uuid",
@@ -401,6 +452,7 @@ Response `200`:
 ```
 
 ### ClipResponse
+
 ```json
 {
   "id": "uuid",
@@ -428,6 +480,7 @@ Response `200`:
 ```
 
 ### ListClipsResponse (offset)
+
 ```json
 {
   "items": [],
@@ -441,6 +494,7 @@ Response `200`:
 ```
 
 ### FeedClipsResponse (cursor)
+
 ```json
 {
   "items": [],
@@ -451,6 +505,7 @@ Response `200`:
 ## 5.2 Comment DTO
 
 ### CreateCommentRequest
+
 ```json
 {
   "body": "Great clip!"
@@ -458,6 +513,7 @@ Response `200`:
 ```
 
 ### UpdateCommentRequest (`PATCH`)
+
 ```json
 {
   "body": "Updated comment"
@@ -465,6 +521,7 @@ Response `200`:
 ```
 
 ### CommentResponse
+
 ```json
 {
   "id": "uuid",
@@ -484,6 +541,7 @@ Response `200`:
 ## 5.3 Like/Bookmark DTO
 
 ### Toggle-like/bookmark responses (`POST/DELETE`)
+
 ```json
 {
   "success": true
@@ -493,6 +551,7 @@ Response `200`:
 ## 5.4 Genre DTO
 
 ### CreateGenreRequest
+
 ```json
 {
   "slug": "hip-hop",
@@ -502,6 +561,7 @@ Response `200`:
 ```
 
 ### UpdateGenreRequest (`PATCH`)
+
 ```json
 {
   "name": "Hip Hop",

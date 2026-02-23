@@ -1,40 +1,38 @@
-import { MOCK_CLIPS, MOCK_COMMENTS } from '../data/mock';
+import { MOCK_CLIPS, MOCK_COMMENTS } from '../data/mock'
 
 function simulateNetwork() {
-  return Promise.resolve();
+  return Promise.resolve()
 }
 
 /** @type {import('./feed-adapter').FeedAdapter} */
 export const mockFeedAdapter = {
   getFeed({ selectedGenres = [] } = {}) {
     if (selectedGenres.length === 0) {
-      return MOCK_CLIPS;
+      return MOCK_CLIPS
     }
 
-    return MOCK_CLIPS.filter((clip) =>
-      clip.genres.some((genre) => selectedGenres.includes(genre))
-    );
+    return MOCK_CLIPS.filter((clip) => clip.genres.some((genre) => selectedGenres.includes(genre)))
   },
 
   toggleLike({ clipId, likes }) {
     return {
       ...likes,
       [clipId]: !likes[clipId],
-    };
+    }
   },
 
   toggleBookmark({ clipId, bookmarks }) {
     return bookmarks.includes(clipId)
       ? bookmarks.filter((id) => id !== clipId)
-      : [...bookmarks, clipId];
+      : [...bookmarks, clipId]
   },
 
   async persistLikeToggle() {
-    await simulateNetwork();
+    await simulateNetwork()
   },
 
   async persistBookmarkToggle() {
-    await simulateNetwork();
+    await simulateNetwork()
   },
 
   createComment({ clipId, text, comments, userName }) {
@@ -45,16 +43,16 @@ export const mockFeedAdapter = {
       text,
       time: 'Just now',
       likes: 0,
-    };
+    }
 
     return {
       ...comments,
       [clipId]: [newComment, ...(comments[clipId] || [])],
-    };
+    }
   },
 
   getBookmarks({ bookmarks }) {
-    return MOCK_CLIPS.filter((clip) => bookmarks.includes(clip.id));
+    return MOCK_CLIPS.filter((clip) => bookmarks.includes(clip.id))
   },
 
   getProfile({ user, bookmarks, likes }) {
@@ -64,8 +62,8 @@ export const mockFeedAdapter = {
       avatar: user?.avatar || '🎬',
       bookmarkCount: bookmarks.length,
       likeCount: Object.values(likes).filter(Boolean).length,
-    };
+    }
   },
-};
+}
 
-export const initialComments = MOCK_COMMENTS;
+export const initialComments = MOCK_COMMENTS

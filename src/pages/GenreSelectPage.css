@@ -161,8 +161,12 @@
 }
 
 @keyframes checkPop {
-  0% { transform: scale(0); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(0);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .genre-footer {
@@ -172,8 +176,13 @@
 }
 
 @keyframes fadeSlideUp {
-  to { opacity: 1; transform: translateY(0); }
-  from { transform: translateY(10px); }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  from {
+    transform: translateY(10px);
+  }
 }
 
 .genre-count {

@@ -1,53 +1,53 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useApp } from '../context/useApp';
-import { useNavigate } from 'react-router-dom';
-import { Bookmark, ExternalLink, Trash2, Share2, Star } from 'lucide-react';
-import { feedService } from '../services/feed-service';
-import DataState from '../components/DataState';
-import './BookmarksPage.css';
+import { useState, useEffect, useCallback } from 'react'
+import { useApp } from '../context/useApp'
+import { useNavigate } from 'react-router-dom'
+import { Bookmark, ExternalLink, Trash2, Share2, Star } from 'lucide-react'
+import { feedService } from '../services/feed-service'
+import DataState from '../components/DataState'
+import './BookmarksPage.css'
 
 export default function BookmarksPage() {
-  const { getBookmarkedClips, toggleBookmark } = useApp();
-  const navigate = useNavigate();
-  const [clips, setClips] = useState([]);
-  const [loadState, setLoadState] = useState({ status: 'loading', error: '' });
+  const { getBookmarkedClips, toggleBookmark } = useApp()
+  const navigate = useNavigate()
+  const [clips, setClips] = useState([])
+  const [loadState, setLoadState] = useState({ status: 'loading', error: '' })
 
   const loadBookmarks = useCallback(async () => {
-    setLoadState({ status: 'loading', error: '' });
+    setLoadState({ status: 'loading', error: '' })
 
     try {
-      await feedService.wait(250);
-      setClips(getBookmarkedClips());
-      setLoadState({ status: 'ready', error: '' });
+      await feedService.wait(250)
+      setClips(getBookmarkedClips())
+      setLoadState({ status: 'ready', error: '' })
     } catch {
-      setLoadState({ status: 'error', error: 'Failed to load bookmarks.' });
+      setLoadState({ status: 'error', error: 'Failed to load bookmarks.' })
     }
-  }, [getBookmarkedClips]);
+  }, [getBookmarkedClips])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      loadBookmarks();
-    }, 0);
+      loadBookmarks()
+    }, 0)
 
-    return () => window.clearTimeout(timer);
-  }, [loadBookmarks]);
+    return () => window.clearTimeout(timer)
+  }, [loadBookmarks])
 
   const handleShare = async (clip) => {
     try {
       if (navigator.share) {
-        await navigator.share({ title: clip.title, url: clip.watchUrl });
+        await navigator.share({ title: clip.title, url: clip.watchUrl })
       } else {
-        await navigator.clipboard.writeText(clip.watchUrl);
+        await navigator.clipboard.writeText(clip.watchUrl)
       }
     } catch {
       // user cancelled share
     }
-  };
+  }
 
   const handleRemoveBookmark = async (clipId) => {
-    await toggleBookmark(clipId);
-    setClips(getBookmarkedClips());
-  };
+    await toggleBookmark(clipId)
+    setClips(getBookmarkedClips())
+  }
 
   return (
     <div className="bookmarks-page">
@@ -56,7 +56,9 @@ export default function BookmarksPage() {
           <Bookmark size={24} />
           Saved Movies
         </h1>
-        <p className="bookmarks-subtitle">{clips.length} movie{clips.length !== 1 ? 's' : ''} saved</p>
+        <p className="bookmarks-subtitle">
+          {clips.length} movie{clips.length !== 1 ? 's' : ''} saved
+        </p>
       </div>
 
       {loadState.status === 'loading' && (
@@ -121,7 +123,9 @@ export default function BookmarksPage() {
                 <p className="bookmark-desc">{clip.description}</p>
                 <div className="bookmark-genres">
                   {clip.genres.slice(0, 3).map((g) => (
-                    <span key={g} className="bookmark-genre">{g}</span>
+                    <span key={g} className="bookmark-genre">
+                      {g}
+                    </span>
                   ))}
                 </div>
                 <div className="bookmark-actions">
@@ -132,10 +136,7 @@ export default function BookmarksPage() {
                     <ExternalLink size={14} />
                     Watch
                   </button>
-                  <button
-                    className="bookmark-action-btn share"
-                    onClick={() => handleShare(clip)}
-                  >
+                  <button className="bookmark-action-btn share" onClick={() => handleShare(clip)}>
                     <Share2 size={14} />
                   </button>
                   <button
@@ -151,5 +152,5 @@ export default function BookmarksPage() {
         </div>
       )}
     </div>
-  );
+  )
 }

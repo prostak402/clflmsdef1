@@ -1,83 +1,97 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useApp } from '../context/useApp';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react'
+import { useApp } from '../context/useApp'
+import { useNavigate } from 'react-router-dom'
 import {
-  User, LogOut, Settings, Bookmark, Heart,
-  ChevronRight, Palette, Bell, Shield, HelpCircle,
-} from 'lucide-react';
-import { feedService } from '../services/feed-service';
-import DataState from '../components/DataState';
-import './ProfilePage.css';
+  User,
+  LogOut,
+  Settings,
+  Bookmark,
+  Heart,
+  ChevronRight,
+  Palette,
+  Bell,
+  Shield,
+  HelpCircle,
+} from 'lucide-react'
+import { feedService } from '../services/feed-service'
+import DataState from '../components/DataState'
+import './ProfilePage.css'
 
 export default function ProfilePage() {
-  const { user, logout, getProfile } = useApp();
-  const navigate = useNavigate();
-  const [profile, setProfile] = useState(null);
-  const [loadState, setLoadState] = useState({ status: 'loading', error: '' });
+  const { user, logout, getProfile } = useApp()
+  const navigate = useNavigate()
+  const [profile, setProfile] = useState(null)
+  const [loadState, setLoadState] = useState({ status: 'loading', error: '' })
 
   const loadProfile = useCallback(async () => {
-    setLoadState({ status: 'loading', error: '' });
+    setLoadState({ status: 'loading', error: '' })
 
     try {
-      await feedService.wait(220);
-      setProfile(getProfile());
-      setLoadState({ status: 'ready', error: '' });
+      await feedService.wait(220)
+      setProfile(getProfile())
+      setLoadState({ status: 'ready', error: '' })
     } catch {
-      setLoadState({ status: 'error', error: 'Failed to load profile.' });
+      setLoadState({ status: 'error', error: 'Failed to load profile.' })
     }
-  }, [getProfile]);
+  }, [getProfile])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      loadProfile();
-    }, 0);
+      loadProfile()
+    }, 0)
 
-    return () => window.clearTimeout(timer);
-  }, [loadProfile]);
+    return () => window.clearTimeout(timer)
+  }, [loadProfile])
 
   const handleLogout = () => {
-    logout();
-    navigate('/');
-  };
+    logout()
+    navigate('/')
+  }
 
-  const hasActivity = profile && (profile.bookmarkCount > 0 || profile.likeCount > 0);
+  const hasActivity = profile && (profile.bookmarkCount > 0 || profile.likeCount > 0)
 
-  const menuItems = profile ? [
-    {
-      icon: Bookmark,
-      label: 'Saved Movies',
-      value: `${profile.bookmarkCount}`,
-      onClick: () => navigate('/bookmarks'),
-    },
-    {
-      icon: Heart,
-      label: 'Liked Clips',
-      value: `${profile.likeCount}`,
-    },
-    {
-      icon: Palette,
-      label: 'Genre Preferences',
-      onClick: () => navigate('/genres'),
-    },
-    {
-      icon: Bell,
-      label: 'Notifications',
-      value: 'On',
-    },
-    {
-      icon: Settings,
-      label: 'Settings',
-    },
-    {
-      icon: HelpCircle,
-      label: 'Help & Support',
-    },
-  ] : [];
+  const menuItems = profile
+    ? [
+        {
+          icon: Bookmark,
+          label: 'Saved Movies',
+          value: `${profile.bookmarkCount}`,
+          onClick: () => navigate('/bookmarks'),
+        },
+        {
+          icon: Heart,
+          label: 'Liked Clips',
+          value: `${profile.likeCount}`,
+        },
+        {
+          icon: Palette,
+          label: 'Genre Preferences',
+          onClick: () => navigate('/genres'),
+        },
+        {
+          icon: Bell,
+          label: 'Notifications',
+          value: 'On',
+        },
+        {
+          icon: Settings,
+          label: 'Settings',
+        },
+        {
+          icon: HelpCircle,
+          label: 'Help & Support',
+        },
+      ]
+    : []
 
   return (
     <div className="profile-page">
       {loadState.status === 'loading' && (
-        <DataState variant="loading" title="Loading profile" description="Fetching your preferences..." />
+        <DataState
+          variant="loading"
+          title="Loading profile"
+          description="Fetching your preferences..."
+        />
       )}
 
       {loadState.status === 'error' && (
@@ -163,5 +177,5 @@ export default function ProfilePage() {
         </>
       )}
     </div>
-  );
+  )
 }

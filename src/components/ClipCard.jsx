@@ -1,91 +1,99 @@
-import { useState, useRef, useEffect } from 'react';
-import { useApp } from '../context/useApp';
+import { useState, useRef, useEffect } from 'react'
+import { useApp } from '../context/useApp'
 import {
-  Heart, MessageCircle, Share2, Bookmark, Play,
-  Volume2, VolumeX, Star, ExternalLink, Info
-} from 'lucide-react';
-import './ClipCard.css';
+  Heart,
+  MessageCircle,
+  Share2,
+  Bookmark,
+  Play,
+  Volume2,
+  VolumeX,
+  Star,
+  ExternalLink,
+  Info,
+} from 'lucide-react'
+import './ClipCard.css'
 
 function formatCount(num) {
-  if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-  if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-  return num.toString();
+  if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'
+  if (num >= 1000) return (num / 1000).toFixed(1) + 'K'
+  return num.toString()
 }
 
 export default function ClipCard({ clip, isActive, onOpenComments }) {
-  const { likes, toggleLike, bookmarks, toggleBookmark } = useApp();
-  const [playing, setPlaying] = useState(false);
-  const [muted, setMuted] = useState(true);
-  const [showInfo, setShowInfo] = useState(false);
-  const [shareToast, setShareToast] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const videoRef = useRef(null);
+  const { likes, toggleLike, bookmarks, toggleBookmark } = useApp()
+  const [playing, setPlaying] = useState(false)
+  const [muted, setMuted] = useState(true)
+  const [showInfo, setShowInfo] = useState(false)
+  const [shareToast, setShareToast] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [duration, setDuration] = useState(0)
+  const videoRef = useRef(null)
 
-  const isLiked = likes[clip.id];
-  const isBookmarked = bookmarks.includes(clip.id);
+  const isLiked = likes[clip.id]
+  const isBookmarked = bookmarks.includes(clip.id)
 
   useEffect(() => {
-    if (!videoRef.current) return;
+    if (!videoRef.current) return
     if (isActive) {
-      videoRef.current.play().catch(() => {});
+      videoRef.current.play().catch(() => {})
     } else {
-      videoRef.current.currentTime = 0;
-      videoRef.current.pause();
+      videoRef.current.currentTime = 0
+      videoRef.current.pause()
     }
-  }, [isActive]);
+  }, [isActive])
 
   const handleTimeUpdate = () => {
-    if (!videoRef.current) return;
-    setProgress(videoRef.current.currentTime);
-  };
+    if (!videoRef.current) return
+    setProgress(videoRef.current.currentTime)
+  }
 
   const handleLoadedMetadata = () => {
-    if (!videoRef.current) return;
-    setDuration(videoRef.current.duration || 0);
-  };
+    if (!videoRef.current) return
+    setDuration(videoRef.current.duration || 0)
+  }
 
   const handleSeek = (event) => {
-    if (!videoRef.current) return;
-    const newTime = Number(event.target.value);
-    videoRef.current.currentTime = newTime;
-    setProgress(newTime);
-  };
+    if (!videoRef.current) return
+    const newTime = Number(event.target.value)
+    videoRef.current.currentTime = newTime
+    setProgress(newTime)
+  }
 
   const togglePlay = () => {
-    if (!videoRef.current) return;
+    if (!videoRef.current) return
     if (playing) {
-      videoRef.current.pause();
-      return;
+      videoRef.current.pause()
+      return
     }
 
-    videoRef.current.play().catch(() => {});
-  };
+    videoRef.current.play().catch(() => {})
+  }
 
   const handleShare = async () => {
     const shareData = {
       title: clip.title,
       text: `Check out "${clip.title}" on ClipFlow!`,
       url: clip.watchUrl,
-    };
+    }
     try {
       if (navigator.share) {
-        await navigator.share(shareData);
+        await navigator.share(shareData)
       } else {
-        await navigator.clipboard.writeText(clip.watchUrl);
-        setShareToast(true);
-        setTimeout(() => setShareToast(false), 2000);
+        await navigator.clipboard.writeText(clip.watchUrl)
+        setShareToast(true)
+        setTimeout(() => setShareToast(false), 2000)
       }
     } catch {
-      await navigator.clipboard.writeText(clip.watchUrl);
-      setShareToast(true);
-      setTimeout(() => setShareToast(false), 2000);
+      await navigator.clipboard.writeText(clip.watchUrl)
+      setShareToast(true)
+      setTimeout(() => setShareToast(false), 2000)
     }
-  };
+  }
 
   const handleWatch = () => {
-    window.open(clip.watchUrl, '_blank', 'noopener');
-  };
+    window.open(clip.watchUrl, '_blank', 'noopener')
+  }
 
   return (
     <div className="clip-card">
@@ -104,8 +112,8 @@ export default function ClipCard({ clip, isActive, onOpenComments }) {
           onLoadedMetadata={handleLoadedMetadata}
           onPlay={() => setPlaying(true)}
           onPause={() => {
-            setPlaying(false);
-            setProgress(videoRef.current?.currentTime || 0);
+            setPlaying(false)
+            setProgress(videoRef.current?.currentTime || 0)
           }}
         />
 
@@ -146,7 +154,10 @@ export default function ClipCard({ clip, isActive, onOpenComments }) {
         </div>
         <button
           className="clip-mute-btn glass"
-          onClick={(e) => { e.stopPropagation(); setMuted(!muted); }}
+          onClick={(e) => {
+            e.stopPropagation()
+            setMuted(!muted)
+          }}
         >
           {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
         </button>
@@ -159,7 +170,11 @@ export default function ClipCard({ clip, isActive, onOpenComments }) {
           onClick={() => toggleLike(clip.id)}
         >
           <div className="clip-action-icon">
-            <Heart size={26} fill={isLiked ? '#ec4899' : 'none'} color={isLiked ? '#ec4899' : 'white'} />
+            <Heart
+              size={26}
+              fill={isLiked ? '#ec4899' : 'none'}
+              color={isLiked ? '#ec4899' : 'white'}
+            />
           </div>
           <span className="clip-action-count">{formatCount(clip.likes + (isLiked ? 1 : 0))}</span>
         </button>
@@ -176,7 +191,11 @@ export default function ClipCard({ clip, isActive, onOpenComments }) {
           onClick={() => toggleBookmark(clip.id)}
         >
           <div className="clip-action-icon">
-            <Bookmark size={26} fill={isBookmarked ? '#f59e0b' : 'none'} color={isBookmarked ? '#f59e0b' : 'white'} />
+            <Bookmark
+              size={26}
+              fill={isBookmarked ? '#f59e0b' : 'none'}
+              color={isBookmarked ? '#f59e0b' : 'white'}
+            />
           </div>
           <span className="clip-action-count">{formatCount(clip.bookmarks)}</span>
         </button>
@@ -221,11 +240,15 @@ export default function ClipCard({ clip, isActive, onOpenComments }) {
               <img src={clip.poster} alt={clip.title} className="clip-detail-poster" />
               <div className="clip-detail-info">
                 <h3>{clip.title}</h3>
-                <p className="clip-detail-meta">{clip.year} • {clip.duration} • {clip.rating}/10</p>
+                <p className="clip-detail-meta">
+                  {clip.year} • {clip.duration} • {clip.rating}/10
+                </p>
                 <p className="clip-detail-director">Directed by {clip.director}</p>
                 <div className="clip-detail-genres">
                   {clip.genres.map((g) => (
-                    <span key={g} className="clip-detail-genre">{g}</span>
+                    <span key={g} className="clip-detail-genre">
+                      {g}
+                    </span>
                   ))}
                 </div>
               </div>
@@ -253,11 +276,7 @@ export default function ClipCard({ clip, isActive, onOpenComments }) {
       )}
 
       {/* Share toast */}
-      {shareToast && (
-        <div className="clip-toast glass-strong">
-          Link copied to clipboard!
-        </div>
-      )}
+      {shareToast && <div className="clip-toast glass-strong">Link copied to clipboard!</div>}
     </div>
-  );
+  )
 }

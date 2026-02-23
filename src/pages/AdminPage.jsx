@@ -1,19 +1,26 @@
-import { useState } from 'react';
-import { useApp } from '../context/useApp';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react'
+import { useApp } from '../context/useApp'
+import { useNavigate } from 'react-router-dom'
 import {
-  Upload, Film, Plus, Trash2, X, Save,
-  AlertTriangle, Check, Link as LinkIcon
-} from 'lucide-react';
-import { contentService } from '../services/content-service';
-import './AdminPage.css';
+  Upload,
+  Film,
+  Plus,
+  Trash2,
+  X,
+  Save,
+  AlertTriangle,
+  Check,
+  Link as LinkIcon,
+} from 'lucide-react'
+import { contentService } from '../services/content-service'
+import './AdminPage.css'
 
 export default function AdminPage() {
-  const { user } = useApp();
-  const navigate = useNavigate();
-  const [uploads, setUploads] = useState([]);
-  const [showForm, setShowForm] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const { user } = useApp()
+  const navigate = useNavigate()
+  const [uploads, setUploads] = useState([])
+  const [showForm, setShowForm] = useState(false)
+  const [saved, setSaved] = useState(false)
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -26,7 +33,7 @@ export default function AdminPage() {
     watchUrl: '',
     clipFile: null,
     posterFile: null,
-  });
+  })
 
   if (!user?.isAdmin) {
     return (
@@ -36,7 +43,7 @@ export default function AdminPage() {
         <p>You need admin privileges to access this page.</p>
         <button onClick={() => navigate('/feed')}>Go to Feed</button>
       </div>
-    );
+    )
   }
 
   const handleGenreToggle = (genreId) => {
@@ -45,34 +52,40 @@ export default function AdminPage() {
       genres: prev.genres.includes(genreId)
         ? prev.genres.filter((g) => g !== genreId)
         : [...prev.genres, genreId],
-    }));
-  };
+    }))
+  }
 
   const handleSubmit = (e) => {
-    e.preventDefault();
+    e.preventDefault()
     const newUpload = {
       id: Date.now(),
       ...form,
       status: 'processing',
       createdAt: new Date().toLocaleString(),
-    };
-    setUploads([newUpload, ...uploads]);
+    }
+    setUploads([newUpload, ...uploads])
     setForm({
-      title: '', description: '', clipDescription: '', genres: [],
-      year: '', director: '', duration: '', kinopoiskId: '', watchUrl: '',
-      clipFile: null, posterFile: null,
-    });
-    setShowForm(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+      title: '',
+      description: '',
+      clipDescription: '',
+      genres: [],
+      year: '',
+      director: '',
+      duration: '',
+      kinopoiskId: '',
+      watchUrl: '',
+      clipFile: null,
+      posterFile: null,
+    })
+    setShowForm(false)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 3000)
 
     // Simulate processing
     setTimeout(() => {
-      setUploads((prev) =>
-        prev.map((u) => u.id === newUpload.id ? { ...u, status: 'ready' } : u)
-      );
-    }, 2000);
-  };
+      setUploads((prev) => prev.map((u) => (u.id === newUpload.id ? { ...u, status: 'ready' } : u)))
+    }, 2000)
+  }
 
   return (
     <div className="admin-page">
@@ -81,10 +94,7 @@ export default function AdminPage() {
           <h1 className="admin-title">Admin Panel</h1>
           <p className="admin-subtitle">Manage movie clips</p>
         </div>
-        <button
-          className="admin-add-btn"
-          onClick={() => setShowForm(!showForm)}
-        >
+        <button className="admin-add-btn" onClick={() => setShowForm(!showForm)}>
           {showForm ? <X size={20} /> : <Plus size={20} />}
           <span>{showForm ? 'Cancel' : 'Add Clip'}</span>
         </button>
@@ -284,7 +294,6 @@ export default function AdminPage() {
           Clip uploaded successfully!
         </div>
       )}
-
     </div>
-  );
+  )
 }

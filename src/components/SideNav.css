@@ -123,8 +123,14 @@
   }
 
   @keyframes barEnter {
-    from { height: 0; opacity: 0; }
-    to { height: 20px; opacity: 1; }
+    from {
+      height: 0;
+      opacity: 0;
+    }
+    to {
+      height: 20px;
+      opacity: 1;
+    }
   }
 
   /* User section */

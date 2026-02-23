@@ -18,4 +18,4 @@
  * }} getProfile
  */
 
-export {};
+export {}
