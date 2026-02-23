@@ -18,12 +18,14 @@ describe('TASK-011: payload normalization for write operations', () => {
       text: longText,
       comments: null,
       userName: '  A  ',
+      authorId: '   user-123   ',
     })
 
     expect(payload.clipId).toBe('clip-1')
     expect(payload.text.length).toBe(BACKEND_CONSTRAINTS.commentText.maxLength)
     expect(payload.comments).toEqual({})
     expect(payload.userName).toBeUndefined()
+    expect(payload.authorId).toBe('user-123')
   })
 
   it('normalizes toggleLike payload before adapter write', () => {

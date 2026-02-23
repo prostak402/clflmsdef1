@@ -98,7 +98,9 @@ describe('TASK-012: AppContext state transitions', () => {
     expect(result).toEqual({ ok: true, error: '' })
     expect(getCurrent().comments['1']).toHaveLength(beforeCommentsCount + 1)
     expect(getCurrent().comments['1'][0].text).toBe('Great pick!')
-    expect(getCurrent().comments['1'][0].user).toBe('Test User')
+    expect(getCurrent().comments['1'][0].authorName).toBe('Test User')
+    expect(getCurrent().comments['1'][0].authorId).toBe('test@example.com')
+    expect(getCurrent().comments['1'][0].createdAt).toMatch(/\d{4}-\d{2}-\d{2}T/)
 
     let invalidResult
     await act(async () => {

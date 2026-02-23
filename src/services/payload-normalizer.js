@@ -16,6 +16,12 @@ const BACKEND_CONSTRAINTS = Object.freeze({
     maxLength: 50,
     trim: true,
   }),
+  authorId: Object.freeze({
+    required: false,
+    minLength: 2,
+    maxLength: 120,
+    trim: true,
+  }),
 })
 
 function normalizeString(value) {
@@ -64,6 +70,23 @@ function normalizeUserName(value) {
   return userName.slice(0, maxLength)
 }
 
+
+function normalizeAuthorId(value) {
+  const authorId = normalizeString(value)
+
+  if (!authorId) {
+    return undefined
+  }
+
+  const { minLength, maxLength } = BACKEND_CONSTRAINTS.authorId
+
+  if (authorId.length < minLength) {
+    return undefined
+  }
+
+  return authorId.slice(0, maxLength)
+}
+
 export function normalizeWritePayload(operation, payload = {}) {
   switch (operation) {
     case 'toggleLike':
@@ -90,6 +113,7 @@ export function normalizeWritePayload(operation, payload = {}) {
         text: normalizeCommentText(payload.text),
         comments: payload.comments && typeof payload.comments === 'object' ? payload.comments : {},
         userName: normalizeUserName(payload.userName),
+        authorId: normalizeAuthorId(payload.authorId),
       }
 
     default:

@@ -137,8 +137,8 @@ export default function CommentsPanel({ clipId, onClose }) {
                 <div className="comment-avatar">{comment.avatar}</div>
                 <div className="comment-body">
                   <div className="comment-header">
-                    <span className="comment-user">{comment.user}</span>
-                    <span className="comment-time">{comment.time}</span>
+                    <span className="comment-user">{comment.authorName}</span>
+                    <span className="comment-time">{comment.timeLabel}</span>
                   </div>
                   <p className="comment-text">{comment.text}</p>
                   <button className="comment-like">

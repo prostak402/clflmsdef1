@@ -1,4 +1,5 @@
 import { MOCK_CLIPS, MOCK_COMMENTS } from '../data/mock'
+import { normalizeComment, normalizeCommentsMap } from './comment-normalizer'
 
 function simulateNetwork() {
   return Promise.resolve()
@@ -35,15 +36,23 @@ export const mockFeedAdapter = {
     await simulateNetwork()
   },
 
-  createComment({ clipId, text, comments, userName }) {
-    const newComment = {
-      id: `cm_${Date.now()}`,
-      user: userName || 'Anonymous',
-      avatar: '👤',
-      text,
-      time: 'Just now',
-      likes: 0,
-    }
+  createComment({ clipId, text, comments, userName, authorId }) {
+    const nowIso = new Date().toISOString()
+
+    const newComment = normalizeComment(
+      {
+        id: `cm_${Date.now()}`,
+        clipId,
+        authorId: authorId || 'anonymous',
+        authorName: userName || 'Anonymous',
+        avatar: '👤',
+        text,
+        likes: 0,
+        createdAt: nowIso,
+        timeLabel: 'Just now',
+      },
+      clipId
+    )
 
     return {
       ...comments,
@@ -66,4 +75,4 @@ export const mockFeedAdapter = {
   },
 }
 
-export const initialComments = MOCK_COMMENTS
+export const initialComments = normalizeCommentsMap(MOCK_COMMENTS)
