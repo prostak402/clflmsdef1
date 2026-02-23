@@ -84,4 +84,32 @@ describe('TASK-016: route guard behavior', () => {
     expect(await screen.findByRole('heading', { name: /Admin Panel/i })).toBeInTheDocument()
     expect(window.location.pathname).toBe('/admin')
   })
+
+  it('redirects non-admin users away from /admin/comments to /feed', async () => {
+    setPersistedState({
+      user: { name: 'Demo User', email: 'demo@clipflow.com', isAdmin: false },
+      hasCompletedOnboarding: true,
+      selectedGenres: ['action', 'drama', 'comedy'],
+    })
+    window.history.replaceState({}, '', '/admin/comments')
+
+    render(<App />)
+
+    expect(await screen.findByText(/Loading clips/i)).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/feed')
+  })
+
+  it('allows admin users with completed onboarding to access /admin/comments', async () => {
+    setPersistedState({
+      user: { name: 'Admin User', email: 'admin@clipflow.com', isAdmin: true },
+      hasCompletedOnboarding: true,
+      selectedGenres: ['action', 'drama', 'comedy'],
+    })
+    window.history.replaceState({}, '', '/admin/comments')
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: /Comment Moderation/i })).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/admin/comments')
+  })
 })

@@ -44,6 +44,19 @@
   margin-top: var(--space-xs);
 }
 
+.admin-comments-link {
+  display: inline-flex;
+  margin-top: var(--space-sm);
+  color: var(--accent-purple);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.admin-comments-link:hover {
+  text-decoration: underline;
+}
+
 .admin-add-btn {
   display: flex;
   align-items: center;
