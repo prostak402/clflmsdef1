@@ -18,9 +18,20 @@ async function loginAndOpenFeed(user) {
   expect((await screen.findAllByText(/Watch Full Movie/i)).length).toBeGreaterThan(0);
 }
 
+function setPersistedAppState(state) {
+  window.localStorage.setItem(
+    'app_state_v1',
+    JSON.stringify({
+      version: 1,
+      state,
+    })
+  );
+}
+
 describe('TASK-013: key business flow integration', () => {
   beforeEach(() => {
     cleanup();
+    window.localStorage.clear();
     window.history.replaceState({}, '', '/');
   });
 
@@ -70,6 +81,48 @@ describe('TASK-013: key business flow integration', () => {
     await user.click(document.querySelector('.comments-send'));
 
     expect(await screen.findByText(/comment cannot be empty/i)).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/feed');
+  });
+
+  it('redirects authenticated user without onboarding from feed to genres', async () => {
+    setPersistedAppState({
+      user: { name: 'Demo User', email: 'demo@clipflow.com', isAdmin: false },
+      hasCompletedOnboarding: false,
+      selectedGenres: [],
+      bookmarks: [],
+      likes: {},
+      draftPreferences: {
+        notificationsEnabled: true,
+        autoplayEnabled: true,
+        preferredLanguage: 'en',
+      },
+    });
+    window.history.replaceState({}, '', '/feed');
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /What do you like\?/i })).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/genres');
+  });
+
+  it('redirects non-admin user away from admin page to feed', async () => {
+    setPersistedAppState({
+      user: { name: 'Demo User', email: 'demo@clipflow.com', isAdmin: false },
+      hasCompletedOnboarding: true,
+      selectedGenres: ['action', 'drama', 'comedy'],
+      bookmarks: [],
+      likes: {},
+      draftPreferences: {
+        notificationsEnabled: true,
+        autoplayEnabled: true,
+        preferredLanguage: 'en',
+      },
+    });
+    window.history.replaceState({}, '', '/admin');
+
+    render(<App />);
+
+    expect((await screen.findAllByText(/Watch Full Movie/i)).length).toBeGreaterThan(0);
     expect(window.location.pathname).toBe('/feed');
   });
 });
