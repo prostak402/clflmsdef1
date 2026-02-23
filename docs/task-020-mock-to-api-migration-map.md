@@ -182,3 +182,50 @@
 - [ ] Подготовлены seed-данные, покрывающие: ленту, комментарии, лайки, закладки, онбординг, роли.
 - [ ] Read/write флоу работают от API через единый adapter layer.
 - [ ] `mock.js` можно отключить флагом без деградации основных сценариев.
+
+
+---
+
+## 6) Moderation
+
+Для админского экрана модерации добавлен стабильный интерфейс в adapter/service слое, чтобы UI не зависел от источника данных (mock/API).
+
+### 6.1 Методы, которые останутся в UI-контракте
+
+- `getAllCommentsForModeration(params)`
+- `blockUserComments(params)`
+- `deleteComment(params)`
+- `deleteCommentsByUser(params)`
+
+### 6.2 Текущий mock payload → целевой backend payload
+
+1. `getAllCommentsForModeration`
+   - Mock вход: `{ comments, clips, blockedUsers }`
+   - Mock выход: `Array<ModerationCommentRow>` (flattened comments с `clipTitle`, `isBlockedAuthor`)
+   - API замена: `GET /moderation/comments`
+   - API payload: query-параметры пагинации/фильтров (`page`, `limit`, `authorId`, `clipId`, `status`) и ответ списком строк модерации.
+
+2. `blockUserComments`
+   - Mock вход: `{ authorId, blockedUsers }`
+   - Mock выход: `Record<string, boolean>` (обновленная карта блокировок)
+   - API замена: `POST /moderation/comments/block-user`
+   - API payload: `{ authorId, isBlocked: true, reason?: string }`
+
+3. `deleteComment`
+   - Mock вход: `{ clipId, commentId, comments }`
+   - Mock выход: `Record<string, Array<Comment>>` (карта комментариев после удаления)
+   - API замена: `DELETE /moderation/comments/:commentId`
+   - API payload: path-параметр `commentId` (+ при необходимости `hardDelete` как query/body флаг)
+
+4. `deleteCommentsByUser`
+   - Mock вход: `{ authorId, comments }`
+   - Mock выход: `Record<string, Array<Comment>>` (карта комментариев после bulk-удаления)
+   - API замена: `DELETE /moderation/comments/by-user/:authorId`
+   - API payload: path-параметр `authorId`, опционально фильтры (`clipId`, `from`, `to`) для частичного bulk-удаления.
+
+### 6.3 Требование стабильности сигнатур
+
+- На уровне UI используются только методы `feedService`.
+- При переключении на backend заменяется внутренняя реализация adapter-а, без изменения вызовов из компонентов.
+- Возвращаемые формы данных в `feedService` должны оставаться эквивалентными mock-форме, либо нормализоваться в service-слое до UI-совместимого вида.
+

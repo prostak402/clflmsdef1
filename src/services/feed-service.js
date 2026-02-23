@@ -189,6 +189,36 @@ export const feedService = {
       eventPayload: { clipId: params?.clipId },
     })
   },
+  getAllCommentsForModeration(params) {
+    return runWithApiErrorLogging({
+      endpoint: 'GET /moderation/comments',
+      payload: params,
+      operation: () => feedAdapter.getAllCommentsForModeration(params),
+    })
+  },
+  blockUserComments(params) {
+    return runWithApiErrorLogging({
+      endpoint: 'POST /moderation/comments/block-user',
+      payload: params,
+      operation: () =>
+        feedAdapter.blockUserComments(normalizeWritePayload('blockUserComments', params)),
+    })
+  },
+  deleteComment(params) {
+    return runWithApiErrorLogging({
+      endpoint: 'DELETE /moderation/comments/:commentId',
+      payload: params,
+      operation: () => feedAdapter.deleteComment(normalizeWritePayload('deleteComment', params)),
+    })
+  },
+  deleteCommentsByUser(params) {
+    return runWithApiErrorLogging({
+      endpoint: 'DELETE /moderation/comments/by-user/:authorId',
+      payload: params,
+      operation: () =>
+        feedAdapter.deleteCommentsByUser(normalizeWritePayload('deleteCommentsByUser', params)),
+    })
+  },
   getBookmarks(params) {
     return runWithApiErrorLogging({
       endpoint: 'GET /bookmarks',
