@@ -242,6 +242,7 @@ export function AppProvider({ children }) {
           text: validation.normalizedText,
           comments: prev,
           userName: user?.name,
+          authorId: user?.id || user?.email,
         })
       )
 
