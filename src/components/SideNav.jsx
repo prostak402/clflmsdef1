@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useApp } from '../context/useApp'
-import { Home, Search, Bookmark, User, Shield, Film } from 'lucide-react'
+import { Home, Search, Bookmark, User, Shield, Film, MessageSquareWarning } from 'lucide-react'
 import './SideNav.css'
 
 const renderNavIcon = (Icon, size) => <Icon size={size} />
@@ -21,7 +21,7 @@ export default function SideNav() {
     ? [
         ...NAV_ITEMS,
         { path: '/admin', icon: Shield, label: 'Admin' },
-        { path: '/admin/comments', icon: Shield, label: 'Comments' },
+        { path: '/admin/comments', icon: MessageSquareWarning, label: 'Comments Mod' },
       ]
     : NAV_ITEMS
 

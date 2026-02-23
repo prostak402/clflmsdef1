@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useApp } from '../context/useApp'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   Upload,
   Film,
@@ -93,6 +93,9 @@ export default function AdminPage() {
         <div>
           <h1 className="admin-title">Admin Panel</h1>
           <p className="admin-subtitle">Manage movie clips</p>
+          <Link className="admin-comments-link" to="/admin/comments">
+            Go to comments moderation
+          </Link>
         </div>
         <button className="admin-add-btn" onClick={() => setShowForm(!showForm)}>
           {showForm ? <X size={20} /> : <Plus size={20} />}
