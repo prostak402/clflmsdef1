@@ -1,0 +1,143 @@
+.admin-comments-page {
+  padding: 28px;
+  color: var(--text-primary);
+}
+
+.admin-comments-header {
+  margin-bottom: 12px;
+}
+
+.admin-comments-header h1 {
+  margin: 0;
+  font-size: 2rem;
+}
+
+.admin-comments-header p {
+  margin: 6px 0 0;
+  color: var(--text-secondary);
+}
+
+.admin-comments-status {
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
+}
+
+.admin-comments-status[data-status='pending'] {
+  color: #f6c453;
+}
+
+.admin-comments-status[data-status='success'] {
+  color: #63d28b;
+}
+
+.admin-comments-status[data-status='error'] {
+  color: #ff7b7b;
+}
+
+.admin-comments-table-wrap {
+  overflow: auto;
+  border-radius: 16px;
+}
+
+.admin-comments-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 920px;
+}
+
+.admin-comments-table th,
+.admin-comments-table td {
+  padding: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  text-align: left;
+  vertical-align: top;
+}
+
+.admin-comments-table th {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  letter-spacing: 0.04em;
+}
+
+.admin-comments-author,
+.admin-comments-clip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.admin-comments-author small,
+.admin-comments-clip small {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.admin-comments-badge {
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 999px;
+  padding: 2px 8px;
+  background: rgba(255, 94, 94, 0.18);
+  color: #ff9090;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.admin-comments-text {
+  max-width: 420px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.admin-comments-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-comments-actions button {
+  border: 0;
+  border-radius: 8px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.admin-comments-actions button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.admin-comments-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.admin-comments-empty {
+  text-align: center;
+  color: var(--text-secondary);
+  padding: 28px;
+}
+
+.admin-comments-restricted {
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.admin-comments-restricted button {
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+  cursor: pointer;
+}

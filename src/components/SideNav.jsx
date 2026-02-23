@@ -18,7 +18,11 @@ export default function SideNav() {
   const { user } = useApp()
 
   const items = user?.isAdmin
-    ? [...NAV_ITEMS, { path: '/admin', icon: Shield, label: 'Admin' }]
+    ? [
+        ...NAV_ITEMS,
+        { path: '/admin', icon: Shield, label: 'Admin' },
+        { path: '/admin/comments', icon: Shield, label: 'Comments' },
+      ]
     : NAV_ITEMS
 
   return (
