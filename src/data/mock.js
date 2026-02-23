@@ -267,6 +267,7 @@ export const MOCK_COMMENTS = {
       avatar: '🚀',
       text: 'This scene gives me chills every time!',
       time: '2 hours ago',
+      createdAt: '2025-01-18T12:30:00.000Z',
       likes: 342,
     },
     {
@@ -275,6 +276,7 @@ export const MOCK_COMMENTS = {
       avatar: '🎬',
       text: "Hans Zimmer's score here is absolutely perfect",
       time: '5 hours ago',
+      createdAt: '2025-01-18T09:40:00.000Z',
       likes: 218,
     },
     {
@@ -283,6 +285,7 @@ export const MOCK_COMMENTS = {
       avatar: '🍿',
       text: 'Nolan is a genius. The practical effects make this scene hit different.',
       time: '1 day ago',
+      createdAt: '2025-01-17T14:20:00.000Z',
       likes: 156,
     },
   ],
@@ -293,6 +296,7 @@ export const MOCK_COMMENTS = {
       avatar: '🦇',
       text: 'Heath Ledger deserved every award for this performance',
       time: '3 hours ago',
+      createdAt: '2025-01-18T11:10:00.000Z',
       likes: 567,
     },
     {
@@ -301,6 +305,7 @@ export const MOCK_COMMENTS = {
       avatar: '🌃',
       text: 'Best superhero movie ever made. No debate.',
       time: '8 hours ago',
+      createdAt: '2025-01-18T06:15:00.000Z',
       likes: 423,
     },
   ],
@@ -311,6 +316,7 @@ export const MOCK_COMMENTS = {
       avatar: '✨',
       text: "Miyazaki's imagination is limitless",
       time: '1 hour ago',
+      createdAt: '2025-01-18T13:25:00.000Z',
       likes: 289,
     },
   ],
