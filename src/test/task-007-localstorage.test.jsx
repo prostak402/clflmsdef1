@@ -41,6 +41,7 @@ describe('TASK-007: localStorage state persistence', () => {
     expect(persisted.state.selectedGenres.length).toBeGreaterThanOrEqual(3)
     expect(persisted.state.likes['1']).toBe(true)
     expect(persisted.state.bookmarks).toContain('1')
+    expect(persisted.state.blockedCommentUsers).toEqual({})
     expect(persisted.state.draftPreferences).toEqual(
       expect.objectContaining({ preferredLanguage: 'en' })
     )
@@ -65,6 +66,7 @@ describe('TASK-007: localStorage state persistence', () => {
         selectedGenres: ['action', 'drama', 'comedy'],
         bookmarks: ['1'],
         likes: { 1: true },
+        blockedCommentUsers: { 'demo@clipflow.com': true },
         draftPreferences: { preferredLanguage: 'ru' },
       })
     )
@@ -77,6 +79,7 @@ describe('TASK-007: localStorage state persistence', () => {
     expect(persisted.version).toBe(1)
     expect(persisted.state.likes['1']).toBe(true)
     expect(persisted.state.bookmarks).toContain('1')
+    expect(persisted.state.blockedCommentUsers).toEqual({ 'demo@clipflow.com': true })
     expect(window.localStorage.getItem(LEGACY_STORAGE_KEY)).toBeNull()
   })
 
@@ -91,6 +94,7 @@ describe('TASK-007: localStorage state persistence', () => {
           selectedGenres: ['action', 'drama', 'comedy'],
           bookmarks: [],
           likes: {},
+          blockedCommentUsers: ['demo@clipflow.com', 'second@clipflow.com'],
           draftPreferences: {
             notificationsEnabled: false,
             autoplayEnabled: false,
@@ -105,6 +109,10 @@ describe('TASK-007: localStorage state persistence', () => {
     expect((await screen.findAllByText(/Watch Full Movie/i)).length).toBeGreaterThan(0)
 
     const persisted = JSON.parse(window.localStorage.getItem(STORAGE_KEY))
+    expect(persisted.state.blockedCommentUsers).toEqual({
+      'demo@clipflow.com': true,
+      'second@clipflow.com': true,
+    })
     expect(persisted.state.draftPreferences).toEqual({
       notificationsEnabled: false,
       autoplayEnabled: false,

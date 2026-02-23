@@ -16,6 +16,7 @@ const DEFAULT_DRAFT_PREFERENCES = {
 }
 
 const AUTH_REQUIRED_ERROR = 'auth_required'
+const COMMENT_BLOCKED_ERROR = 'comment_blocked'
 
 const DEFAULT_STATE = {
   user: null,
@@ -23,7 +24,30 @@ const DEFAULT_STATE = {
   selectedGenres: [],
   bookmarks: [],
   likes: {},
+  blockedCommentUsers: {},
   draftPreferences: DEFAULT_DRAFT_PREFERENCES,
+}
+
+function sanitizeBlockedCommentUsers(value) {
+  if (Array.isArray(value)) {
+    return value.reduce((acc, authorId) => {
+      if (typeof authorId === 'string' && authorId.trim()) {
+        acc[authorId.trim()] = true
+      }
+      return acc
+    }, {})
+  }
+
+  if (!value || typeof value !== 'object') {
+    return {}
+  }
+
+  return Object.entries(value).reduce((acc, [authorId, isBlocked]) => {
+    if (typeof authorId === 'string' && authorId.trim() && Boolean(isBlocked)) {
+      acc[authorId.trim()] = true
+    }
+    return acc
+  }, {})
 }
 
 function sanitizeState(value) {
@@ -37,6 +61,7 @@ function sanitizeState(value) {
     selectedGenres: Array.isArray(value.selectedGenres) ? value.selectedGenres : [],
     bookmarks: Array.isArray(value.bookmarks) ? value.bookmarks : [],
     likes: value.likes && typeof value.likes === 'object' ? value.likes : {},
+    blockedCommentUsers: sanitizeBlockedCommentUsers(value.blockedCommentUsers),
     draftPreferences:
       value.draftPreferences && typeof value.draftPreferences === 'object'
         ? { ...DEFAULT_DRAFT_PREFERENCES, ...value.draftPreferences }
@@ -116,6 +141,7 @@ export function AppProvider({ children }) {
   const [selectedGenres, setSelectedGenres] = useState(persistedState.selectedGenres)
   const [bookmarks, setBookmarks] = useState(persistedState.bookmarks)
   const [likes, setLikes] = useState(persistedState.likes)
+  const [blockedCommentUsers, setBlockedCommentUsers] = useState(persistedState.blockedCommentUsers)
   const [draftPreferences, setDraftPreferences] = useState(persistedState.draftPreferences)
   const [comments, setComments] = useState(feedService.getInitialComments())
 
@@ -128,9 +154,18 @@ export function AppProvider({ children }) {
       selectedGenres,
       bookmarks,
       likes,
+      blockedCommentUsers,
       draftPreferences,
     })
-  }, [user, hasCompletedOnboarding, selectedGenres, bookmarks, likes, draftPreferences])
+  }, [
+    user,
+    hasCompletedOnboarding,
+    selectedGenres,
+    bookmarks,
+    likes,
+    blockedCommentUsers,
+    draftPreferences,
+  ])
 
   const login = useCallback((userData) => {
     setUser(userData)
@@ -142,7 +177,89 @@ export function AppProvider({ children }) {
     setSelectedGenres([])
     setBookmarks([])
     setLikes({})
+    setBlockedCommentUsers({})
     setDraftPreferences(DEFAULT_DRAFT_PREFERENCES)
+  }, [])
+
+  const blockUserComments = useCallback((authorId) => {
+    if (typeof authorId !== 'string' || !authorId.trim()) {
+      return false
+    }
+
+    const normalizedAuthorId = authorId.trim()
+    setBlockedCommentUsers((prev) => ({ ...prev, [normalizedAuthorId]: true }))
+    return true
+  }, [])
+
+  const unblockUserComments = useCallback((authorId) => {
+    if (typeof authorId !== 'string' || !authorId.trim()) {
+      return false
+    }
+
+    const normalizedAuthorId = authorId.trim()
+
+    setBlockedCommentUsers((prev) => {
+      if (!prev[normalizedAuthorId]) {
+        return prev
+      }
+
+      const next = { ...prev }
+      delete next[normalizedAuthorId]
+      return next
+    })
+    return true
+  }, [])
+
+  const isUserCommentBlocked = useCallback(
+    (authorId) => {
+      if (typeof authorId !== 'string' || !authorId.trim()) {
+        return false
+      }
+
+      return Boolean(blockedCommentUsers[authorId.trim()])
+    },
+    [blockedCommentUsers]
+  )
+
+  const deleteComment = useCallback(({ clipId, commentId }) => {
+    if (!isValidClipId(clipId) || typeof commentId !== 'string' || !commentId.trim()) {
+      return false
+    }
+
+    const normalizedCommentId = commentId.trim()
+
+    setComments((prev) => {
+      const clipComments = prev[clipId] || []
+      const filteredComments = clipComments.filter((comment) => comment.id !== normalizedCommentId)
+
+      if (filteredComments.length === clipComments.length) {
+        return prev
+      }
+
+      return {
+        ...prev,
+        [clipId]: filteredComments,
+      }
+    })
+
+    return true
+  }, [])
+
+  const deleteCommentsByUser = useCallback(({ authorId }) => {
+    if (typeof authorId !== 'string' || !authorId.trim()) {
+      return false
+    }
+
+    const normalizedAuthorId = authorId.trim()
+
+    setComments((prev) => {
+      return Object.entries(prev).reduce((acc, [clipId, clipComments]) => {
+        acc[clipId] = clipComments.filter((comment) => comment.authorId !== normalizedAuthorId)
+        return acc
+      }, {})
+    })
+
+    return true
   }, [])
 
   const toggleGenre = useCallback((genreId) => {
@@ -228,6 +345,14 @@ export function AppProvider({ children }) {
         }
       }
 
+      const currentAuthorId = user?.id || user?.email
+      if (isUserCommentBlocked(currentAuthorId)) {
+        return {
+          ok: false,
+          error: COMMENT_BLOCKED_ERROR,
+        }
+      }
+
       const validation = validateCommentText(text)
       if (!validation.valid) {
         return {
@@ -242,7 +367,7 @@ export function AppProvider({ children }) {
           text: validation.normalizedText,
           comments: prev,
           userName: user?.name,
-          authorId: user?.id || user?.email,
+          authorId: currentAuthorId,
         })
       )
 
@@ -251,7 +376,7 @@ export function AppProvider({ children }) {
         error: '',
       }
     },
-    [user]
+    [isUserCommentBlocked, user]
   )
 
   const updateDraftPreferences = useCallback((patch) => {
@@ -276,6 +401,7 @@ export function AppProvider({ children }) {
     selectedGenres,
     bookmarks,
     likes,
+    blockedCommentUsers,
     comments,
     draftPreferences,
     login,
@@ -284,7 +410,12 @@ export function AppProvider({ children }) {
     toggleGenre,
     toggleBookmark,
     toggleLike,
+    blockUserComments,
+    unblockUserComments,
+    isUserCommentBlocked,
     addComment,
+    deleteComment,
+    deleteCommentsByUser,
     getFilteredClips,
     getBookmarkedClips,
     getProfile,
