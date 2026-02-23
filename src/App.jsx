@@ -9,6 +9,7 @@ import BookmarksPage from './pages/BookmarksPage'
 import CatalogPage from './pages/CatalogPage'
 import ProfilePage from './pages/ProfilePage'
 import AdminPage from './pages/AdminPage'
+import AdminCommentsPage from './pages/AdminCommentsPage'
 
 function getDefaultAuthorizedPath(hasCompletedOnboarding) {
   return hasCompletedOnboarding ? '/feed' : '/genres'
@@ -107,6 +108,15 @@ function AppRoutes() {
         element={
           <ProtectedRoute requireOnboarding requireAdmin>
             <AdminPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/comments"
+        element={
+          <ProtectedRoute requireOnboarding requireAdmin>
+            <AdminCommentsPage />
           </ProtectedRoute>
         }
       />
