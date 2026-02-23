@@ -7,7 +7,7 @@ import DataState from './DataState'
 import './CommentsPanel.css'
 
 export default function CommentsPanel({ clipId, onClose }) {
-  const { comments, addComment } = useApp()
+  const { comments, addComment, user, isUserCommentBlocked } = useApp()
   const [text, setText] = useState('')
   const [loadState, setLoadState] = useState({ status: 'loading', error: '' })
   const [submitError, setSubmitError] = useState('')
@@ -56,6 +56,21 @@ export default function CommentsPanel({ clipId, onClose }) {
   }, [loadComments])
 
   const clipComments = comments[clipId] || []
+  const currentAuthorId = user?.id || user?.email
+  const isCommentBlocked = isUserCommentBlocked(currentAuthorId)
+  const isSubmitAllowed = validateCommentText(text).valid && !isCommentBlocked
+
+
+  useEffect(() => {
+    if (isCommentBlocked) {
+      setSubmitError('Вам запрещено публиковать комментарии')
+      return
+    }
+
+    setSubmitError((prev) =>
+      prev === 'Вам запрещено публиковать комментарии' ? '' : prev
+    )
+  }, [isCommentBlocked])
 
   useEffect(() => {
     const handleKey = (e) => {
@@ -68,6 +83,12 @@ export default function CommentsPanel({ clipId, onClose }) {
   const handleSubmit = (e) => {
     e.preventDefault()
 
+    if (isCommentBlocked) {
+      setSubmitError('Вам запрещено публиковать комментарии')
+      inputRef.current?.focus()
+      return
+    }
+
     const validation = validateCommentText(text)
     if (!validation.valid) {
       setSubmitError(validation.error)
@@ -77,7 +98,11 @@ export default function CommentsPanel({ clipId, onClose }) {
 
     const result = addComment(clipId, validation.normalizedText)
     if (!result?.ok) {
-      setSubmitError(result?.error || 'Could not submit comment. Please try again.')
+      if (result?.error === 'comment_blocked') {
+        setSubmitError('Вам запрещено публиковать комментарии')
+      } else {
+        setSubmitError(result?.error)
+      }
       inputRef.current?.focus()
       return
     }
@@ -157,6 +182,7 @@ export default function CommentsPanel({ clipId, onClose }) {
               type="text"
               placeholder="Add a comment..."
               value={text}
+              disabled={isCommentBlocked}
               onChange={(e) => {
                 setText(e.target.value)
                 if (submitError) {
@@ -172,7 +198,8 @@ export default function CommentsPanel({ clipId, onClose }) {
           </div>
           <button
             type="submit"
-            className={`comments-send ${validateCommentText(text).valid ? 'active' : ''}`}
+            disabled={isCommentBlocked}
+            className={`comments-send ${isSubmitAllowed ? 'active' : ''}`}
           >
             <Send size={18} />
           </button>

@@ -1,8 +1,20 @@
 import { describe, it, beforeEach, expect } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { cleanup, render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from '../App'
 import { COMMENT_MAX_LENGTH } from '../services/comment-validation'
+
+const STORAGE_KEY = 'app_state_v1'
+
+function setPersistedState(state) {
+  window.localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify({
+      version: 1,
+      state,
+    })
+  )
+}
 
 async function openFeed(user) {
   render(<App />)
@@ -20,6 +32,8 @@ async function openFeed(user) {
 
 describe('TASK-003: feed, reactions, comments and navigation', () => {
   beforeEach(() => {
+    cleanup()
+    window.localStorage.clear()
     window.history.replaceState({}, '', '/')
   })
 
@@ -96,6 +110,28 @@ describe('TASK-003: feed, reactions, comments and navigation', () => {
       await screen.findByText(new RegExp(`maximum length is ${COMMENT_MAX_LENGTH}`, 'i'))
     ).toBeInTheDocument()
   }, 10000)
+
+
+  it('disables comment input for blocked user and shows explicit blocked message', async () => {
+    setPersistedState({
+      user: { name: 'Demo User', email: 'demo@clipflow.com', isAdmin: false },
+      hasCompletedOnboarding: true,
+      selectedGenres: ['action', 'drama', 'comedy'],
+      blockedCommentUsers: { 'demo@clipflow.com': true },
+    })
+
+    render(<App />)
+    expect((await screen.findAllByText(/Watch Full Movie/i)).length).toBeGreaterThan(0)
+
+    const actionButtons = document.querySelectorAll('.clip-actions .clip-action-btn')
+    await userEvent.setup().click(actionButtons[1])
+
+    const commentInput = await screen.findByPlaceholderText(/add a comment/i)
+    expect(commentInput).toBeDisabled()
+    expect(document.querySelector('.comments-send')).toBeDisabled()
+
+    expect(await screen.findByText('Вам запрещено публиковать комментарии')).toBeInTheDocument()
+  })
 
   it('navigates to Bookmarks and Profile via bottom nav', async () => {
     const user = userEvent.setup()
