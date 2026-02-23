@@ -1,37 +1,37 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useApp } from '../context/useApp';
-import { Film, Mail, Lock, User, Eye, EyeOff, ArrowRight } from 'lucide-react';
-import './AuthPage.css';
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useApp } from '../context/useApp'
+import { Film, Mail, Lock, User, Eye, EyeOff, ArrowRight } from 'lucide-react'
+import './AuthPage.css'
 
 export default function AuthPage() {
-  const [isLogin, setIsLogin] = useState(true);
-  const [showPassword, setShowPassword] = useState(false);
-  const [formData, setFormData] = useState({ name: '', email: '', password: '' });
-  const [loading, setLoading] = useState(false);
-  const { user, hasCompletedOnboarding, login } = useApp();
-  const navigate = useNavigate();
+  const [isLogin, setIsLogin] = useState(true)
+  const [showPassword, setShowPassword] = useState(false)
+  const [formData, setFormData] = useState({ name: '', email: '', password: '' })
+  const [loading, setLoading] = useState(false)
+  const { user, hasCompletedOnboarding, login } = useApp()
+  const navigate = useNavigate()
 
   useEffect(() => {
-    if (!user) return;
-    navigate(hasCompletedOnboarding ? '/feed' : '/genres', { replace: true });
-  }, [user, hasCompletedOnboarding, navigate]);
+    if (!user) return
+    navigate(hasCompletedOnboarding ? '/feed' : '/genres', { replace: true })
+  }, [user, hasCompletedOnboarding, navigate])
 
   const handleSubmit = (e) => {
-    e.preventDefault();
-    if (loading) return;
-    setLoading(true);
+    e.preventDefault()
+    if (loading) return
+    setLoading(true)
     setTimeout(() => {
       login({
         name: formData.name || formData.email.split('@')[0],
         email: formData.email,
         avatar: null,
         isAdmin: formData.email === 'admin@clipflow.com',
-      });
-      setLoading(false);
-      navigate('/genres');
-    }, 800);
-  };
+      })
+      setLoading(false)
+      navigate('/genres')
+    }, 800)
+  }
 
   return (
     <div className="auth-page">
@@ -137,27 +137,36 @@ export default function AuthPage() {
           </div>
 
           <div className="auth-social">
-            <button className="auth-social-btn glass" onClick={() => {
-              login({ name: 'Demo User', email: 'demo@clipflow.com', avatar: null, isAdmin: false });
-              navigate('/genres');
-            }}>
+            <button
+              className="auth-social-btn glass"
+              onClick={() => {
+                login({
+                  name: 'Demo User',
+                  email: 'demo@clipflow.com',
+                  avatar: null,
+                  isAdmin: false,
+                })
+                navigate('/genres')
+              }}
+            >
               <span className="auth-social-icon">🎬</span>
               <span>Demo Account</span>
             </button>
-            <button className="auth-social-btn glass" onClick={() => {
-              login({ name: 'Admin', email: 'admin@clipflow.com', avatar: null, isAdmin: true });
-              navigate('/genres');
-            }}>
+            <button
+              className="auth-social-btn glass"
+              onClick={() => {
+                login({ name: 'Admin', email: 'admin@clipflow.com', avatar: null, isAdmin: true })
+                navigate('/genres')
+              }}
+            >
               <span className="auth-social-icon">👑</span>
               <span>Admin Demo</span>
             </button>
           </div>
         </div>
 
-        <p className="auth-footer">
-          By continuing, you agree to our Terms of Service
-        </p>
+        <p className="auth-footer">By continuing, you agree to our Terms of Service</p>
       </div>
     </div>
-  );
+  )
 }

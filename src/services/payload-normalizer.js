@@ -16,52 +16,52 @@ const BACKEND_CONSTRAINTS = Object.freeze({
     maxLength: 50,
     trim: true,
   }),
-});
+})
 
 function normalizeString(value) {
-  return typeof value === 'string' ? value.trim() : '';
+  return typeof value === 'string' ? value.trim() : ''
 }
 
 function normalizeClipId(value) {
-  const clipId = normalizeString(value);
-  const { minLength, maxLength, required } = BACKEND_CONSTRAINTS.clipId;
+  const clipId = normalizeString(value)
+  const { minLength, maxLength, required } = BACKEND_CONSTRAINTS.clipId
 
   if (required && clipId.length < minLength) {
-    throw new Error('clipId is required');
+    throw new Error('clipId is required')
   }
 
   if (clipId.length > maxLength) {
-    throw new Error('clipId exceeds max length');
+    throw new Error('clipId exceeds max length')
   }
 
-  return clipId;
+  return clipId
 }
 
 function normalizeCommentText(value) {
-  const text = normalizeString(value);
-  const { minLength, maxLength } = BACKEND_CONSTRAINTS.commentText;
+  const text = normalizeString(value)
+  const { minLength, maxLength } = BACKEND_CONSTRAINTS.commentText
 
   if (text.length < minLength) {
-    throw new Error('comment text is required');
+    throw new Error('comment text is required')
   }
 
-  return text.slice(0, maxLength);
+  return text.slice(0, maxLength)
 }
 
 function normalizeUserName(value) {
-  const userName = normalizeString(value);
+  const userName = normalizeString(value)
 
   if (!userName) {
-    return undefined;
+    return undefined
   }
 
-  const { minLength, maxLength } = BACKEND_CONSTRAINTS.userName;
+  const { minLength, maxLength } = BACKEND_CONSTRAINTS.userName
 
   if (userName.length < minLength) {
-    return undefined;
+    return undefined
   }
 
-  return userName.slice(0, maxLength);
+  return userName.slice(0, maxLength)
 }
 
 export function normalizeWritePayload(operation, payload = {}) {
@@ -70,19 +70,19 @@ export function normalizeWritePayload(operation, payload = {}) {
       return {
         clipId: normalizeClipId(payload.clipId),
         likes: payload.likes && typeof payload.likes === 'object' ? payload.likes : {},
-      };
+      }
 
     case 'persistLikeToggle':
     case 'persistBookmarkToggle':
       return {
         clipId: normalizeClipId(payload.clipId),
-      };
+      }
 
     case 'toggleBookmark':
       return {
         clipId: normalizeClipId(payload.clipId),
         bookmarks: Array.isArray(payload.bookmarks) ? payload.bookmarks : [],
-      };
+      }
 
     case 'createComment':
       return {
@@ -90,11 +90,11 @@ export function normalizeWritePayload(operation, payload = {}) {
         text: normalizeCommentText(payload.text),
         comments: payload.comments && typeof payload.comments === 'object' ? payload.comments : {},
         userName: normalizeUserName(payload.userName),
-      };
+      }
 
     default:
-      throw new Error(`Unsupported write operation: ${operation}`);
+      throw new Error(`Unsupported write operation: ${operation}`)
   }
 }
 
-export { BACKEND_CONSTRAINTS };
+export { BACKEND_CONSTRAINTS }

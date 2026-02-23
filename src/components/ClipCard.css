@@ -42,8 +42,15 @@
 }
 
 @keyframes playPulse {
-  0%, 100% { transform: scale(1); opacity: 0.9; }
-  50% { transform: scale(1.05); opacity: 1; }
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
 }
 
 .clip-gradient-top {
@@ -205,9 +212,15 @@
 }
 
 @keyframes likeHeart {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.3); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.3);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .clip-action-count {
@@ -289,8 +302,12 @@
 }
 
 @keyframes panelFadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .clip-detail-content {
@@ -306,8 +323,12 @@
 }
 
 @keyframes panelSlideUp {
-  from { transform: translateY(100%); }
-  to { transform: translateY(0); }
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
 }
 
 .clip-detail-header {
@@ -426,16 +447,27 @@
   font-size: var(--text-sm);
   font-weight: 500;
   z-index: 30;
-  animation: toastEnter 0.3s ease-out, toastExit 0.3s ease-in 1.7s forwards;
+  animation:
+    toastEnter 0.3s ease-out,
+    toastExit 0.3s ease-in 1.7s forwards;
 }
 
 @keyframes toastEnter {
-  from { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
-  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
 }
 
 @keyframes toastExit {
-  to { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
 }
 
 /* Desktop: clip fills container, not viewport */
@@ -457,7 +489,6 @@
     bottom: 140px;
   }
 }
-
 
 @media (max-width: 1023px) {
   .clip-progress-wrap {

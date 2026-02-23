@@ -1,31 +1,31 @@
-import { useLocation, useNavigate } from 'react-router-dom';
-import { useApp } from '../context/useApp';
-import { Home, Search, Bookmark, User, Shield } from 'lucide-react';
-import './BottomNav.css';
+import { useLocation, useNavigate } from 'react-router-dom'
+import { useApp } from '../context/useApp'
+import { Home, Search, Bookmark, User, Shield } from 'lucide-react'
+import './BottomNav.css'
 
-const renderNavIcon = (Icon, size) => <Icon size={size} />;
+const renderNavIcon = (Icon, size) => <Icon size={size} />
 
 const NAV_ITEMS = [
   { path: '/feed', icon: Home, label: 'Feed' },
   { path: '/catalog', icon: Search, label: 'Catalog' },
   { path: '/bookmarks', icon: Bookmark, label: 'Saved' },
   { path: '/profile', icon: User, label: 'Profile' },
-];
+]
 
 export default function BottomNav() {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const { user } = useApp();
+  const location = useLocation()
+  const navigate = useNavigate()
+  const { user } = useApp()
 
   const items = user?.isAdmin
     ? [...NAV_ITEMS, { path: '/admin', icon: Shield, label: 'Admin' }]
-    : NAV_ITEMS;
+    : NAV_ITEMS
 
   return (
     <nav className="bottom-nav glass-strong">
       {items.map((item) => {
-        const isActive = location.pathname === item.path;
-        const NavIcon = item.icon;
+        const isActive = location.pathname === item.path
+        const NavIcon = item.icon
 
         return (
           <button
@@ -41,8 +41,8 @@ export default function BottomNav() {
             </div>
             <span className="nav-label">{item.label}</span>
           </button>
-        );
+        )
       })}
     </nav>
-  );
+  )
 }

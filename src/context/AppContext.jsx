@@ -1,21 +1,21 @@
-import { useState, useCallback, useEffect } from 'react';
-import { GENRE_SELECTION_MAX } from '../constants/onboarding';
-import { feedService } from '../services/feed-service';
-import { validateCommentText } from '../services/comment-validation';
+import { useState, useCallback, useEffect } from 'react'
+import { GENRE_SELECTION_MAX } from '../constants/onboarding'
+import { feedService } from '../services/feed-service'
+import { validateCommentText } from '../services/comment-validation'
 
-import { AppContext } from './app-context';
+import { AppContext } from './app-context'
 
-const STORAGE_KEY = 'app_state_v1';
-const LEGACY_STORAGE_KEY = 'clipflow.app-state';
-const STATE_VERSION = 1;
+const STORAGE_KEY = 'app_state_v1'
+const LEGACY_STORAGE_KEY = 'clipflow.app-state'
+const STATE_VERSION = 1
 
 const DEFAULT_DRAFT_PREFERENCES = {
   notificationsEnabled: true,
   autoplayEnabled: true,
   preferredLanguage: 'en',
-};
+}
 
-const AUTH_REQUIRED_ERROR = 'auth_required';
+const AUTH_REQUIRED_ERROR = 'auth_required'
 
 const DEFAULT_STATE = {
   user: null,
@@ -24,11 +24,11 @@ const DEFAULT_STATE = {
   bookmarks: [],
   likes: {},
   draftPreferences: DEFAULT_DRAFT_PREFERENCES,
-};
+}
 
 function sanitizeState(value) {
   if (!value || typeof value !== 'object') {
-    return DEFAULT_STATE;
+    return DEFAULT_STATE
   }
 
   return {
@@ -41,11 +41,11 @@ function sanitizeState(value) {
       value.draftPreferences && typeof value.draftPreferences === 'object'
         ? { ...DEFAULT_DRAFT_PREFERENCES, ...value.draftPreferences }
         : DEFAULT_DRAFT_PREFERENCES,
-  };
+  }
 }
 
 function persistStateSnapshot(state) {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined') return
 
   window.localStorage.setItem(
     STORAGE_KEY,
@@ -53,73 +53,74 @@ function persistStateSnapshot(state) {
       version: STATE_VERSION,
       state,
     })
-  );
+  )
 }
 
 function parseVersionedState(raw) {
-  const parsed = JSON.parse(raw);
+  const parsed = JSON.parse(raw)
 
   if (parsed?.version === STATE_VERSION) {
-    return sanitizeState(parsed.state);
+    return sanitizeState(parsed.state)
   }
 
   if (typeof parsed === 'object' && parsed !== null && !('version' in parsed)) {
-    return sanitizeState(parsed);
+    return sanitizeState(parsed)
   }
 
-  return null;
+  return null
 }
 
 function migrateFromLegacyState() {
-  const rawLegacy = window.localStorage.getItem(LEGACY_STORAGE_KEY);
-  if (!rawLegacy) return DEFAULT_STATE;
+  const rawLegacy = window.localStorage.getItem(LEGACY_STORAGE_KEY)
+  if (!rawLegacy) return DEFAULT_STATE
 
   try {
-    const migrated = sanitizeState(JSON.parse(rawLegacy));
-    persistStateSnapshot(migrated);
-    window.localStorage.removeItem(LEGACY_STORAGE_KEY);
-    return migrated;
+    const migrated = sanitizeState(JSON.parse(rawLegacy))
+    persistStateSnapshot(migrated)
+    window.localStorage.removeItem(LEGACY_STORAGE_KEY)
+    return migrated
   } catch {
-    return DEFAULT_STATE;
+    return DEFAULT_STATE
   }
 }
 
 function readPersistedState() {
-  if (typeof window === 'undefined') return DEFAULT_STATE;
+  if (typeof window === 'undefined') return DEFAULT_STATE
 
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(STORAGE_KEY)
     if (!raw) {
-      return migrateFromLegacyState();
+      return migrateFromLegacyState()
     }
 
-    const parsed = parseVersionedState(raw);
-    if (parsed) return parsed;
+    const parsed = parseVersionedState(raw)
+    if (parsed) return parsed
 
-    return migrateFromLegacyState();
+    return migrateFromLegacyState()
   } catch {
-    return migrateFromLegacyState();
+    return migrateFromLegacyState()
   }
 }
 
-
 function isValidClipId(value) {
-  return typeof value === 'string' && value.trim().length > 0 && value.trim().length <= 64;
+  return typeof value === 'string' && value.trim().length > 0 && value.trim().length <= 64
 }
 
 export function AppProvider({ children }) {
-  const [persistedState] = useState(() => readPersistedState());
+  const [persistedState] = useState(() => readPersistedState())
 
-  const [user, setUser] = useState(persistedState.user);
-  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(persistedState.hasCompletedOnboarding);
-  const [selectedGenres, setSelectedGenres] = useState(persistedState.selectedGenres);
-  const [bookmarks, setBookmarks] = useState(persistedState.bookmarks);
-  const [likes, setLikes] = useState(persistedState.likes);
-  const [draftPreferences, setDraftPreferences] = useState(persistedState.draftPreferences);
-  const [comments, setComments] = useState(feedService.getInitialComments());
+  const [user, setUser] = useState(persistedState.user)
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(
+    persistedState.hasCompletedOnboarding
+  )
+  const [selectedGenres, setSelectedGenres] = useState(persistedState.selectedGenres)
+  const [bookmarks, setBookmarks] = useState(persistedState.bookmarks)
+  const [likes, setLikes] = useState(persistedState.likes)
+  const [draftPreferences, setDraftPreferences] = useState(persistedState.draftPreferences)
+  const [comments, setComments] = useState(feedService.getInitialComments())
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') return
 
     persistStateSnapshot({
       user,
@@ -128,134 +129,145 @@ export function AppProvider({ children }) {
       bookmarks,
       likes,
       draftPreferences,
-    });
-  }, [user, hasCompletedOnboarding, selectedGenres, bookmarks, likes, draftPreferences]);
+    })
+  }, [user, hasCompletedOnboarding, selectedGenres, bookmarks, likes, draftPreferences])
 
   const login = useCallback((userData) => {
-    setUser(userData);
-  }, []);
+    setUser(userData)
+  }, [])
 
   const logout = useCallback(() => {
-    setUser(null);
-    setHasCompletedOnboarding(false);
-    setSelectedGenres([]);
-    setBookmarks([]);
-    setLikes({});
-    setDraftPreferences(DEFAULT_DRAFT_PREFERENCES);
-  }, []);
+    setUser(null)
+    setHasCompletedOnboarding(false)
+    setSelectedGenres([])
+    setBookmarks([])
+    setLikes({})
+    setDraftPreferences(DEFAULT_DRAFT_PREFERENCES)
+  }, [])
 
   const toggleGenre = useCallback((genreId) => {
     setSelectedGenres((prev) => {
       if (prev.includes(genreId)) {
-        return prev.filter((g) => g !== genreId);
+        return prev.filter((g) => g !== genreId)
       }
 
       if (prev.length >= GENRE_SELECTION_MAX) {
-        return prev;
+        return prev
       }
 
-      return [...prev, genreId];
-    });
-  }, []);
+      return [...prev, genreId]
+    })
+  }, [])
 
-  const toggleBookmark = useCallback(async (clipId) => {
-    if (!user) {
-      return false;
-    }
+  const toggleBookmark = useCallback(
+    async (clipId) => {
+      if (!user) {
+        return false
+      }
 
-    if (!isValidClipId(clipId)) {
-      return false;
-    }
+      if (!isValidClipId(clipId)) {
+        return false
+      }
 
-    const prevBookmarks = bookmarks;
+      const prevBookmarks = bookmarks
 
-    try {
-      return await feedService.optimisticToggleBookmark({
-        clipId,
-        applyLocal: () => {
-          setBookmarks((current) => feedService.toggleBookmark({ clipId, bookmarks: current }));
-        },
-        rollbackLocal: () => {
-          setBookmarks(prevBookmarks);
-        },
-      });
-    } catch {
-      setBookmarks(prevBookmarks);
-      return false;
-    }
-  }, [bookmarks, user]);
+      try {
+        return await feedService.optimisticToggleBookmark({
+          clipId,
+          applyLocal: () => {
+            setBookmarks((current) => feedService.toggleBookmark({ clipId, bookmarks: current }))
+          },
+          rollbackLocal: () => {
+            setBookmarks(prevBookmarks)
+          },
+        })
+      } catch {
+        setBookmarks(prevBookmarks)
+        return false
+      }
+    },
+    [bookmarks, user]
+  )
 
-  const toggleLike = useCallback(async (clipId) => {
-    if (!user) {
-      return false;
-    }
+  const toggleLike = useCallback(
+    async (clipId) => {
+      if (!user) {
+        return false
+      }
 
-    if (!isValidClipId(clipId)) {
-      return false;
-    }
+      if (!isValidClipId(clipId)) {
+        return false
+      }
 
-    const prevLikes = likes;
+      const prevLikes = likes
 
-    try {
-      return await feedService.optimisticToggleLike({
-        clipId,
-        applyLocal: () => {
-          setLikes((current) => feedService.toggleLike({ clipId, likes: current }));
-        },
-        rollbackLocal: () => {
-          setLikes(prevLikes);
-        },
-      });
-    } catch {
-      setLikes(prevLikes);
-      return false;
-    }
-  }, [likes, user]);
+      try {
+        return await feedService.optimisticToggleLike({
+          clipId,
+          applyLocal: () => {
+            setLikes((current) => feedService.toggleLike({ clipId, likes: current }))
+          },
+          rollbackLocal: () => {
+            setLikes(prevLikes)
+          },
+        })
+      } catch {
+        setLikes(prevLikes)
+        return false
+      }
+    },
+    [likes, user]
+  )
 
-  const addComment = useCallback((clipId, text) => {
-    if (!user) {
+  const addComment = useCallback(
+    (clipId, text) => {
+      if (!user) {
+        return {
+          ok: false,
+          error: AUTH_REQUIRED_ERROR,
+        }
+      }
+
+      const validation = validateCommentText(text)
+      if (!validation.valid) {
+        return {
+          ok: false,
+          error: validation.error,
+        }
+      }
+
+      setComments((prev) =>
+        feedService.createComment({
+          clipId,
+          text: validation.normalizedText,
+          comments: prev,
+          userName: user?.name,
+        })
+      )
+
       return {
-        ok: false,
-        error: AUTH_REQUIRED_ERROR,
-      };
-    }
-
-    const validation = validateCommentText(text);
-    if (!validation.valid) {
-      return {
-        ok: false,
-        error: validation.error,
-      };
-    }
-
-    setComments((prev) => feedService.createComment({
-      clipId,
-      text: validation.normalizedText,
-      comments: prev,
-      userName: user?.name,
-    }));
-
-    return {
-      ok: true,
-      error: '',
-    };
-  }, [user]);
+        ok: true,
+        error: '',
+      }
+    },
+    [user]
+  )
 
   const updateDraftPreferences = useCallback((patch) => {
-    setDraftPreferences((prev) => ({ ...prev, ...patch }));
-  }, []);
+    setDraftPreferences((prev) => ({ ...prev, ...patch }))
+  }, [])
 
   const getFilteredClips = useCallback(() => {
-    return feedService.getFeed({ selectedGenres });
-  }, [selectedGenres]);
+    return feedService.getFeed({ selectedGenres })
+  }, [selectedGenres])
 
   const getBookmarkedClips = useCallback(() => {
-    return feedService.getBookmarks({ bookmarks });
-  }, [bookmarks]);
+    return feedService.getBookmarks({ bookmarks })
+  }, [bookmarks])
 
   const getProfile = useCallback(() => {
-    return feedService.getProfile({ user, bookmarks, likes });
-  }, [bookmarks, likes, user]);
+    return feedService.getProfile({ user, bookmarks, likes })
+  }, [bookmarks, likes, user])
 
   const value = {
     user,
@@ -278,7 +290,7 @@ export function AppProvider({ children }) {
     setSelectedGenres,
     setDraftPreferences,
     updateDraftPreferences,
-  };
+  }
 
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }

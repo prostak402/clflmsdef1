@@ -4,7 +4,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 /* Reset */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
@@ -44,8 +46,12 @@ body::before {
 }
 
 @keyframes ambientShift {
-  0% { transform: translate(0, 0) rotate(0deg); }
-  100% { transform: translate(-2%, -2%) rotate(3deg); }
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  100% {
+    transform: translate(-2%, -2%) rotate(3deg);
+  }
 }
 
 a {
@@ -62,18 +68,22 @@ button {
   color: inherit;
 }
 
-input, textarea, select {
+input,
+textarea,
+select {
   font-family: inherit;
   color: inherit;
   outline: none;
 }
 
-img, video {
+img,
+video {
   max-width: 100%;
   display: block;
 }
 
-ul, ol {
+ul,
+ol {
   list-style: none;
 }
 

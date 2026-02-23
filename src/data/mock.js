@@ -13,22 +13,25 @@ export const GENRES = [
   { id: 'fantasy', name: 'Fantasy', icon: 'Wand', color: '#d946ef' },
   { id: 'crime', name: 'Crime', icon: 'Shield', color: '#64748b' },
   { id: 'adventure', name: 'Adventure', icon: 'Compass', color: '#14b8a6' },
-];
+]
 
 export const MOCK_CLIPS = [
   {
     id: '1',
     movieId: 'm1',
     title: 'Interstellar',
-    description: 'Cooper leads a team of explorers through a wormhole in space to ensure humanity\'s survival.',
-    clipDescription: 'The breathtaking docking scene - one of the most intense moments in cinema history',
+    description:
+      "Cooper leads a team of explorers through a wormhole in space to ensure humanity's survival.",
+    clipDescription:
+      'The breathtaking docking scene - one of the most intense moments in cinema history',
     genres: ['scifi', 'drama', 'adventure'],
     year: 2014,
     rating: 8.7,
     director: 'Christopher Nolan',
     duration: '2h 49m',
     poster: 'https://images.unsplash.com/photo-1534996858221-380b92700493?w=400&h=600&fit=crop',
-    clipUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    clipUrl:
+      'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
     watchUrl: 'https://example.com/watch/interstellar',
     likes: 24500,
     comments: 1830,
@@ -39,7 +42,8 @@ export const MOCK_CLIPS = [
     id: '2',
     movieId: 'm2',
     title: 'The Dark Knight',
-    description: 'Batman raises the stakes in his war on crime with the help of Lt. Jim Gordon and District Attorney Harvey Dent.',
+    description:
+      'Batman raises the stakes in his war on crime with the help of Lt. Jim Gordon and District Attorney Harvey Dent.',
     clipDescription: 'The iconic interrogation scene between Batman and the Joker',
     genres: ['action', 'crime', 'thriller'],
     year: 2008,
@@ -47,7 +51,8 @@ export const MOCK_CLIPS = [
     director: 'Christopher Nolan',
     duration: '2h 32m',
     poster: 'https://images.unsplash.com/photo-1509347528160-9a9e33742cdb?w=400&h=600&fit=crop',
-    clipUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+    clipUrl:
+      'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
     watchUrl: 'https://example.com/watch/dark-knight',
     likes: 31200,
     comments: 2450,
@@ -58,7 +63,8 @@ export const MOCK_CLIPS = [
     id: '3',
     movieId: 'm3',
     title: 'Spirited Away',
-    description: 'During her family\'s move, a sullen 10-year-old girl wanders into a world ruled by gods, witches, and spirits.',
+    description:
+      "During her family's move, a sullen 10-year-old girl wanders into a world ruled by gods, witches, and spirits.",
     clipDescription: 'Chihiro enters the magical bathhouse for the first time',
     genres: ['animation', 'fantasy', 'adventure'],
     year: 2001,
@@ -77,7 +83,8 @@ export const MOCK_CLIPS = [
     id: '4',
     movieId: 'm4',
     title: 'Inception',
-    description: 'A thief who steals corporate secrets through dream-sharing technology is given the task of planting an idea.',
+    description:
+      'A thief who steals corporate secrets through dream-sharing technology is given the task of planting an idea.',
     clipDescription: 'The hallway fight scene defying gravity',
     genres: ['scifi', 'action', 'thriller'],
     year: 2010,
@@ -85,7 +92,8 @@ export const MOCK_CLIPS = [
     director: 'Christopher Nolan',
     duration: '2h 28m',
     poster: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=400&h=600&fit=crop',
-    clipUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
+    clipUrl:
+      'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
     watchUrl: 'https://example.com/watch/inception',
     likes: 27800,
     comments: 1950,
@@ -96,7 +104,8 @@ export const MOCK_CLIPS = [
     id: '5',
     movieId: 'm5',
     title: 'Parasite',
-    description: 'Greed and class discrimination threaten the newly formed symbiotic relationship between the wealthy Park family and the destitute Kim clan.',
+    description:
+      'Greed and class discrimination threaten the newly formed symbiotic relationship between the wealthy Park family and the destitute Kim clan.',
     clipDescription: 'The unforgettable flooding sequence that changed everything',
     genres: ['drama', 'thriller', 'comedy'],
     year: 2019,
@@ -104,7 +113,8 @@ export const MOCK_CLIPS = [
     director: 'Bong Joon-ho',
     duration: '2h 12m',
     poster: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=400&h=600&fit=crop',
-    clipUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4',
+    clipUrl:
+      'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4',
     watchUrl: 'https://example.com/watch/parasite',
     likes: 21300,
     comments: 1670,
@@ -115,7 +125,8 @@ export const MOCK_CLIPS = [
     id: '6',
     movieId: 'm6',
     title: 'The Shining',
-    description: 'A family heads to an isolated hotel for the winter where a sinister presence influences the father into violence.',
+    description:
+      'A family heads to an isolated hotel for the winter where a sinister presence influences the father into violence.',
     clipDescription: '"Here\'s Johnny!" - The most iconic horror moment ever',
     genres: ['horror', 'thriller', 'drama'],
     year: 1980,
@@ -134,7 +145,8 @@ export const MOCK_CLIPS = [
     id: '7',
     movieId: 'm7',
     title: 'La La Land',
-    description: 'While navigating their careers in Los Angeles, a pianist and an actress fall in love while attempting to reconcile their aspirations.',
+    description:
+      'While navigating their careers in Los Angeles, a pianist and an actress fall in love while attempting to reconcile their aspirations.',
     clipDescription: 'The magical Griffith Observatory dance under the stars',
     genres: ['romance', 'drama', 'comedy'],
     year: 2016,
@@ -142,7 +154,8 @@ export const MOCK_CLIPS = [
     director: 'Damien Chazelle',
     duration: '2h 8m',
     poster: 'https://images.unsplash.com/photo-1518676590747-1e3dcf5a3aaf?w=400&h=600&fit=crop',
-    clipUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4',
+    clipUrl:
+      'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4',
     watchUrl: 'https://example.com/watch/la-la-land',
     likes: 16200,
     comments: 980,
@@ -153,7 +166,8 @@ export const MOCK_CLIPS = [
     id: '8',
     movieId: 'm8',
     title: 'Blade Runner 2049',
-    description: 'Young Blade Runner K\'s discovery of a long-buried secret leads him to track down former Blade Runner Rick Deckard.',
+    description:
+      "Young Blade Runner K's discovery of a long-buried secret leads him to track down former Blade Runner Rick Deckard.",
     clipDescription: 'The hauntingly beautiful hologram rain scene',
     genres: ['scifi', 'drama', 'thriller'],
     year: 2017,
@@ -168,7 +182,7 @@ export const MOCK_CLIPS = [
     shares: 5100,
     bookmarks: 8400,
   },
-];
+]
 
 export const MOCK_CATALOG = [
   {
@@ -243,19 +257,61 @@ export const MOCK_CATALOG = [
     poster: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=300&h=450&fit=crop',
     watchUrl: 'https://example.com/watch/zone-of-interest',
   },
-];
+]
 
 export const MOCK_COMMENTS = {
-  '1': [
-    { id: 'cm1', user: 'space_lover', avatar: '🚀', text: 'This scene gives me chills every time!', time: '2 hours ago', likes: 342 },
-    { id: 'cm2', user: 'cinephile99', avatar: '🎬', text: 'Hans Zimmer\'s score here is absolutely perfect', time: '5 hours ago', likes: 218 },
-    { id: 'cm3', user: 'movie_buff', avatar: '🍿', text: 'Nolan is a genius. The practical effects make this scene hit different.', time: '1 day ago', likes: 156 },
+  1: [
+    {
+      id: 'cm1',
+      user: 'space_lover',
+      avatar: '🚀',
+      text: 'This scene gives me chills every time!',
+      time: '2 hours ago',
+      likes: 342,
+    },
+    {
+      id: 'cm2',
+      user: 'cinephile99',
+      avatar: '🎬',
+      text: "Hans Zimmer's score here is absolutely perfect",
+      time: '5 hours ago',
+      likes: 218,
+    },
+    {
+      id: 'cm3',
+      user: 'movie_buff',
+      avatar: '🍿',
+      text: 'Nolan is a genius. The practical effects make this scene hit different.',
+      time: '1 day ago',
+      likes: 156,
+    },
   ],
-  '2': [
-    { id: 'cm4', user: 'gotham_fan', avatar: '🦇', text: 'Heath Ledger deserved every award for this performance', time: '3 hours ago', likes: 567 },
-    { id: 'cm5', user: 'dark_knight', avatar: '🌃', text: 'Best superhero movie ever made. No debate.', time: '8 hours ago', likes: 423 },
+  2: [
+    {
+      id: 'cm4',
+      user: 'gotham_fan',
+      avatar: '🦇',
+      text: 'Heath Ledger deserved every award for this performance',
+      time: '3 hours ago',
+      likes: 567,
+    },
+    {
+      id: 'cm5',
+      user: 'dark_knight',
+      avatar: '🌃',
+      text: 'Best superhero movie ever made. No debate.',
+      time: '8 hours ago',
+      likes: 423,
+    },
   ],
-  '3': [
-    { id: 'cm6', user: 'anime_world', avatar: '✨', text: 'Miyazaki\'s imagination is limitless', time: '1 hour ago', likes: 289 },
+  3: [
+    {
+      id: 'cm6',
+      user: 'anime_world',
+      avatar: '✨',
+      text: "Miyazaki's imagination is limitless",
+      time: '1 hour ago',
+      likes: 289,
+    },
   ],
-};
+}

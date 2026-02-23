@@ -6,78 +6,79 @@
 
 ## 1.1 `GENRES` → `Genre`
 
-| mock поле | API сущность.поле | Действие | Комментарий |
-|---|---|---|---|
-| `id` (`action`, `comedy`) | `Genre.slug` | rename | В API `id` должен быть UUID, а mock-идентификатор жанра — это slug. |
-| `name` | `Genre.name` | keep | Без изменений. |
-| `icon` | — | mock-only/remove | В контракте `Genre` нет иконки. Если нужна в UI, хранить как фронтовый справочник по `slug`. |
-| `color` | — | mock-only/remove | В контракте `Genre` нет цвета. Аналогично: UI-token по `slug`. |
-| — | `Genre.id` | add | UUID генерируется/приходит с сервера. |
-| — | `Genre.isActive` | add | Для фильтрации доступных жанров. |
-| — | `Genre.createdAt/updatedAt/deletedAt` | add | Системные поля из API. |
+| mock поле                 | API сущность.поле                     | Действие         | Комментарий                                                                                  |
+| ------------------------- | ------------------------------------- | ---------------- | -------------------------------------------------------------------------------------------- |
+| `id` (`action`, `comedy`) | `Genre.slug`                          | rename           | В API `id` должен быть UUID, а mock-идентификатор жанра — это slug.                          |
+| `name`                    | `Genre.name`                          | keep             | Без изменений.                                                                               |
+| `icon`                    | —                                     | mock-only/remove | В контракте `Genre` нет иконки. Если нужна в UI, хранить как фронтовый справочник по `slug`. |
+| `color`                   | —                                     | mock-only/remove | В контракте `Genre` нет цвета. Аналогично: UI-token по `slug`.                               |
+| —                         | `Genre.id`                            | add              | UUID генерируется/приходит с сервера.                                                        |
+| —                         | `Genre.isActive`                      | add              | Для фильтрации доступных жанров.                                                             |
+| —                         | `Genre.createdAt/updatedAt/deletedAt` | add              | Системные поля из API.                                                                       |
 
 ## 1.2 `MOCK_CLIPS` → `Clip` (+ агрегаты `Like`/`Bookmark`)
 
-| mock поле | API сущность.поле | Действие | Комментарий |
-|---|---|---|---|
-| `id` | `Clip.id` | type-change | Нужен переход со строк вида `"1"` на UUID. |
-| `movieId` | — | remove | В контракте отсутствует; если нужен внешний id, добавить отдельным ADR/изменением контракта. |
-| `title` | `Clip.title` | keep | Без изменений. |
-| `description` | `Clip.description` | keep | Без изменений (max 1000). |
-| `clipDescription` | — | rename/split | Слить в `Clip.description` или выделить отдельное API-поле (вне текущего контракта). |
-| `genres: string[]` | `Clip.genreId: uuid` | reshape | MVP-контракт поддерживает 1 жанр на клип; для multi-genre нужен bridge: первичный жанр + клиентский fallback до изменения API. |
-| `year` | — | remove | В `Clip` поля нет; относится к фильму, не к клипу. |
-| `rating` | — | remove | В `Clip` поля нет; можно считать метаданными каталога/фильма. |
-| `director` | — | remove | Не входит в текущую доменную модель. |
-| `duration` (`2h 49m`) | `Clip.durationSec` | rename+transform | Нужен парсер строки в секунды. |
-| `poster` | `Clip.thumbnailUrl` | rename | URL постера использовать как thumbnail клипа. |
-| `clipUrl` | `Clip.videoUrl` | rename | Прямое соответствие. |
-| `watchUrl` | — | remove | В контракте нет deep-link на фильм; при необходимости — расширение API. |
-| `likes` | `Clip.likesCount` | rename | Агрегированный счетчик. |
-| `comments` | `Clip.commentsCount` | rename | Агрегированный счетчик. |
-| `shares` | — | remove | В контракте нет `sharesCount`; пока не переносим. |
-| `bookmarks` | — | move | Не поле `Clip`: источник — сущность `Bookmark` (персонализировано по `me`). |
-| — | `Clip.authorId` | add | Для mock-данных использовать seed-автора `system-seed-user`. |
-| — | `Clip.status` | add | Для данных ленты ставим `published`. |
-| — | `Clip.viewsCount` | add | Инициализировать seed-значением (например, `0` или derived). |
-| — | `Clip.createdAt/updatedAt/publishedAt/deletedAt` | add | Системные поля из API. |
+| mock поле             | API сущность.поле                                | Действие         | Комментарий                                                                                                                    |
+| --------------------- | ------------------------------------------------ | ---------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `id`                  | `Clip.id`                                        | type-change      | Нужен переход со строк вида `"1"` на UUID.                                                                                     |
+| `movieId`             | —                                                | remove           | В контракте отсутствует; если нужен внешний id, добавить отдельным ADR/изменением контракта.                                   |
+| `title`               | `Clip.title`                                     | keep             | Без изменений.                                                                                                                 |
+| `description`         | `Clip.description`                               | keep             | Без изменений (max 1000).                                                                                                      |
+| `clipDescription`     | —                                                | rename/split     | Слить в `Clip.description` или выделить отдельное API-поле (вне текущего контракта).                                           |
+| `genres: string[]`    | `Clip.genreId: uuid`                             | reshape          | MVP-контракт поддерживает 1 жанр на клип; для multi-genre нужен bridge: первичный жанр + клиентский fallback до изменения API. |
+| `year`                | —                                                | remove           | В `Clip` поля нет; относится к фильму, не к клипу.                                                                             |
+| `rating`              | —                                                | remove           | В `Clip` поля нет; можно считать метаданными каталога/фильма.                                                                  |
+| `director`            | —                                                | remove           | Не входит в текущую доменную модель.                                                                                           |
+| `duration` (`2h 49m`) | `Clip.durationSec`                               | rename+transform | Нужен парсер строки в секунды.                                                                                                 |
+| `poster`              | `Clip.thumbnailUrl`                              | rename           | URL постера использовать как thumbnail клипа.                                                                                  |
+| `clipUrl`             | `Clip.videoUrl`                                  | rename           | Прямое соответствие.                                                                                                           |
+| `watchUrl`            | —                                                | remove           | В контракте нет deep-link на фильм; при необходимости — расширение API.                                                        |
+| `likes`               | `Clip.likesCount`                                | rename           | Агрегированный счетчик.                                                                                                        |
+| `comments`            | `Clip.commentsCount`                             | rename           | Агрегированный счетчик.                                                                                                        |
+| `shares`              | —                                                | remove           | В контракте нет `sharesCount`; пока не переносим.                                                                              |
+| `bookmarks`           | —                                                | move             | Не поле `Clip`: источник — сущность `Bookmark` (персонализировано по `me`).                                                    |
+| —                     | `Clip.authorId`                                  | add              | Для mock-данных использовать seed-автора `system-seed-user`.                                                                   |
+| —                     | `Clip.status`                                    | add              | Для данных ленты ставим `published`.                                                                                           |
+| —                     | `Clip.viewsCount`                                | add              | Инициализировать seed-значением (например, `0` или derived).                                                                   |
+| —                     | `Clip.createdAt/updatedAt/publishedAt/deletedAt` | add              | Системные поля из API.                                                                                                         |
 
 ## 1.3 `MOCK_CATALOG` → `Clip` (каталог как subset)
 
-| mock поле | API сущность.поле | Действие | Комментарий |
-|---|---|---|---|
-| `id` (`c1`) | `Clip.id` | type-change | UUID вместо `c*`. |
-| `title` | `Clip.title` | keep | Без изменений. |
-| `year` | — | remove | В контракте нет. |
-| `rating` | — | remove | В контракте нет. |
-| `genres: string[]` | `Clip.genreId` | reshape | Выбрать primary genre (первый в списке) и зафиксировать правило. |
-| `poster` | `Clip.thumbnailUrl` | rename | Прямое соответствие. |
-| `watchUrl` | — | remove | В контракте нет. |
-| — | `Clip.videoUrl` | add | Для каталога без реального видео: временный placeholder URL. |
-| — | `Clip.durationSec` | add | Для MVP задать дефолт, например `30`. |
-| — | `Clip.status` | add | Для видимости в каталоге — `published`. |
-| — | `Clip.authorId` + timestamps + counters | add | Обязательные поля контракта. |
+| mock поле          | API сущность.поле                       | Действие    | Комментарий                                                      |
+| ------------------ | --------------------------------------- | ----------- | ---------------------------------------------------------------- |
+| `id` (`c1`)        | `Clip.id`                               | type-change | UUID вместо `c*`.                                                |
+| `title`            | `Clip.title`                            | keep        | Без изменений.                                                   |
+| `year`             | —                                       | remove      | В контракте нет.                                                 |
+| `rating`           | —                                       | remove      | В контракте нет.                                                 |
+| `genres: string[]` | `Clip.genreId`                          | reshape     | Выбрать primary genre (первый в списке) и зафиксировать правило. |
+| `poster`           | `Clip.thumbnailUrl`                     | rename      | Прямое соответствие.                                             |
+| `watchUrl`         | —                                       | remove      | В контракте нет.                                                 |
+| —                  | `Clip.videoUrl`                         | add         | Для каталога без реального видео: временный placeholder URL.     |
+| —                  | `Clip.durationSec`                      | add         | Для MVP задать дефолт, например `30`.                            |
+| —                  | `Clip.status`                           | add         | Для видимости в каталоге — `published`.                          |
+| —                  | `Clip.authorId` + timestamps + counters | add         | Обязательные поля контракта.                                     |
 
 ## 1.4 `MOCK_COMMENTS` → `Comment` (+ `User`)
 
-| mock поле | API сущность.поле | Действие | Комментарий |
-|---|---|---|---|
-| key объекта (`'1'`, `'2'`) | `Comment.clipId` | type-change | Перейти на UUID клипа. |
-| `id` (`cm1`) | `Comment.id` | type-change | UUID вместо `cm*`. |
-| `user` | `User.displayName` / `Comment.authorId` | split | Имя пользователя не хранить в `Comment`, хранить связь на `User`. |
-| `avatar` (emoji) | `User.avatarUrl` | reshape | Emoji не URL; хранить как `null`/placeholder URL, emoji — временно в UI. |
-| `text` | `Comment.body` | rename | Прямое соответствие. |
-| `time` (`2 hours ago`) | `Comment.createdAt` | transform | Нужен переход на абсолютный ISO timestamp. |
-| `likes` | — | remove | В контракте нет лайков комментариев. |
-| — | `Comment.updatedAt` | add | Для seed = `createdAt`. |
-| — | `Comment.isEdited` | add | Для seed = `false`. |
-| — | `Comment.deletedAt` | add | Для seed = `null`. |
+| mock поле                  | API сущность.поле                       | Действие    | Комментарий                                                              |
+| -------------------------- | --------------------------------------- | ----------- | ------------------------------------------------------------------------ |
+| key объекта (`'1'`, `'2'`) | `Comment.clipId`                        | type-change | Перейти на UUID клипа.                                                   |
+| `id` (`cm1`)               | `Comment.id`                            | type-change | UUID вместо `cm*`.                                                       |
+| `user`                     | `User.displayName` / `Comment.authorId` | split       | Имя пользователя не хранить в `Comment`, хранить связь на `User`.        |
+| `avatar` (emoji)           | `User.avatarUrl`                        | reshape     | Emoji не URL; хранить как `null`/placeholder URL, emoji — временно в UI. |
+| `text`                     | `Comment.body`                          | rename      | Прямое соответствие.                                                     |
+| `time` (`2 hours ago`)     | `Comment.createdAt`                     | transform   | Нужен переход на абсолютный ISO timestamp.                               |
+| `likes`                    | —                                       | remove      | В контракте нет лайков комментариев.                                     |
+| —                          | `Comment.updatedAt`                     | add         | Для seed = `createdAt`.                                                  |
+| —                          | `Comment.isEdited`                      | add         | Для seed = `false`.                                                      |
+| —                          | `Comment.deletedAt`                     | add         | Для seed = `null`.                                                       |
 
 ---
 
 ## 2) Поля mock-only на удаление/rename
 
 ## 2.1 Удалить (не покрыто текущим контрактом)
+
 - `GENRES.icon`
 - `GENRES.color`
 - `MOCK_CLIPS.movieId`
@@ -92,6 +93,7 @@
 - `MOCK_COMMENTS.likes`
 
 ## 2.2 Переименовать/трансформировать
+
 - `GENRES.id` → `Genre.slug`
 - `MOCK_CLIPS.clipUrl` → `Clip.videoUrl`
 - `MOCK_CLIPS.poster` → `Clip.thumbnailUrl`
@@ -102,6 +104,7 @@
 - `MOCK_COMMENTS.time` → `Comment.createdAt`
 
 ## 2.3 Риски несовместимости (требуют решения до cutover)
+
 1. **Multi-genre (`genres[]`) vs `genreId`** — в API один жанр на клип.
 2. **Нет полей movie metadata** (`year`, `rating`, `director`) — потеря контента на карточке/каталоге.
 3. **Нет `watchUrl` и `sharesCount`** — UX-функции недоописаны контрактом.
@@ -133,25 +136,30 @@
 Минимальный набор для воспроизводимости ключевых сценариев.
 
 ## 4.1 Users
+
 - `admin@local.dev` (`role=admin`, `hasCompletedOnboarding=true`)
 - `user@local.dev` (`role=user`, `hasCompletedOnboarding=true`)
 - `new-user@local.dev` (`role=user`, `hasCompletedOnboarding=false`)
 
 ## 4.2 Genres
+
 - 12 активных жанров со slug из mock: `action`, `comedy`, `drama`, `horror`, `scifi`, `romance`, `thriller`, `animation`, `documentary`, `fantasy`, `crime`, `adventure`.
-- + 1 неактивный жанр для проверки ограничений (`isActive=false`).
+- - 1 неактивный жанр для проверки ограничений (`isActive=false`).
 
 ## 4.3 Clips
+
 - 8 `published` клипов (бывшие `MOCK_CLIPS`) с заполненными:
   - `title`, `description`, `videoUrl`, `thumbnailUrl`, `durationSec`, `genreId`, `authorId`, `likesCount`, `commentsCount`, `viewsCount`.
 - 2 `draft` клипа (видны только автору/admin).
 - 1 `archived` клип.
 
 ## 4.4 Comments
+
 - По 1–3 комментария на первые 3 клипа.
 - От разных пользователей для проверки ownership/редактирования.
 
 ## 4.5 Likes / Bookmarks
+
 - Для `user@local.dev`:
   - 3 лайка на клипы.
   - 2 закладки.
@@ -159,6 +167,7 @@
   - 1 лайк и 1 закладка.
 
 ## 4.6 Технические требования к seed
+
 - Все `id` — UUID v4.
 - Все даты — ISO UTC.
 - Идемпотентный запуск (`upsert`/truncate+insert).

@@ -1,25 +1,25 @@
-import { useLocation, useNavigate } from 'react-router-dom';
-import { useApp } from '../context/useApp';
-import { Home, Search, Bookmark, User, Shield, Film } from 'lucide-react';
-import './SideNav.css';
+import { useLocation, useNavigate } from 'react-router-dom'
+import { useApp } from '../context/useApp'
+import { Home, Search, Bookmark, User, Shield, Film } from 'lucide-react'
+import './SideNav.css'
 
-const renderNavIcon = (Icon, size) => <Icon size={size} />;
+const renderNavIcon = (Icon, size) => <Icon size={size} />
 
 const NAV_ITEMS = [
   { path: '/feed', icon: Home, label: 'Feed' },
   { path: '/catalog', icon: Search, label: 'Catalog' },
   { path: '/bookmarks', icon: Bookmark, label: 'Saved' },
   { path: '/profile', icon: User, label: 'Profile' },
-];
+]
 
 export default function SideNav() {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const { user } = useApp();
+  const location = useLocation()
+  const navigate = useNavigate()
+  const { user } = useApp()
 
   const items = user?.isAdmin
     ? [...NAV_ITEMS, { path: '/admin', icon: Shield, label: 'Admin' }]
-    : NAV_ITEMS;
+    : NAV_ITEMS
 
   return (
     <nav className="sidenav">
@@ -32,8 +32,8 @@ export default function SideNav() {
 
       <div className="sidenav-items">
         {items.map((item) => {
-          const isActive = location.pathname === item.path;
-          const NavIcon = item.icon;
+          const isActive = location.pathname === item.path
+          const NavIcon = item.icon
 
           return (
             <button
@@ -43,13 +43,11 @@ export default function SideNav() {
               aria-current={isActive ? 'page' : undefined}
               onClick={() => navigate(item.path)}
             >
-              <div className="sidenav-item-icon">
-                {renderNavIcon(NavIcon, 20)}
-              </div>
+              <div className="sidenav-item-icon">{renderNavIcon(NavIcon, 20)}</div>
               <span className="sidenav-item-label">{item.label}</span>
               {isActive && <div className="sidenav-active-bar" />}
             </button>
-          );
+          )
         })}
       </div>
 
@@ -63,5 +61,5 @@ export default function SideNav() {
         </div>
       </div>
     </nav>
-  );
+  )
 }
