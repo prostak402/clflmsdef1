@@ -1,6 +1,5 @@
 .feed-page {
-  height: 100dvh;
-  min-height: 100svh;
+  height: 100vh;
   width: 100%;
   position: relative;
   overflow: hidden;
@@ -8,15 +7,13 @@
 }
 
 .feed-container {
-  height: 100dvh;
-  min-height: 100svh;
+  height: 100vh;
   overflow: hidden;
   scroll-snap-type: y mandatory;
 }
 
 .feed-empty {
-  height: 100dvh;
-  min-height: 100svh;
+  height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -29,8 +26,7 @@
 /* Desktop: centered phone-like clip area */
 @media (min-width: 1024px) {
   .feed-page {
-    height: 100dvh;
-    min-height: 100svh;
+    height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;

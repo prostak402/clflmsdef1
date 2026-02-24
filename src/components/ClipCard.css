@@ -1,6 +1,5 @@
 .clip-card {
-  height: 100dvh;
-  min-height: 100svh;
+  height: 100vh;
   width: 100%;
   position: relative;
   scroll-snap-align: start;
@@ -18,11 +17,6 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center;
-}
-
-.clip-video--contain {
-  object-fit: contain;
 }
 
 .clip-play-overlay {
@@ -86,13 +80,11 @@
   left: 0;
   right: 0;
   bottom: 0;
-  pointer-events: none;
   z-index: 6;
   padding: 0 0 max(2px, env(safe-area-inset-bottom));
 }
 
 .clip-progress {
-  pointer-events: auto;
   --clip-progress: 0%;
   width: 100%;
   height: 2px;
@@ -140,23 +132,6 @@
   opacity: 0;
 }
 
-
-.clip-card--letterbox .clip-gradient-top,
-.clip-card--letterbox .clip-gradient-bottom {
-  opacity: 0.55;
-}
-
-.clip-card--letterbox .clip-actions {
-  bottom: 160px;
-}
-
-.clip-card--letterbox .clip-info {
-  bottom: 56px;
-}
-
-.clip-card--letterbox .clip-top-bar {
-  padding-top: 28px;
-}
 /* Top bar */
 .clip-top-bar {
   position: absolute;
@@ -519,20 +494,9 @@
   .clip-progress-wrap {
     bottom: 62px;
   }
-
-  .clip-card--letterbox .clip-actions {
-    bottom: 150px;
-  }
-
-  .clip-card--letterbox .clip-info {
-    bottom: 48px;
-  }
 }
 
 @media (max-width: 480px) {
-  .clip-card {
-    min-height: 100svh;
-  }
   .clip-actions {
     right: var(--space-sm);
     bottom: 160px;
