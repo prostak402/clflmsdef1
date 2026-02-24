@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { useApp } from '../context/useApp'
 import { contentService } from '../services/content-service'
 import { GENRE_SELECTION_MIN, GENRE_SELECTION_MAX } from '../constants/onboarding'
+import { getGenreUiMeta } from '../constants/genre-ui-meta'
 import {
   Sword,
   Laugh,
@@ -92,7 +93,8 @@ export default function GenreSelectPage() {
 
         <div className="genre-grid">
           {contentService.getGenres().map((genre, index) => {
-            const Icon = ICON_MAP[genre.icon] || Film
+            const { icon, color } = getGenreUiMeta(genre.id)
+            const Icon = ICON_MAP[icon] || Film
             const isSelected = selectedGenres.includes(genre.id)
             return (
               <button
@@ -100,7 +102,7 @@ export default function GenreSelectPage() {
                 className={`genre-chip ${isSelected ? 'selected' : ''}`}
                 onClick={() => handleToggleGenre(genre.id)}
                 style={{
-                  '--chip-color': genre.color,
+                  '--chip-color': color,
                   '--chip-delay': `${index * 50}ms`,
                 }}
               >
