@@ -258,7 +258,7 @@
 /* Bottom info */
 .clip-info {
   position: absolute;
-  bottom: 80px;
+  bottom: calc(var(--mobile-nav-clearance) + 18px);
   left: var(--space-md);
   right: 80px;
   z-index: 5;
@@ -498,6 +498,7 @@
 /* Desktop: clip fills container, not viewport */
 @media (min-width: 1024px) {
   .clip-card {
+    --mobile-nav-clearance: 0px;
     height: calc(100vh - 48px);
     max-height: 860px;
   }
@@ -517,7 +518,15 @@
 
 @media (max-width: 1023px) {
   .clip-progress-wrap {
-    bottom: 62px;
+    bottom: var(--mobile-nav-clearance);
+  }
+
+  .clip-card--letterbox .clip-actions {
+    bottom: calc(var(--mobile-nav-clearance) + 64px);
+  }
+
+  .clip-card--letterbox .clip-info {
+    bottom: calc(var(--mobile-nav-clearance) + 4px);
   }
 
   .clip-card--letterbox .clip-actions {
@@ -535,7 +544,7 @@
   }
   .clip-actions {
     right: var(--space-sm);
-    bottom: 160px;
+    bottom: calc(var(--mobile-nav-clearance) + 72px);
     gap: var(--space-md);
   }
 
@@ -546,7 +555,7 @@
 
   .clip-info {
     right: 65px;
-    bottom: 70px;
+    bottom: calc(var(--mobile-nav-clearance) + 10px);
   }
 
   .clip-movie-title {
