@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AlertTriangle } from 'lucide-react'
 import { useApp } from '../context/useApp'
@@ -18,49 +18,40 @@ function formatDate(value) {
 }
 
 export default function AdminCommentsPage() {
-  const { user, comments, blockUserComments, deleteComment, deleteCommentsByUser, isUserCommentBlocked } =
+  const { user, comments, blockedCommentUsers, blockUserComments, deleteComment, deleteCommentsByUser } =
     useApp()
   const navigate = useNavigate()
   const [operationState, setOperationState] = useState({ status: 'idle', message: '' })
   const [busyCommentId, setBusyCommentId] = useState('')
+  const [rowStatusById, setRowStatusById] = useState({})
+  const [moderationState, setModerationState] = useState({ status: 'loading', rows: [], message: '' })
 
-  const clipNameById = useMemo(() => {
-    return feedService.getFeed({ selectedGenres: [] }).reduce((acc, clip) => {
-      acc[clip.id] = clip.title
-      return acc
-    }, {})
-  }, [])
+  const loadModerationList = useCallback(async () => {
+    setModerationState({ status: 'loading', rows: [], message: '' })
 
-  const flattenedComments = useMemo(() => {
-    let order = 0
-
-    return Object.entries(comments || {})
-      .flatMap(([clipId, clipComments]) => {
-        if (!Array.isArray(clipComments)) {
-          return []
-        }
-
-        return clipComments.map((comment) => {
-          const effectiveClipId = comment?.clipId || clipId
-          const sortTs = isValidDate(comment?.createdAt) ? new Date(comment.createdAt).getTime() : -Infinity
-
-          return {
-            ...comment,
-            clipId: effectiveClipId,
-            clipTitle: clipNameById[effectiveClipId] || 'Unknown clip',
-            __sortTs: sortTs,
-            __legacyOrder: order++,
-          }
-        })
+    try {
+      const clips = feedService.getFeed({ selectedGenres: [] })
+      const rows = await feedService.getAllCommentsForModeration({
+        comments,
+        clips,
+        blockedUsers: blockedCommentUsers,
       })
-      .sort((a, b) => {
-        if (b.__sortTs !== a.__sortTs) {
-          return b.__sortTs - a.__sortTs
-        }
 
-        return a.__legacyOrder - b.__legacyOrder
+      setModerationState({ status: 'success', rows, message: '' })
+    } catch {
+      setModerationState({
+        status: 'error',
+        rows: [],
+        message: 'Could not load moderation list. Try again.',
       })
-  }, [clipNameById, comments])
+    }
+  }, [blockedCommentUsers, comments])
+
+  useEffect(() => {
+    loadModerationList()
+  }, [loadModerationList])
+
+  const flattenedComments = useMemo(() => moderationState.rows || [], [moderationState.rows])
 
   if (!user?.isAdmin) {
     return (
@@ -76,17 +67,21 @@ export default function AdminCommentsPage() {
   const runAction = async ({ action, pendingLabel, successLabel, errorLabel, commentId }) => {
     setOperationState({ status: 'pending', message: pendingLabel })
     setBusyCommentId(commentId || '')
+    setRowStatusById((prev) => ({ ...prev, [commentId]: 'pending' }))
 
     try {
-      const ok = action()
+      const ok = await action()
       if (!ok) {
         setOperationState({ status: 'error', message: errorLabel })
+        setRowStatusById((prev) => ({ ...prev, [commentId]: 'error' }))
         return
       }
 
       setOperationState({ status: 'success', message: successLabel })
+      setRowStatusById((prev) => ({ ...prev, [commentId]: 'success' }))
     } catch {
       setOperationState({ status: 'error', message: errorLabel })
+      setRowStatusById((prev) => ({ ...prev, [commentId]: 'error' }))
     } finally {
       setBusyCommentId('')
     }
@@ -145,6 +140,15 @@ export default function AdminCommentsPage() {
         {operationState.message || 'No moderation actions yet.'}
       </div>
 
+      {moderationState.status === 'error' && (
+        <div className="admin-comments-status" data-status="error">
+          <span>{moderationState.message}</span>
+          <button type="button" onClick={loadModerationList}>
+            Retry
+          </button>
+        </div>
+      )}
+
       <div className="admin-comments-table-wrap glass-strong">
         <table className="admin-comments-table">
           <thead>
@@ -157,7 +161,15 @@ export default function AdminCommentsPage() {
             </tr>
           </thead>
           <tbody>
-            {flattenedComments.length === 0 && (
+            {moderationState.status === 'loading' && (
+              <tr>
+                <td colSpan={5} className="admin-comments-empty">
+                  Loading moderation list...
+                </td>
+              </tr>
+            )}
+
+            {moderationState.status === 'success' && flattenedComments.length === 0 && (
               <tr>
                 <td colSpan={5} className="admin-comments-empty">
                   No comments found.
@@ -165,47 +177,54 @@ export default function AdminCommentsPage() {
               </tr>
             )}
 
-            {flattenedComments.map((row) => {
-              const isBlocked = isUserCommentBlocked(row.authorId)
-              const isBusy = busyCommentId === row.id && operationState.status === 'pending'
+            {moderationState.status === 'success' &&
+              flattenedComments.map((row) => {
+                const isBlocked = Boolean(row.isBlockedAuthor)
+                const isBusy = busyCommentId === row.id && operationState.status === 'pending'
+                const rowStatus = rowStatusById[row.id]
+                const rowStatusLabel =
+                  rowStatus === 'pending'
+                    ? 'In progress'
+                    : rowStatus === 'success'
+                      ? 'Done'
+                      : rowStatus === 'error'
+                        ? 'Failed'
+                        : ''
 
-              return (
-                <tr key={row.id}>
-                  <td>
-                    <div className="admin-comments-author">
-                      <span>{row.authorName || 'Anonymous'}</span>
-                      <small>{row.authorId}</small>
-                      {isBlocked && <span className="admin-comments-badge">Blocked</span>}
-                    </div>
-                  </td>
-                  <td className="admin-comments-text">{row.text || '—'}</td>
-                  <td>
-                    <div className="admin-comments-clip">
-                      <span>{row.clipTitle}</span>
-                      <small>{row.clipId}</small>
-                    </div>
-                  </td>
-                  <td>{formatDate(row.createdAt)}</td>
-                  <td>
-                    <div className="admin-comments-actions">
-                      <button type="button" onClick={() => handleDeleteComment(row)} disabled={isBusy}>
-                        Delete
-                      </button>
-                      <button type="button" onClick={() => handleBlockAuthor(row)} disabled={isBusy || isBlocked}>
-                        Block author
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteAuthorComments(row)}
-                        disabled={isBusy}
-                      >
-                        Delete all
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              )
-            })}
+                return (
+                  <tr key={row.id}>
+                    <td>
+                      <div className="admin-comments-author">
+                        <span>{row.authorName || 'Anonymous'}</span>
+                        <small>{row.authorId}</small>
+                        {isBlocked && <span className="admin-comments-badge">Blocked</span>}
+                      </div>
+                    </td>
+                    <td className="admin-comments-text">{row.text || '—'}</td>
+                    <td>
+                      <div className="admin-comments-clip">
+                        <span>{row.clipTitle}</span>
+                        <small>{row.clipId}</small>
+                      </div>
+                    </td>
+                    <td>{formatDate(row.createdAt)}</td>
+                    <td>
+                      <div className="admin-comments-actions">
+                        <button type="button" onClick={() => handleDeleteComment(row)} disabled={isBusy}>
+                          Delete
+                        </button>
+                        <button type="button" onClick={() => handleBlockAuthor(row)} disabled={isBusy || isBlocked}>
+                          Block author
+                        </button>
+                        <button type="button" onClick={() => handleDeleteAuthorComments(row)} disabled={isBusy}>
+                          Delete all
+                        </button>
+                        {rowStatusLabel && <small className="admin-comments-row-status">{rowStatusLabel}</small>}
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
           </tbody>
         </table>
       </div>
