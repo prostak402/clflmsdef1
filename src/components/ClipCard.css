@@ -1,5 +1,4 @@
 .clip-card {
-  --mobile-nav-clearance: calc(76px + env(safe-area-inset-bottom));
   height: 100dvh;
   min-height: 100svh;
   width: 100%;
@@ -148,11 +147,11 @@
 }
 
 .clip-card--letterbox .clip-actions {
-  bottom: calc(var(--mobile-nav-clearance) + 74px);
+  bottom: 160px;
 }
 
 .clip-card--letterbox .clip-info {
-  bottom: calc(var(--mobile-nav-clearance) + 12px);
+  bottom: 56px;
 }
 
 .clip-card--letterbox .clip-top-bar {
@@ -528,6 +527,14 @@
 
   .clip-card--letterbox .clip-info {
     bottom: calc(var(--mobile-nav-clearance) + 4px);
+  }
+
+  .clip-card--letterbox .clip-actions {
+    bottom: 150px;
+  }
+
+  .clip-card--letterbox .clip-info {
+    bottom: 48px;
   }
 }
 
