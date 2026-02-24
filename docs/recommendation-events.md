@@ -7,6 +7,15 @@
 - **Schema version:** `1.0.0`.
 - **Формат времени:** ISO-8601 UTC (`YYYY-MM-DDTHH:mm:ss.SSSZ`).
 
+### Клиентская реализация (`feedService.trackEvent`)
+
+- `trackEvent(name, payload)` валидирует обязательные входы: непустой `name` и объект `payload`.
+- Сервис автоматически дополняет envelope полями: `eventId`, `schemaVersion`, `ts`, `sessionId`, `userId`.
+- `schemaVersion` зафиксирован как `1.0.0`.
+- `ts` фиксирован в формате ISO-8601 UTC (`new Date().toISOString()`).
+- `userId` сериализуется как `string | null` (для anonymous используется `null`).
+- События накапливаются в in-memory буфере; `flush()` детерминированно возвращает массив событий и очищает буфер (для пустого буфера возвращает `[]`).
+
 ---
 
 ## 1) Общие поля для всех событий

@@ -5,6 +5,12 @@ const feedAdapter = createFeedAdapter()
 const API_ERROR_CODE = 'API_SERVICE_ERROR'
 const REQUEST_PERF_PREFIX = '[api-metric]'
 const API_EVENT_PREFIX = '[api-event]'
+const TRACK_EVENT_PREFIX = '[feed-track-event]'
+const EVENT_SCHEMA_VERSION = '1.0.0'
+
+let cachedSessionId = null
+let analyticsSessionProvider = null
+const trackedEventsBuffer = []
 
 function wait(ms) {
   const timeoutMs =
@@ -17,6 +23,18 @@ function wait(ms) {
 
 function createRequestId() {
   return `req_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
+}
+
+function createEventId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+
+  return `evt_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`
+}
+
+function createSessionId() {
+  return `sess_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`
 }
 
 function getNow() {
@@ -53,6 +71,68 @@ function shouldEmitInfoLogs() {
   }
 
   return Boolean(globalThis.__ENABLE_API_INFO_LOGS__)
+}
+
+function isDevRuntime() {
+  return (
+    typeof globalThis !== 'undefined' && globalThis.process?.env?.NODE_ENV !== 'production'
+  )
+}
+
+function getMissingTrackEventFields(name, payload) {
+  const missingFields = []
+
+  if (typeof name !== 'string' || name.trim().length === 0) {
+    missingFields.push('name')
+  }
+
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    missingFields.push('payload')
+  }
+
+  return missingFields
+}
+
+function createTrackEventValidationError(name, missingFields) {
+  const eventName = typeof name === 'string' && name.trim().length ? name.trim() : '<unknown>'
+
+  return new Error(
+    `trackEvent validation failed for "${eventName}": missing fields [${missingFields.join(', ')}]`
+  )
+}
+
+function resolveSessionId() {
+  if (typeof analyticsSessionProvider === 'function') {
+    const providedSessionId = analyticsSessionProvider()
+
+    if (typeof providedSessionId === 'string' && providedSessionId.trim()) {
+      cachedSessionId = providedSessionId.trim()
+      return cachedSessionId
+    }
+  }
+
+  if (!cachedSessionId) {
+    cachedSessionId = createSessionId()
+  }
+
+  return cachedSessionId
+}
+
+function resolveUserId(payload) {
+  if (typeof payload.userId === 'string' && payload.userId.trim()) {
+    return payload.userId.trim()
+  }
+
+  return null
+}
+
+function logTrackEvent(status, payload) {
+  if (!isDevRuntime()) {
+    return
+  }
+
+  const logger = status === 'rejected' ? console.warn : console.info
+  logger(TRACK_EVENT_PREFIX, { status, ...payload })
 }
 
 function logApiError({ endpoint, payload, error, code = API_ERROR_CODE }) {
@@ -157,6 +237,46 @@ function runWithApiErrorLogging({ endpoint, payload, operation, eventName, event
 }
 
 export const feedService = {
+  setSessionProvider(provider) {
+    analyticsSessionProvider = typeof provider === 'function' ? provider : null
+  },
+  trackEvent(name, payload) {
+    const missingFields = getMissingTrackEventFields(name, payload)
+
+    if (missingFields.length > 0) {
+      const validationError = createTrackEventValidationError(name, missingFields)
+      logTrackEvent('rejected', {
+        name: typeof name === 'string' ? name : '<unknown>',
+        reason: validationError.message,
+      })
+      throw validationError
+    }
+
+    const normalizedName = name.trim()
+    const event = {
+      ...payload,
+      event: normalizedName,
+      eventId: createEventId(),
+      schemaVersion: EVENT_SCHEMA_VERSION,
+      ts: new Date().toISOString(),
+      sessionId: resolveSessionId(),
+      userId: resolveUserId(payload),
+    }
+
+    trackedEventsBuffer.push(event)
+    logTrackEvent('accepted', { name: normalizedName, eventId: event.eventId })
+
+    return event
+  },
+  flush() {
+    if (trackedEventsBuffer.length === 0) {
+      return []
+    }
+
+    const events = [...trackedEventsBuffer]
+    trackedEventsBuffer.length = 0
+    return events
+  },
   getFeed(params) {
     return runWithApiErrorLogging({
       endpoint: 'GET /feed',
