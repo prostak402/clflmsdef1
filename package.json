@@ -11,7 +11,8 @@
     "format:check": "prettier . --check",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:smoke": "vitest run --fileParallelism=false src/test/task-016-route-guards.test.jsx src/test/feed-service.optimistic.test.js src/test/task-012-app-context-transitions.test.jsx src/test/task-027-comment-validation.test.js"
   },
   "dependencies": {
     "lucide-react": "^0.563.0",
