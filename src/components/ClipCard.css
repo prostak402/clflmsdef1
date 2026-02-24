@@ -11,12 +11,31 @@
   position: absolute;
   inset: 0;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .clip-video {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+}
+
+.clip-video-wrap--desktop-tall .clip-video {
+  width: min(100%, 560px);
+}
+
+.clip-video-wrap--desktop-universal .clip-video {
+  width: min(100%, 900px);
+}
+
+.clip-video-wrap--desktop-wide .clip-video {
+  width: min(100%, 1100px);
+}
+
+.clip-video-wrap--placeholder .clip-video {
+  width: min(100%, 900px);
 }
 
 .clip-play-overlay {

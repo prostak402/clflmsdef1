@@ -19,6 +19,7 @@ import {
   ExternalLink,
   Info,
 } from 'lucide-react'
+import { detectViewportType, resolvePlayerLayout } from '../feed/player-layout-rules'
 import './ClipCard.css'
 
 function formatCount(num) {
@@ -42,6 +43,8 @@ export default function ClipCard({ clip, isActive, onOpenComments, position, fee
   const [shareToast, setShareToast] = useState(false)
   const [progress, setProgress] = useState(0)
   const [duration, setDuration] = useState(0)
+  const [videoMetadata, setVideoMetadata] = useState({ width: null, height: null })
+  const [viewportType, setViewportType] = useState(() => detectViewportType())
   const videoRef = useRef(null)
   const playSequenceRef = useRef(0)
   const thresholdsSentRef = useRef(new Set())
@@ -146,7 +149,29 @@ export default function ClipCard({ clip, isActive, onOpenComments, position, fee
   const handleLoadedMetadata = () => {
     if (!videoRef.current) return
     setDuration(videoRef.current.duration || 0)
+    setVideoMetadata({
+      width: videoRef.current.videoWidth || null,
+      height: videoRef.current.videoHeight || null,
+    })
   }
+
+  useEffect(() => {
+    const handleResize = () => {
+      setViewportType(detectViewportType())
+    }
+
+    window.addEventListener('resize', handleResize)
+
+    return () => {
+      window.removeEventListener('resize', handleResize)
+    }
+  }, [])
+
+  const playerLayout = resolvePlayerLayout({
+    viewportType,
+    videoWidth: videoMetadata.width,
+    videoHeight: videoMetadata.height,
+  })
 
   const handleSeek = (event) => {
     if (!videoRef.current) return
@@ -205,7 +230,10 @@ export default function ClipCard({ clip, isActive, onOpenComments, position, fee
   return (
     <div className="clip-card">
       {/* Video */}
-      <div className="clip-video-wrap" onClick={togglePlay}>
+      <div
+        className={`clip-video-wrap clip-video-wrap--${playerLayout.container}`}
+        onClick={togglePlay}
+      >
         <video
           ref={videoRef}
           src={clip.clipUrl}
@@ -214,6 +242,7 @@ export default function ClipCard({ clip, isActive, onOpenComments, position, fee
           playsInline
           preload={isActive ? 'auto' : 'none'}
           className="clip-video"
+          style={{ objectFit: playerLayout.fitMode }}
           poster={clip.poster}
           onTimeUpdate={handleTimeUpdate}
           onLoadedMetadata={handleLoadedMetadata}
