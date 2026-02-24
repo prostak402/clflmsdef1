@@ -21,6 +21,19 @@
 - Жёсткая валидация связности: `clip_play_started`, `clip_view_threshold`, `clip_view_ended` без `impressionId` считаются невалидными и **кидают ошибку**.
 - В dev-режиме в лог `[feed-track-event]` пишется статус и причина (`accepted`, `rejected`, `dropped`) — включая причину дропа при дедупликации.
 
+### Traceability matrix (spec → implementation → tests)
+
+| Spec item | UI emission point | Implementation | Tests |
+|---|---|---|---|
+| `feed_opened` | `FeedPage.loadFeed()` после успешной инициализации клипов | `src/pages/FeedPage.jsx`, `src/services/feed-service.js` | `src/test/task-024-feed-service-track-event.test.js`, `src/test/task-025-track-event-event-schema.test.js` |
+| `clip_impression` | `FeedPage` effect при смене активного клипа/первой загрузке | `src/pages/FeedPage.jsx`, `src/services/feed-service.js` (dedupe по `impressionId`) | `src/test/task-024-feed-service-track-event.test.js`, `src/test/task-025-track-event-event-schema.test.js` |
+| `clip_play_started` | `ClipCard` callback `video.onPlay` | `src/components/ClipCard.jsx`, `src/services/feed-service.js` | `src/test/task-024-feed-service-track-event.test.js`, `src/test/task-025-track-event-event-schema.test.js` |
+| `clip_view_threshold` | `ClipCard.handleTimeUpdate` при пересечении порогов | `src/components/ClipCard.jsx`, `src/services/feed-service.js` (dedupe по `impressionId+threshold`) | `src/test/task-024-feed-service-track-event.test.js`, `src/test/task-025-track-event-event-schema.test.js`, `src/test/recommendation-events.contract.test.js` |
+| `clip_view_ended` | `ClipCard.emitViewEnded` при уходе со слайда/размонтировании | `src/components/ClipCard.jsx`, `src/services/feed-service.js` | `src/test/task-024-feed-service-track-event.test.js`, `src/test/task-025-track-event-event-schema.test.js`, `src/test/recommendation-events.contract.test.js` |
+| `like_set` | `ClipCard.handleToggleLike` после optimistic локального toggle | `src/components/ClipCard.jsx`, `src/services/analytics/events.js` | `src/test/task-025-track-event-event-schema.test.js` |
+| `bookmark_set` | `ClipCard.handleToggleBookmark` после optimistic локального toggle | `src/components/ClipCard.jsx`, `src/services/analytics/events.js` | `src/test/task-025-track-event-event-schema.test.js` |
+| `comment_created` | `CommentsPanel.handleSubmit` после успешного `addComment` | `src/components/CommentsPanel.jsx`, `src/services/analytics/events.js` | `src/test/task-025-track-event-event-schema.test.js` |
+
 ---
 
 ## 1) Общие поля для всех событий
@@ -34,8 +47,8 @@
 | `sessionId` | `string` | required | Идентификатор клиентской сессии (ротация по restart/timeout). |
 | `userId` | `string \| null` | required | Идентификатор пользователя. `null` для анонимного трафика. |
 | `ts` | `string` (ISO-8601 UTC) | required | Момент возникновения события на клиенте. |
-| `source` | `enum` | required | Источник отправки: `web`, `ios`, `android`, `backend_replay`. |
-| `surface` | `enum` | required | Продуктовая поверхность: `home_feed`, `genre_feed`, `search_feed`, `bookmarks_feed`, `deeplink_feed`. |
+| `source` | `enum` | required | Источник отправки: `client`, `server`. |
+| `surface` | `enum` | required | Продуктовая поверхность: `feed`, `bookmarks`, `profile`. |
 | `event` | `enum` | required | Имя события (см. раздел 3). |
 
 ### Общие правила валидации
@@ -94,8 +107,8 @@
 - `entryPoint` (`string`, например `tab_home`, `push`, `deeplink`).
 
 **Enum-поля и значения:**
-- `source`: `web | ios | android | backend_replay`.
-- `surface`: `home_feed | genre_feed | search_feed | bookmarks_feed | deeplink_feed`.
+- `source`: `client | server`.
+- `surface`: `feed | bookmarks | profile`.
 
 **Точка отправки в UI:**
 - Экран feed: первый mount/foreground feed-экрана после успешной инициализации данных.
@@ -172,7 +185,7 @@
 - `contextGenreId`.
 
 **Enum-поля и значения:**
-- `threshold`: `25pct | 50pct | 75pct | 95pct`.
+- `threshold`: `p25 | p50 | p75 | p95`.
 
 **Точка отправки в UI:**
 - Таймкод-трекер плеера, когда накопленный `watchMs` впервые пересекает порог.
@@ -197,7 +210,7 @@
 - `contextGenreId`.
 
 **Enum-поля и значения:**
-- `endReason`: `completed | scrolled_away | paused_timeout | app_backgrounded | error`.
+- `endReason`: `completed | scrolled_away | swiped_away | paused_timeout | app_backgrounded | error`.
 
 **Точка отправки в UI:**
 - Player/session teardown hook (`onStop`, `onVisibilityLost`, app lifecycle).
@@ -216,21 +229,20 @@
 - Общие поля.
 - `event = "like_set"`.
 - `clipId`, `impressionId`, `feedRequestId`, `position`.
-- `likeState`.
+- `value` (`boolean`): `true` = liked, `false` = unliked.
 
 **Опциональные поля:**
 - `contextGenreId`.
 
 **Enum-поля и значения:**
-- `likeState`: `liked | unliked`.
-- `actionSource`: `feed_overlay | detail_sheet` (optional).
+- В текущей реализации используется булевый флаг `value` вместо enum-поля состояния.
 
 **Точка отправки в UI:**
 - Tap на кнопке Like после локального state update (optimistic), с последующим reconcile.
 
 **Дедупликация/идемпотентность:**
 - Hard dedupe: по `eventId`.
-- State dedupe: события с одинаковым `likeState` для `(sessionId, clipId)` в окне 1 секунды схлопываются.
+- State dedupe: события с одинаковым `value` для `(sessionId, clipId)` в окне 1 секунды схлопываются.
 
 ---
 
@@ -242,21 +254,20 @@
 - Общие поля.
 - `event = "bookmark_set"`.
 - `clipId`, `impressionId`, `feedRequestId`, `position`.
-- `bookmarkState`.
+- `value` (`boolean`): `true` = bookmarked, `false` = unbookmarked.
 
 **Опциональные поля:**
 - `contextGenreId`.
 
 **Enum-поля и значения:**
-- `bookmarkState`: `bookmarked | unbookmarked`.
-- `actionSource`: `feed_overlay | detail_sheet` (optional).
+- В текущей реализации используется булевый флаг `value` вместо enum-поля состояния.
 
 **Точка отправки в UI:**
 - Tap на кнопке Bookmark после локального state update.
 
 **Дедупликация/идемпотентность:**
 - Hard dedupe: по `eventId`.
-- State dedupe: события с одинаковым `bookmarkState` для `(sessionId, clipId)` в окне 1 секунды схлопываются.
+- State dedupe: события с одинаковым `value` для `(sessionId, clipId)` в окне 1 секунды схлопываются.
 
 ---
 
@@ -301,8 +312,8 @@
   "sessionId": "sess_2fc0e7f6",
   "userId": "u_1024",
   "ts": "2026-02-24T09:00:01.120Z",
-  "source": "web",
-  "surface": "home_feed",
+  "source": "client",
+  "surface": "feed",
   "event": "feed_opened",
   "feedRequestId": "9a9d1b86-6273-4bd4-a1a8-311be4fb32cf",
   "entryPoint": "tab_home"
@@ -317,8 +328,8 @@
   "sessionId": "sess_2fc0e7f6",
   "userId": "u_1024",
   "ts": "2026-02-24T09:00:01.120Z",
-  "source": "desktop",
-  "surface": "home_feed",
+  "source": "mobile-app",
+  "surface": "feed",
   "event": "feed_opened",
   "feedRequestId": "9a9d1b86-6273-4bd4-a1a8-311be4fb32cf"
 }
@@ -334,8 +345,8 @@
   "sessionId": "sess_2fc0e7f6",
   "userId": "u_1024",
   "ts": "2026-02-24T09:00:05.010Z",
-  "source": "web",
-  "surface": "home_feed",
+  "source": "client",
+  "surface": "feed",
   "event": "clip_impression",
   "clipId": "clip_9981",
   "impressionId": "90599f22-cbcc-4388-936d-ece6b9eec2c3",
@@ -354,8 +365,8 @@
   "sessionId": "sess_2fc0e7f6",
   "userId": "u_1024",
   "ts": "2026-02-24T09:00:05.010Z",
-  "source": "web",
-  "surface": "home_feed",
+  "source": "client",
+  "surface": "feed",
   "event": "clip_impression",
   "clipId": "clip_9981",
   "impressionId": "90599f22-cbcc-4388-936d-ece6b9eec2c3",
@@ -374,8 +385,8 @@
   "sessionId": "sess_2fc0e7f6",
   "userId": "u_1024",
   "ts": "2026-02-24T09:00:05.400Z",
-  "source": "web",
-  "surface": "home_feed",
+  "source": "client",
+  "surface": "feed",
   "event": "clip_play_started",
   "clipId": "clip_9981",
   "impressionId": "90599f22-cbcc-4388-936d-ece6b9eec2c3",
@@ -394,8 +405,8 @@
   "sessionId": "sess_2fc0e7f6",
   "userId": "u_1024",
   "ts": "2026-02-24T09:00:05.400Z",
-  "source": "web",
-  "surface": "home_feed",
+  "source": "client",
+  "surface": "feed",
   "event": "clip_play_started",
   "clipId": "clip_9981",
   "impressionId": "90599f22-cbcc-4388-936d-ece6b9eec2c3",
@@ -415,8 +426,8 @@
   "sessionId": "sess_2fc0e7f6",
   "userId": "u_1024",
   "ts": "2026-02-24T09:00:13.900Z",
-  "source": "web",
-  "surface": "home_feed",
+  "source": "client",
+  "surface": "feed",
   "event": "clip_view_threshold",
   "clipId": "clip_9981",
   "impressionId": "90599f22-cbcc-4388-936d-ece6b9eec2c3",
@@ -425,7 +436,7 @@
   "clipDurationMs": 32000,
   "watchMs": 16000,
   "completionRate": 0.5,
-  "threshold": "50pct"
+  "threshold": "p50"
 }
 ```
 
@@ -437,8 +448,8 @@
   "sessionId": "sess_2fc0e7f6",
   "userId": "u_1024",
   "ts": "2026-02-24T09:00:13.900Z",
-  "source": "web",
-  "surface": "home_feed",
+  "source": "client",
+  "surface": "feed",
   "event": "clip_view_threshold",
   "clipId": "clip_9981",
   "impressionId": "90599f22-cbcc-4388-936d-ece6b9eec2c3",
@@ -447,7 +458,7 @@
   "clipDurationMs": 32000,
   "watchMs": 16000,
   "completionRate": 0.5,
-  "threshold": "60pct"
+  "threshold": "p100"
 }
 ```
 
@@ -461,8 +472,8 @@
   "sessionId": "sess_2fc0e7f6",
   "userId": "u_1024",
   "ts": "2026-02-24T09:00:28.301Z",
-  "source": "web",
-  "surface": "home_feed",
+  "source": "client",
+  "surface": "feed",
   "event": "clip_view_ended",
   "clipId": "clip_9981",
   "impressionId": "90599f22-cbcc-4388-936d-ece6b9eec2c3",
@@ -483,8 +494,8 @@
   "sessionId": "sess_2fc0e7f6",
   "userId": "u_1024",
   "ts": "2026-02-24T09:00:28.301Z",
-  "source": "web",
-  "surface": "home_feed",
+  "source": "client",
+  "surface": "feed",
   "event": "clip_view_ended",
   "clipId": "clip_9981",
   "impressionId": "90599f22-cbcc-4388-936d-ece6b9eec2c3",
@@ -507,19 +518,18 @@
   "sessionId": "sess_2fc0e7f6",
   "userId": "u_1024",
   "ts": "2026-02-24T09:00:09.770Z",
-  "source": "web",
-  "surface": "home_feed",
+  "source": "client",
+  "surface": "feed",
   "event": "like_set",
   "clipId": "clip_9981",
   "impressionId": "90599f22-cbcc-4388-936d-ece6b9eec2c3",
   "feedRequestId": "9a9d1b86-6273-4bd4-a1a8-311be4fb32cf",
   "position": 3,
-  "likeState": "liked",
-  "actionSource": "feed_overlay"
+  "value": true
 }
 ```
 
-**Validation error example** (`likeState` invalid)
+**Validation error example** (`value` invalid type)
 ```json
 {
   "eventId": "b30104dd-aaf1-4f8f-ac38-2ccaa6309e7b",
@@ -527,14 +537,14 @@
   "sessionId": "sess_2fc0e7f6",
   "userId": "u_1024",
   "ts": "2026-02-24T09:00:09.770Z",
-  "source": "web",
-  "surface": "home_feed",
+  "source": "client",
+  "surface": "feed",
   "event": "like_set",
   "clipId": "clip_9981",
   "impressionId": "90599f22-cbcc-4388-936d-ece6b9eec2c3",
   "feedRequestId": "9a9d1b86-6273-4bd4-a1a8-311be4fb32cf",
   "position": 3,
-  "likeState": "on"
+  "value": "on"
 }
 ```
 
@@ -548,19 +558,18 @@
   "sessionId": "sess_2fc0e7f6",
   "userId": "u_1024",
   "ts": "2026-02-24T09:00:11.342Z",
-  "source": "web",
-  "surface": "home_feed",
+  "source": "client",
+  "surface": "feed",
   "event": "bookmark_set",
   "clipId": "clip_9981",
   "impressionId": "90599f22-cbcc-4388-936d-ece6b9eec2c3",
   "feedRequestId": "9a9d1b86-6273-4bd4-a1a8-311be4fb32cf",
   "position": 3,
-  "bookmarkState": "bookmarked",
-  "actionSource": "feed_overlay"
+  "value": true
 }
 ```
 
-**Validation error example** (`bookmarkState` missing)
+**Validation error example** (`value` missing)
 ```json
 {
   "eventId": "dbf5757b-24cc-4044-bddd-2104cfdb8275",
@@ -568,8 +577,8 @@
   "sessionId": "sess_2fc0e7f6",
   "userId": "u_1024",
   "ts": "2026-02-24T09:00:11.342Z",
-  "source": "web",
-  "surface": "home_feed",
+  "source": "client",
+  "surface": "feed",
   "event": "bookmark_set",
   "clipId": "clip_9981",
   "impressionId": "90599f22-cbcc-4388-936d-ece6b9eec2c3",
@@ -588,8 +597,8 @@
   "sessionId": "sess_2fc0e7f6",
   "userId": "u_1024",
   "ts": "2026-02-24T09:00:18.507Z",
-  "source": "web",
-  "surface": "home_feed",
+  "source": "client",
+  "surface": "feed",
   "event": "comment_created",
   "clipId": "clip_9981",
   "impressionId": "90599f22-cbcc-4388-936d-ece6b9eec2c3",
@@ -609,8 +618,8 @@
   "sessionId": "sess_2fc0e7f6",
   "userId": "u_1024",
   "ts": "2026-02-24T09:00:18.507Z",
-  "source": "web",
-  "surface": "home_feed",
+  "source": "client",
+  "surface": "feed",
   "event": "comment_created",
   "clipId": "clip_9981",
   "impressionId": "90599f22-cbcc-4388-936d-ece6b9eec2c3",
