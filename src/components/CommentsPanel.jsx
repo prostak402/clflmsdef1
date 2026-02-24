@@ -3,10 +3,11 @@ import { X, Send, Heart } from 'lucide-react'
 import { useApp } from '../context/useApp'
 import { COMMENT_MAX_LENGTH, validateCommentText } from '../services/comment-validation'
 import { feedService } from '../services/feed-service'
+import { EVENT_NAMES, EVENT_SOURCE, EVENT_SURFACE } from '../services/analytics/events'
 import DataState from './DataState'
 import './CommentsPanel.css'
 
-export default function CommentsPanel({ clipId, onClose }) {
+export default function CommentsPanel({ clipId, onClose, position, feedRequestId, impressionId }) {
   const { comments, addComment, user, isUserCommentBlocked } = useApp()
   const [text, setText] = useState('')
   const [loadState, setLoadState] = useState({ status: 'loading', error: '' })
@@ -108,6 +109,16 @@ export default function CommentsPanel({ clipId, onClose }) {
     }
 
     setSubmitError('')
+    if (impressionId && feedRequestId) {
+      feedService.trackEvent(EVENT_NAMES.COMMENT_CREATED, {
+        clipId,
+        impressionId,
+        position,
+        feedRequestId,
+        source: EVENT_SOURCE.CLIENT,
+        surface: EVENT_SURFACE.FEED,
+      })
+    }
     setText('')
     inputRef.current?.focus()
   }

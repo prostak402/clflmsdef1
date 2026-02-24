@@ -1,5 +1,12 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useApp } from '../context/useApp'
+import { feedService } from '../services/feed-service'
+import {
+  EVENT_NAMES,
+  EVENT_SOURCE,
+  EVENT_SURFACE,
+  VIEW_THRESHOLD,
+} from '../services/analytics/events'
 import {
   Heart,
   MessageCircle,
@@ -20,7 +27,14 @@ function formatCount(num) {
   return num.toString()
 }
 
-export default function ClipCard({ clip, isActive, onOpenComments }) {
+const THRESHOLDS = [
+  { rate: 0.25, value: VIEW_THRESHOLD.P25 },
+  { rate: 0.5, value: VIEW_THRESHOLD.P50 },
+  { rate: 0.75, value: VIEW_THRESHOLD.P75 },
+  { rate: 0.95, value: VIEW_THRESHOLD.P95 },
+]
+
+export default function ClipCard({ clip, isActive, onOpenComments, position, feedRequestId, impressionId }) {
   const { likes, toggleLike, bookmarks, toggleBookmark } = useApp()
   const [playing, setPlaying] = useState(false)
   const [muted, setMuted] = useState(true)
@@ -29,23 +43,104 @@ export default function ClipCard({ clip, isActive, onOpenComments }) {
   const [progress, setProgress] = useState(0)
   const [duration, setDuration] = useState(0)
   const videoRef = useRef(null)
+  const playSequenceRef = useRef(0)
+  const thresholdsSentRef = useRef(new Set())
 
   const isLiked = likes[clip.id]
   const isBookmarked = bookmarks.includes(clip.id)
+
+  const trackEvent = useCallback((event, payload) => {
+    if (!feedRequestId || !impressionId) {
+      return
+    }
+
+    feedService.trackEvent(event, {
+      ...payload,
+      clipId: clip.id,
+      impressionId,
+      position,
+      feedRequestId,
+      source: EVENT_SOURCE.CLIENT,
+      surface: EVENT_SURFACE.FEED,
+    })
+  }, [clip.id, feedRequestId, impressionId, position])
+
+  const getDurationMs = useCallback(() => {
+    const mediaDuration = Number(videoRef.current?.duration || duration || 0)
+    return Math.max(0, Math.round(mediaDuration * 1000))
+  }, [duration])
+
+  const getWatchStats = useCallback(() => {
+    const watchMs = Math.max(0, Math.round((videoRef.current?.currentTime || progress || 0) * 1000))
+    const clipDurationMs = Math.max(getDurationMs(), 1)
+    const completionRate = Math.min(1, watchMs / clipDurationMs)
+
+    return {
+      watchMs,
+      clipDurationMs,
+      completionRate,
+    }
+  }, [getDurationMs, progress])
+
+  const emitViewEnded = useCallback((reason) => {
+    if (!feedRequestId || !impressionId || playSequenceRef.current === 0) {
+      return
+    }
+
+    const { watchMs, clipDurationMs, completionRate } = getWatchStats()
+
+    trackEvent(EVENT_NAMES.CLIP_VIEW_ENDED, {
+      watchMs,
+      clipDurationMs,
+      completionRate,
+      playSequence: playSequenceRef.current,
+      endReason: reason,
+    })
+  }, [feedRequestId, getWatchStats, impressionId, trackEvent])
 
   useEffect(() => {
     if (!videoRef.current) return
     if (isActive) {
       videoRef.current.play().catch(() => {})
     } else {
+      emitViewEnded('scrolled_away')
       videoRef.current.currentTime = 0
       videoRef.current.pause()
     }
-  }, [isActive])
+  }, [emitViewEnded, isActive])
+
+  useEffect(() => {
+    return () => {
+      emitViewEnded('swiped_away')
+    }
+  }, [emitViewEnded])
+
+  useEffect(() => {
+    thresholdsSentRef.current = new Set()
+  }, [impressionId])
 
   const handleTimeUpdate = () => {
     if (!videoRef.current) return
-    setProgress(videoRef.current.currentTime)
+
+    const currentProgress = videoRef.current.currentTime
+    setProgress(currentProgress)
+
+    const { watchMs, clipDurationMs, completionRate } = getWatchStats()
+
+    THRESHOLDS.forEach(({ rate, value }) => {
+      const dedupeKey = `${impressionId}:${value}`
+      if (completionRate < rate || thresholdsSentRef.current.has(dedupeKey)) {
+        return
+      }
+
+      thresholdsSentRef.current.add(dedupeKey)
+      trackEvent(EVENT_NAMES.CLIP_VIEW_THRESHOLD, {
+        watchMs,
+        clipDurationMs,
+        completionRate,
+        threshold: value,
+      })
+    })
   }
 
   const handleLoadedMetadata = () => {
@@ -95,6 +190,18 @@ export default function ClipCard({ clip, isActive, onOpenComments }) {
     window.open(clip.watchUrl, '_blank', 'noopener')
   }
 
+  const handleToggleLike = () => {
+    const value = !isLiked
+    toggleLike(clip.id)
+    trackEvent(EVENT_NAMES.LIKE_SET, { value })
+  }
+
+  const handleToggleBookmark = () => {
+    const value = !isBookmarked
+    toggleBookmark(clip.id)
+    trackEvent(EVENT_NAMES.BOOKMARK_SET, { value })
+  }
+
   return (
     <div className="clip-card">
       {/* Video */}
@@ -110,7 +217,14 @@ export default function ClipCard({ clip, isActive, onOpenComments }) {
           poster={clip.poster}
           onTimeUpdate={handleTimeUpdate}
           onLoadedMetadata={handleLoadedMetadata}
-          onPlay={() => setPlaying(true)}
+          onPlay={() => {
+            setPlaying(true)
+            playSequenceRef.current += 1
+            trackEvent(EVENT_NAMES.CLIP_PLAY_STARTED, {
+              clipDurationMs: getDurationMs(),
+              playSequence: playSequenceRef.current,
+            })
+          }}
           onPause={() => {
             setPlaying(false)
             setProgress(videoRef.current?.currentTime || 0)
@@ -165,10 +279,7 @@ export default function ClipCard({ clip, isActive, onOpenComments }) {
 
       {/* Right action bar */}
       <div className="clip-actions">
-        <button
-          className={`clip-action-btn ${isLiked ? 'liked' : ''}`}
-          onClick={() => toggleLike(clip.id)}
-        >
+        <button className={`clip-action-btn ${isLiked ? 'liked' : ''}`} onClick={handleToggleLike}>
           <div className="clip-action-icon">
             <Heart
               size={26}
@@ -179,7 +290,10 @@ export default function ClipCard({ clip, isActive, onOpenComments }) {
           <span className="clip-action-count">{formatCount(clip.likes + (isLiked ? 1 : 0))}</span>
         </button>
 
-        <button className="clip-action-btn" onClick={onOpenComments}>
+        <button
+          className="clip-action-btn"
+          onClick={() => onOpenComments({ clipId: clip.id, impressionId, position })}
+        >
           <div className="clip-action-icon">
             <MessageCircle size={26} />
           </div>
@@ -188,7 +302,7 @@ export default function ClipCard({ clip, isActive, onOpenComments }) {
 
         <button
           className={`clip-action-btn ${isBookmarked ? 'bookmarked' : ''}`}
-          onClick={() => toggleBookmark(clip.id)}
+          onClick={handleToggleBookmark}
         >
           <div className="clip-action-icon">
             <Bookmark
@@ -261,7 +375,7 @@ export default function ClipCard({ clip, isActive, onOpenComments }) {
               </button>
               <button
                 className={`clip-detail-bookmark ${isBookmarked ? 'active' : ''}`}
-                onClick={() => toggleBookmark(clip.id)}
+                onClick={handleToggleBookmark}
               >
                 <Bookmark size={18} fill={isBookmarked ? 'currentColor' : 'none'} />
                 {isBookmarked ? 'Saved' : 'Save'}

@@ -1,19 +1,30 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useApp } from '../context/useApp'
 import { feedService } from '../services/feed-service'
+import { EVENT_NAMES, EVENT_SOURCE, EVENT_SURFACE } from '../services/analytics/events'
 import ClipCard from '../components/ClipCard'
 import CommentsPanel from '../components/CommentsPanel'
 import GenrePickerFloat from '../components/GenrePickerFloat'
 import DataState from '../components/DataState'
 import './FeedPage.css'
 
+function createTrackingId(prefix) {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+
+  return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`
+}
+
 export default function FeedPage() {
-  const { getFilteredClips } = useApp()
+  const { getFilteredClips, selectedGenres } = useApp()
   const [clips, setClips] = useState([])
   const [loadState, setLoadState] = useState({ status: 'loading', error: '' })
   const [currentIndex, setCurrentIndex] = useState(0)
   const [commentsOpen, setCommentsOpen] = useState(false)
   const [activeClipId, setActiveClipId] = useState(null)
+  const [feedRequestId, setFeedRequestId] = useState('')
+  const [impressionMap, setImpressionMap] = useState({})
   const containerRef = useRef(null)
   const isScrolling = useRef(false)
 
@@ -23,13 +34,28 @@ export default function FeedPage() {
     try {
       await feedService.wait(350)
       const nextClips = getFilteredClips()
+      const nextFeedRequestId = createTrackingId('feed')
+      const nextImpressionMap = nextClips.reduce((acc, clip) => {
+        acc[clip.id] = createTrackingId('impr')
+        return acc
+      }, {})
+
       setClips(nextClips)
+      setFeedRequestId(nextFeedRequestId)
+      setImpressionMap(nextImpressionMap)
       setLoadState({ status: 'ready', error: '' })
       setCurrentIndex(0)
+
+      feedService.trackEvent(EVENT_NAMES.FEED_OPENED, {
+        feedRequestId: nextFeedRequestId,
+        source: EVENT_SOURCE.CLIENT,
+        surface: EVENT_SURFACE.FEED,
+        selectedGenresCount: selectedGenres.length,
+      })
     } catch {
       setLoadState({ status: 'error', error: 'Failed to load feed. Please try again.' })
     }
-  }, [getFilteredClips])
+  }, [getFilteredClips, selectedGenres.length])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -38,6 +64,27 @@ export default function FeedPage() {
 
     return () => window.clearTimeout(timer)
   }, [loadFeed])
+
+  useEffect(() => {
+    const activeClip = clips[currentIndex]
+    if (!activeClip || !feedRequestId) {
+      return
+    }
+
+    const impressionId = impressionMap[activeClip.id]
+    if (!impressionId) {
+      return
+    }
+
+    feedService.trackEvent(EVENT_NAMES.CLIP_IMPRESSION, {
+      clipId: activeClip.id,
+      impressionId,
+      position: currentIndex,
+      feedRequestId,
+      source: EVENT_SOURCE.CLIENT,
+      surface: EVENT_SURFACE.FEED,
+    })
+  }, [clips, currentIndex, feedRequestId, impressionMap])
 
   const scrollToIndex = useCallback((index) => {
     if (containerRef.current && !isScrolling.current) {
@@ -114,10 +161,23 @@ export default function FeedPage() {
     }
   }, [clips.length, currentIndex, loadState.status, scrollToIndex])
 
-  const openComments = (clipId) => {
+  const openComments = ({ clipId, position, impressionId }) => {
     setActiveClipId(clipId)
+    setCurrentIndex(position)
+    setImpressionMap((prev) => {
+      if (!impressionId || prev[clipId] === impressionId) {
+        return prev
+      }
+
+      return {
+        ...prev,
+        [clipId]: impressionId,
+      }
+    })
     setCommentsOpen(true)
   }
+
+  const activeClipPosition = clips.findIndex((clip) => clip.id === activeClipId)
 
   return (
     <div className="feed-page">
@@ -155,14 +215,23 @@ export default function FeedPage() {
               <ClipCard
                 key={clip.id}
                 clip={clip}
+                position={index}
                 isActive={index === currentIndex}
-                onOpenComments={() => openComments(clip.id)}
+                feedRequestId={feedRequestId}
+                impressionId={impressionMap[clip.id]}
+                onOpenComments={openComments}
               />
             ))}
           </div>
 
           {commentsOpen && (
-            <CommentsPanel clipId={activeClipId} onClose={() => setCommentsOpen(false)} />
+            <CommentsPanel
+              clipId={activeClipId}
+              position={activeClipPosition}
+              feedRequestId={feedRequestId}
+              impressionId={activeClipId ? impressionMap[activeClipId] : null}
+              onClose={() => setCommentsOpen(false)}
+            />
           )}
         </>
       )}

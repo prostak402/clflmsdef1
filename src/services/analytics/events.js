@@ -101,6 +101,7 @@ const ACTION_EVENTS = new Set([
  * @property {number} watchMs
  * @property {number} completionRate
  * @property {number} playSequence
+ * @property {string} endReason
  */
 
 /**
@@ -108,6 +109,7 @@ const ACTION_EVENTS = new Set([
  * @property {string} clipId
  * @property {string} impressionId
  * @property {number} position
+ * @property {boolean} value
  */
 
 const REQUIRED_COMMON_FIELDS = ['eventId', 'userId', 'sessionId', 'feedRequestId', 'ts', 'event']
@@ -143,11 +145,12 @@ const REQUIRED_FIELDS_BY_EVENT = {
     'watchMs',
     'completionRate',
     'playSequence',
+    'endReason',
     'source',
     'surface',
   ],
-  [EVENT_NAMES.LIKE_SET]: ['clipId', 'impressionId', 'position', 'source', 'surface'],
-  [EVENT_NAMES.BOOKMARK_SET]: ['clipId', 'impressionId', 'position', 'source', 'surface'],
+  [EVENT_NAMES.LIKE_SET]: ['clipId', 'impressionId', 'position', 'value', 'source', 'surface'],
+  [EVENT_NAMES.BOOKMARK_SET]: ['clipId', 'impressionId', 'position', 'value', 'source', 'surface'],
   [EVENT_NAMES.COMMENT_CREATED]: ['clipId', 'impressionId', 'position', 'source', 'surface'],
 }
 
