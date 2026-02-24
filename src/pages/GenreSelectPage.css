@@ -96,15 +96,15 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, var(--chip-color), transparent);
+  background: linear-gradient(135deg, var(--chip-color, #64748b), transparent);
   opacity: 0;
   transition: var(--transition-base);
 }
 
 .genre-chip:hover {
-  border-color: var(--chip-color);
+  border-color: var(--chip-color, #64748b);
   transform: translateY(-2px);
-  box-shadow: 0 0 20px color-mix(in srgb, var(--chip-color) 20%, transparent);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--chip-color, #64748b) 20%, transparent);
 }
 
 .genre-chip:hover::before {
@@ -112,8 +112,8 @@
 }
 
 .genre-chip.selected {
-  border-color: var(--chip-color);
-  box-shadow: 0 0 20px color-mix(in srgb, var(--chip-color) 25%, transparent);
+  border-color: var(--chip-color, #64748b);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--chip-color, #64748b) 25%, transparent);
 }
 
 .genre-chip.selected::before {
@@ -128,13 +128,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--chip-color);
+  color: var(--chip-color, #64748b);
   flex-shrink: 0;
   transition: var(--transition-base);
 }
 
 .genre-chip.selected .genre-chip-icon {
-  background: var(--chip-color);
+  background: var(--chip-color, #64748b);
   color: white;
 }
 
@@ -152,7 +152,7 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: var(--chip-color);
+  background: var(--chip-color, #64748b);
   display: flex;
   align-items: center;
   justify-content: center;
