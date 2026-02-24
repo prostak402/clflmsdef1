@@ -42,9 +42,17 @@ export default function ClipCard({ clip, isActive, onOpenComments, position, fee
   const [shareToast, setShareToast] = useState(false)
   const [progress, setProgress] = useState(0)
   const [duration, setDuration] = useState(0)
+  const [videoAspect, setVideoAspect] = useState(null)
   const videoRef = useRef(null)
   const playSequenceRef = useRef(0)
   const thresholdsSentRef = useRef(new Set())
+  const tapStateRef = useRef({
+    lastTapAt: 0,
+    singleTapTimer: null,
+    touchStartX: 0,
+    touchStartY: 0,
+    touchStartedAt: 0,
+  })
 
   const isLiked = likes[clip.id]
   const isBookmarked = bookmarks.includes(clip.id)
@@ -119,6 +127,29 @@ export default function ClipCard({ clip, isActive, onOpenComments, position, fee
     thresholdsSentRef.current = new Set()
   }, [impressionId])
 
+  useEffect(() => {
+    if (isActive) {
+      return
+    }
+
+    if (tapStateRef.current.singleTapTimer) {
+      clearTimeout(tapStateRef.current.singleTapTimer)
+      tapStateRef.current.singleTapTimer = null
+    }
+    tapStateRef.current.lastTapAt = 0
+  }, [isActive])
+
+  useEffect(() => {
+    const tapState = tapStateRef.current
+
+    return () => {
+      if (tapState.singleTapTimer) {
+        clearTimeout(tapState.singleTapTimer)
+      }
+    }
+  }, [])
+
+
   const handleTimeUpdate = () => {
     if (!videoRef.current) return
 
@@ -146,6 +177,10 @@ export default function ClipCard({ clip, isActive, onOpenComments, position, fee
   const handleLoadedMetadata = () => {
     if (!videoRef.current) return
     setDuration(videoRef.current.duration || 0)
+
+    if (videoRef.current.videoWidth && videoRef.current.videoHeight) {
+      setVideoAspect(videoRef.current.videoWidth / videoRef.current.videoHeight)
+    }
   }
 
   const handleSeek = (event) => {
@@ -164,6 +199,100 @@ export default function ClipCard({ clip, isActive, onOpenComments, position, fee
 
     videoRef.current.play().catch(() => {})
   }
+
+  const isInsideVideoFrame = (pointX, pointY) => {
+    const video = videoRef.current
+    if (!video) {
+      return false
+    }
+
+    const rect = video.getBoundingClientRect()
+    if (!video.videoWidth || !video.videoHeight) {
+      return pointX >= rect.left && pointX <= rect.right && pointY >= rect.top && pointY <= rect.bottom
+    }
+
+    const containerAspect = rect.width / rect.height
+    const naturalAspect = video.videoWidth / video.videoHeight
+
+    let visibleWidth = rect.width
+    let visibleHeight = rect.height
+
+    if (naturalAspect > containerAspect) {
+      visibleHeight = rect.width / naturalAspect
+    } else {
+      visibleWidth = rect.height * naturalAspect
+    }
+
+    const offsetX = (rect.width - visibleWidth) / 2
+    const offsetY = (rect.height - visibleHeight) / 2
+
+    const frameLeft = rect.left + offsetX
+    const frameRight = frameLeft + visibleWidth
+    const frameTop = rect.top + offsetY
+    const frameBottom = frameTop + visibleHeight
+
+    return pointX >= frameLeft && pointX <= frameRight && pointY >= frameTop && pointY <= frameBottom
+  }
+
+  const handleVideoTouchStart = (event) => {
+    const touch = event.touches[0]
+    tapStateRef.current.touchStartX = touch.clientX
+    tapStateRef.current.touchStartY = touch.clientY
+    tapStateRef.current.touchStartedAt = event.timeStamp
+  }
+
+  const handleVideoTouchEnd = (event) => {
+    if (!isActive) {
+      return
+    }
+
+    const touch = event.changedTouches[0]
+    const deltaX = Math.abs(touch.clientX - tapStateRef.current.touchStartX)
+    const deltaY = Math.abs(touch.clientY - tapStateRef.current.touchStartY)
+    const touchDuration = event.timeStamp - tapStateRef.current.touchStartedAt
+
+    if (deltaX > 14 || deltaY > 14 || touchDuration > 280) {
+      return
+    }
+
+    if (!isInsideVideoFrame(touch.clientX, touch.clientY)) {
+      return
+    }
+
+    event.stopPropagation()
+    const now = event.timeStamp
+    const timeSinceLastTap = now - tapStateRef.current.lastTapAt
+
+    if (timeSinceLastTap < 280) {
+      if (tapStateRef.current.singleTapTimer) {
+        clearTimeout(tapStateRef.current.singleTapTimer)
+      }
+
+      tapStateRef.current.lastTapAt = 0
+      handleToggleLike()
+      return
+    }
+
+    tapStateRef.current.lastTapAt = now
+    tapStateRef.current.singleTapTimer = setTimeout(() => {
+      togglePlay()
+      tapStateRef.current.lastTapAt = 0
+    }, 260)
+  }
+
+  const handleVideoClick = (event) => {
+    if (!isActive) {
+      return
+    }
+
+    if (!isInsideVideoFrame(event.clientX, event.clientY)) {
+      return
+    }
+
+    togglePlay()
+  }
+
+  const isLetterbox = Boolean(videoAspect && videoAspect >= 1.5)
 
   const handleShare = async () => {
     const shareData = {
@@ -203,9 +332,14 @@ export default function ClipCard({ clip, isActive, onOpenComments, position, fee
   }
 
   return (
-    <div className="clip-card">
+    <div className={`clip-card ${isLetterbox ? 'clip-card--letterbox' : ''}`}>
       {/* Video */}
-      <div className="clip-video-wrap" onClick={togglePlay}>
+      <div
+        className="clip-video-wrap"
+        onClick={handleVideoClick}
+        onTouchStart={handleVideoTouchStart}
+        onTouchEnd={handleVideoTouchEnd}
+      >
         <video
           ref={videoRef}
           src={clip.clipUrl}
@@ -213,7 +347,7 @@ export default function ClipCard({ clip, isActive, onOpenComments, position, fee
           muted={muted}
           playsInline
           preload={isActive ? 'auto' : 'none'}
-          className="clip-video"
+          className={`clip-video ${isLetterbox ? 'clip-video--contain' : ''}`}
           poster={clip.poster}
           onTimeUpdate={handleTimeUpdate}
           onLoadedMetadata={handleLoadedMetadata}
