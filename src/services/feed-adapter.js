@@ -20,6 +20,7 @@
  *   bookmarkCount: number,
  *   likeCount: number,
  * }} getProfile
+ * @property {() => Record<string, Array<Object>>} getInitialComments
  */
 
 export {}

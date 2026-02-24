@@ -1,6 +1,8 @@
 import { MOCK_CLIPS, MOCK_COMMENTS } from '../data/mock'
 import { normalizeComment, normalizeCommentsMap } from './comment-normalizer'
 
+export const initialComments = normalizeCommentsMap(MOCK_COMMENTS)
+
 function simulateNetwork() {
   return Promise.resolve()
 }
@@ -150,6 +152,8 @@ export const mockFeedAdapter = {
       likeCount: Object.values(likes).filter(Boolean).length,
     }
   },
-}
 
-export const initialComments = normalizeCommentsMap(MOCK_COMMENTS)
+  getInitialComments() {
+    return initialComments
+  },
+}
