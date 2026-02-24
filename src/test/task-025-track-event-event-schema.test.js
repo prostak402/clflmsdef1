@@ -205,6 +205,30 @@ describe('TASK-025: trackEvent/event-schema contract', () => {
 
   it('enforces impression linkage for clip lifecycle events', () => {
     expect(() =>
+      feedService.trackEvent(EVENT_NAMES.CLIP_VIEW_THRESHOLD, {
+        clipId: 'clip-1',
+        source: EVENT_SOURCE.CLIENT,
+        surface: EVENT_SURFACE.FEED,
+      })
+    ).toThrow(/impressionId/)
+
+    expect(() =>
+      feedService.trackEvent(EVENT_NAMES.CLIP_PLAY_STARTED, {
+        clipId: 'clip-1',
+        source: EVENT_SOURCE.CLIENT,
+        surface: EVENT_SURFACE.FEED,
+      })
+    ).toThrow(/impressionId/)
+
+    expect(() =>
+      feedService.trackEvent(EVENT_NAMES.CLIP_VIEW_ENDED, {
+        clipId: 'clip-1',
+        source: EVENT_SOURCE.CLIENT,
+        surface: EVENT_SURFACE.FEED,
+      })
+    ).toThrow(/impressionId/)
+
+    expect(() =>
       validateRecommendationEventPayload({
         ...makeValidEvent(EVENT_NAMES.CLIP_VIEW_THRESHOLD),
         impressionId: '',
@@ -227,6 +251,20 @@ describe('TASK-025: trackEvent/event-schema contract', () => {
   })
 
   it('requires boolean value for like_set and bookmark_set', () => {
+    expect(() =>
+      validateRecommendationEventPayload({
+        ...makeValidEvent(EVENT_NAMES.LIKE_SET),
+        value: undefined,
+      })
+    ).toThrow(/value/)
+
+    expect(() =>
+      validateRecommendationEventPayload({
+        ...makeValidEvent(EVENT_NAMES.BOOKMARK_SET),
+        value: undefined,
+      })
+    ).toThrow(/value/)
+
     expect(() =>
       validateRecommendationEventPayload({
         ...makeValidEvent(EVENT_NAMES.LIKE_SET),
