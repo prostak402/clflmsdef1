@@ -1,7 +1,7 @@
-import { mockFeedAdapter, initialComments } from './mock-feed-adapter'
+import { createFeedAdapter } from './create-feed-adapter'
 import { normalizeWritePayload } from './payload-normalizer'
 
-const feedAdapter = mockFeedAdapter
+const feedAdapter = createFeedAdapter()
 const API_ERROR_CODE = 'API_SERVICE_ERROR'
 const REQUEST_PERF_PREFIX = '[api-metric]'
 const API_EVENT_PREFIX = '[api-event]'
@@ -233,7 +233,9 @@ export const feedService = {
       operation: () => feedAdapter.getProfile(params),
     })
   },
-  getInitialComments: () => initialComments,
+  getInitialComments() {
+    return feedAdapter.getInitialComments()
+  },
 
   async optimisticToggleLike({ clipId, applyLocal, rollbackLocal, requestId, correlationId }) {
     return performOptimisticUpdate({
