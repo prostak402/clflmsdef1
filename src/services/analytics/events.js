@@ -48,6 +48,8 @@ const ACTION_EVENTS = new Set([
   EVENT_NAMES.COMMENT_CREATED,
 ])
 
+const VALUE_BOOLEAN_EVENTS = new Set([EVENT_NAMES.LIKE_SET, EVENT_NAMES.BOOKMARK_SET])
+
 /**
  * @typedef EventCommonFields
  * @property {string} eventId
@@ -212,6 +214,10 @@ export function validateRecommendationEventPayload(eventPayload) {
 
   if (ACTION_EVENTS.has(event) && !eventPayload.impressionId) {
     throw new Error(`Action event "${event}" must reference impressionId`)
+  }
+
+  if (VALUE_BOOLEAN_EVENTS.has(event) && typeof eventPayload.value !== 'boolean') {
+    throw new Error(`Action event "${event}" requires boolean value`)
   }
 
   return eventPayload
