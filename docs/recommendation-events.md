@@ -15,6 +15,11 @@
 - `ts` фиксирован в формате ISO-8601 UTC (`new Date().toISOString()`).
 - `userId` сериализуется как `string | null` (для anonymous используется `null`).
 - События накапливаются в in-memory буфере; `flush()` детерминированно возвращает массив событий и очищает буфер (для пустого буфера возвращает `[]`).
+- Дедуп на клиенте:
+  - `clip_impression` — только одно событие на `impressionId`; дубликаты **дропаются** (метод возвращает `null`).
+  - `clip_view_threshold` — только одно событие на пару `impressionId + threshold`; дубликаты **дропаются** (метод возвращает `null`).
+- Жёсткая валидация связности: `clip_play_started`, `clip_view_threshold`, `clip_view_ended` без `impressionId` считаются невалидными и **кидают ошибку**.
+- В dev-режиме в лог `[feed-track-event]` пишется статус и причина (`accepted`, `rejected`, `dropped`) — включая причину дропа при дедупликации.
 
 ---
 

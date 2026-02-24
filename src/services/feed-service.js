@@ -7,10 +7,23 @@ const REQUEST_PERF_PREFIX = '[api-metric]'
 const API_EVENT_PREFIX = '[api-event]'
 const TRACK_EVENT_PREFIX = '[feed-track-event]'
 const EVENT_SCHEMA_VERSION = '1.0.0'
+const EVENT_NAMES = {
+  CLIP_IMPRESSION: 'clip_impression',
+  CLIP_PLAY_STARTED: 'clip_play_started',
+  CLIP_VIEW_THRESHOLD: 'clip_view_threshold',
+  CLIP_VIEW_ENDED: 'clip_view_ended',
+}
 
 let cachedSessionId = null
 let analyticsSessionProvider = null
 const trackedEventsBuffer = []
+const seenClipImpressions = new Set()
+const seenClipViewThresholds = new Set()
+const EVENTS_REQUIRING_IMPRESSION_ID = new Set([
+  EVENT_NAMES.CLIP_PLAY_STARTED,
+  EVENT_NAMES.CLIP_VIEW_THRESHOLD,
+  EVENT_NAMES.CLIP_VIEW_ENDED,
+])
 
 function wait(ms) {
   const timeoutMs =
@@ -99,6 +112,53 @@ function createTrackEventValidationError(name, missingFields) {
   return new Error(
     `trackEvent validation failed for "${eventName}": missing fields [${missingFields.join(', ')}]`
   )
+}
+
+function ensureImpressionIdForRelatedClipEvents(name, payload) {
+  if (!EVENTS_REQUIRING_IMPRESSION_ID.has(name)) {
+    return
+  }
+
+  if (typeof payload.impressionId === 'string' && payload.impressionId.trim().length > 0) {
+    return
+  }
+
+  throw new Error(
+    `trackEvent validation failed for "${name}": impressionId is required for related clip lifecycle events`
+  )
+}
+
+function getDeduplicationKey(name, payload) {
+  if (name === EVENT_NAMES.CLIP_IMPRESSION) {
+    const impressionId = payload.impressionId?.trim?.()
+
+    if (!impressionId) {
+      return null
+    }
+
+    return {
+      cache: seenClipImpressions,
+      key: impressionId,
+      reason: 'duplicate clip_impression for the same impressionId',
+    }
+  }
+
+  if (name === EVENT_NAMES.CLIP_VIEW_THRESHOLD) {
+    const impressionId = payload.impressionId?.trim?.()
+    const threshold = payload.threshold?.trim?.()
+
+    if (!impressionId || !threshold) {
+      return null
+    }
+
+    return {
+      cache: seenClipViewThresholds,
+      key: `${impressionId}:${threshold}`,
+      reason: 'duplicate clip_view_threshold for the same impressionId + threshold',
+    }
+  }
+
+  return null
 }
 
 function resolveSessionId() {
@@ -253,6 +313,22 @@ export const feedService = {
     }
 
     const normalizedName = name.trim()
+    ensureImpressionIdForRelatedClipEvents(normalizedName, payload)
+
+    const deduplicationData = getDeduplicationKey(normalizedName, payload)
+
+    if (deduplicationData && deduplicationData.cache.has(deduplicationData.key)) {
+      logTrackEvent('dropped', {
+        name: normalizedName,
+        reason: deduplicationData.reason,
+        dedupeKey: deduplicationData.key,
+      })
+
+      return null
+    }
+
+    deduplicationData?.cache.add(deduplicationData.key)
+
     const event = {
       ...payload,
       event: normalizedName,
