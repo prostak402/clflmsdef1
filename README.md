@@ -1,28 +1,197 @@
-# React + Vite
+# ClipFlow Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Frontend-приложение для MVP видеосервиса с короткими клипами из фильмов.
 
-Currently, two official plugins are available:
+Проект реализован на **React + Vite** и включает:
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- demo-аутентификацию;
+- онбординг по жанрам;
+- персонализированную ленту;
+- закладки, лайки, комментарии;
+- профиль пользователя;
+- административные экраны (добавление контента и модерация комментариев).
 
-## React Compiler
+## Стек
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- React 19
+- React Router 7
+- Vite 7
+- Vitest + Testing Library
+- ESLint 9 + Prettier
 
-## Expanding the ESLint configuration
+## Текущие фичи (MVP)
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### Пользовательские сценарии
 
-## Environment configuration
+- **Auth (demo mode):** Sign In / Sign Up + быстрый вход через Demo Account и Admin Demo.
+- **Онбординг жанров:** выбор предпочтений с ограничениями min/max перед доступом к ленте.
+- **Лента клипов:** фильтрация по выбранным жанрам, вертикальная навигация, состояние загрузки/ошибки/пустого списка.
+- **Комментарии:** просмотр и добавление комментариев с валидацией текста.
+- **Реакции:** лайк и закладка с optimistic update на уровне сервисного слоя.
+- **Каталог:** поиск и фильтр по жанрам для рекомендованных фильмов.
+- **Профиль:** агрегированная статистика пользователя (лайки/закладки) и черновик предпочтений.
 
-1. Copy `.env.example` to `.env`:
+### Админские сценарии
 
-   ```bash
-   cp .env.example .env
-   ```
+- **`/admin`:** форма создания карточки/клипа (MVP UI).
+- **`/admin/comments`:** модерация комментариев (удаление, блок автора, удаление всех комментариев автора).
 
-2. Adjust values under your local setup (API URL, app environment, feature flags).
+## Маршруты и доступ
 
-The template in `.env.example` documents each variable so a new developer can start the project with predictable defaults.
+| Route             | Доступ                              | Назначение                       |
+| ----------------- | ----------------------------------- | -------------------------------- |
+| `/`               | только для неавторизованных         | Экран входа/регистрации          |
+| `/genres`         | авторизованные                      | Онбординг: выбор жанров          |
+| `/feed`           | авторизованные + завершён онбординг | Лента клипов                     |
+| `/bookmarks`      | авторизованные + завершён онбординг | Сохранённые клипы                |
+| `/catalog`        | авторизованные + завершён онбординг | Каталог фильмов                  |
+| `/profile`        | авторизованные + завершён онбординг | Профиль пользователя             |
+| `/admin`          | администратор + завершён онбординг  | Админ-экран управления контентом |
+| `/admin/comments` | администратор + завершён онбординг  | Модерация комментариев           |
+
+### Правила guard-логики
+
+- `AuthOnlyRoute` не пускает авторизованного пользователя на `/`, сразу редиректит на `/genres` или `/feed`.
+- `ProtectedRoute`:
+  - редиректит неавторизованного на `/`;
+  - требует прохождение онбординга для продуктовых разделов;
+  - ограничивает админские маршруты ролью `user.isAdmin`.
+
+## Архитектура данных
+
+### 1) Слой состояния (`AppContext`)
+
+Глобальное состояние хранит и управляет:
+
+- `user`;
+- `hasCompletedOnboarding`;
+- `selectedGenres`;
+- `bookmarks`;
+- `likes`;
+- `comments`;
+- `blockedCommentUsers`;
+- `draftPreferences`.
+
+Состояние персистится в `localStorage` (ключ `app_state_v1`) c миграцией из legacy-ключа `clipflow.app-state`.
+
+### 2) Сервисный слой
+
+- `feedService` — основной facade для ленты, реакций, комментариев и модерации.
+- `contentService` — жанры и данные каталога.
+- `payload-normalizer` / `comment-normalizer` / `comment-validation` — нормализация payload и доменная валидация.
+
+Дополнительно в `feedService` встроены:
+
+- обработка и логирование API-ошибок;
+- метрики длительности запросов;
+- optimistic-операции для лайков/закладок.
+
+### 3) Adapter layer
+
+Сейчас используется `mockFeedAdapter` (данные из `src/data/mock.js`).
+Интерфейс адаптера (`feed-adapter.js`) зафиксирован так, чтобы можно было переключиться на backend API без изменений UI-слоя.
+
+### 4) Документация по API/migration
+
+- `docs/api-contract.md` — frontend-first контракт API.
+- `docs/task-020-mock-to-api-migration-map.md` — карта миграции с mock на реальный backend.
+- `docs/auth-mvp-model.md` — модель auth/guard поведения для MVP.
+
+## Быстрый старт
+
+### Требования
+
+- Node.js 20+
+- npm 10+
+
+### Установка
+
+```bash
+npm install
+```
+
+### Настройка окружения
+
+1. Скопируйте `.env.example` в `.env`:
+
+```bash
+cp .env.example .env
+```
+
+2. При необходимости измените переменные (`VITE_API_URL`, `VITE_FF_*`).
+
+## Команды разработки
+
+```bash
+npm run dev
+```
+
+Запуск локального dev-сервера Vite.
+
+```bash
+npm run build
+```
+
+Production-сборка.
+
+```bash
+npm run preview
+```
+
+Локальный preview production-сборки.
+
+## Команды проверки качества
+
+```bash
+npm run lint
+```
+
+Проверка ESLint (с `--max-warnings 0`).
+
+```bash
+npm run format:check
+```
+
+Проверка форматирования Prettier.
+
+```bash
+npm run test
+```
+
+Запуск тестов Vitest в CI-режиме.
+
+```bash
+npm run test:watch
+```
+
+Интерактивный watch-режим тестов.
+
+## Процесс разработки (рекомендуемый)
+
+1. Создать/обновить `.env` из `.env.example`.
+2. Разрабатывать фичу через `npm run dev`.
+3. Перед коммитом прогнать:
+   - `npm run lint`
+   - `npm run format:check`
+   - `npm run test`
+4. Обновлять документацию в `docs/` и `README.md`, если меняется поведение маршрутов, состояние или контракты.
+
+## Структура проекта
+
+```text
+src/
+  components/     UI-компоненты и layout
+  context/        глобальный state (AppContext)
+  pages/          route-level страницы
+  services/       сервисный и adapter-слой
+  data/           mock-данные MVP
+  constants/      доменные константы
+  test/           unit + integration тесты
+  styles/         дизайн-токены и глобальные стили
+
+docs/
+  api-contract.md
+  auth-mvp-model.md
+  auth-onboarding-flow.md
+  task-020-mock-to-api-migration-map.md
+```
