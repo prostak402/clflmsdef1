@@ -187,8 +187,15 @@ export function AppProvider({ children }) {
     }
 
     const normalizedAuthorId = authorId.trim()
-    setBlockedCommentUsers((prev) => ({ ...prev, [normalizedAuthorId]: true }))
-    return true
+    let didUpdate = false
+
+    setBlockedCommentUsers((prev) => {
+      const next = feedService.blockUserComments({ authorId: normalizedAuthorId, blockedUsers: prev })
+      didUpdate = Boolean(next?.[normalizedAuthorId])
+      return next
+    })
+
+    return didUpdate
   }, [])
 
   const unblockUserComments = useCallback((authorId) => {
@@ -227,22 +234,17 @@ export function AppProvider({ children }) {
     }
 
     const normalizedCommentId = commentId.trim()
+    let didDelete = false
 
     setComments((prev) => {
-      const clipComments = prev[clipId] || []
-      const filteredComments = clipComments.filter((comment) => comment.id !== normalizedCommentId)
-
-      if (filteredComments.length === clipComments.length) {
-        return prev
-      }
-
-      return {
-        ...prev,
-        [clipId]: filteredComments,
-      }
+      const next = feedService.deleteComment({ clipId, commentId: normalizedCommentId, comments: prev })
+      const prevLength = Array.isArray(prev?.[clipId]) ? prev[clipId].length : 0
+      const nextLength = Array.isArray(next?.[clipId]) ? next[clipId].length : 0
+      didDelete = nextLength < prevLength
+      return didDelete ? next : prev
     })
 
-    return true
+    return didDelete
   }, [])
 
   const deleteCommentsByUser = useCallback(({ authorId }) => {
@@ -251,15 +253,17 @@ export function AppProvider({ children }) {
     }
 
     const normalizedAuthorId = authorId.trim()
+    let didDelete = false
 
     setComments((prev) => {
-      return Object.entries(prev).reduce((acc, [clipId, clipComments]) => {
-        acc[clipId] = clipComments.filter((comment) => comment.authorId !== normalizedAuthorId)
-        return acc
-      }, {})
+      const next = feedService.deleteCommentsByUser({ authorId: normalizedAuthorId, comments: prev })
+      const prevCount = Object.values(prev).reduce((acc, clipComments) => acc + (clipComments?.length || 0), 0)
+      const nextCount = Object.values(next).reduce((acc, clipComments) => acc + (clipComments?.length || 0), 0)
+      didDelete = nextCount < prevCount
+      return didDelete ? next : prev
     })
 
-    return true
+    return didDelete
   }, [])
 
   const toggleGenre = useCallback((genreId) => {
