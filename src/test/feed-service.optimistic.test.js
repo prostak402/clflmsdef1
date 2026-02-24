@@ -25,6 +25,24 @@ describe('TASK-006: centralized optimistic updates', () => {
     expect(rollbackLocal).not.toHaveBeenCalled()
   })
 
+
+  it('rolls back optimistic like when persist fails', async () => {
+    const applyLocal = vi.fn()
+    const rollbackLocal = vi.fn()
+
+    vi.spyOn(mockFeedAdapter, 'persistLikeToggle').mockRejectedValueOnce(new Error('Like error'))
+
+    const isSuccess = await feedService.optimisticToggleLike({
+      clipId: 'clip_3',
+      applyLocal,
+      rollbackLocal,
+    })
+
+    expect(isSuccess).toBe(false)
+    expect(applyLocal).toHaveBeenCalledTimes(1)
+    expect(rollbackLocal).toHaveBeenCalledTimes(1)
+  })
+
   it('rolls back optimistic bookmark when persist fails', async () => {
     const applyLocal = vi.fn()
     const rollbackLocal = vi.fn()

@@ -166,6 +166,12 @@ npm run test:watch
 
 Интерактивный watch-режим тестов.
 
+```bash
+npm run test:smoke
+```
+
+Стабильный smoke-набор критичных тестов (последовательный запуск без file parallelism).
+
 ## Процесс разработки (рекомендуемый)
 
 1. Создать/обновить `.env` из `.env.example`.
@@ -175,6 +181,27 @@ npm run test:watch
    - `npm run format:check`
    - `npm run test`
 4. Обновлять документацию в `docs/` и `README.md`, если меняется поведение маршрутов, состояние или контракты.
+
+## Обязательные тест-кейсы
+
+Перед merge обязательно должны быть покрыты и зелёными оставаться кейсы:
+
+- route guards (unauth/auth/admin redirect matrix);
+- onboarding gate для продуктовых и админских экранов;
+- optimistic like/bookmark rollback при ошибке persist;
+- валидация комментариев (empty/trim/max length);
+- admin access (ограничение для обычного пользователя и доступ для admin).
+
+## Что запускать перед каждым merge
+
+- `npm run lint`
+- `npm run format:check`
+- `npm run test`
+- `npm run test:smoke`
+
+## Политика изменений AppContext/feedService
+
+Любое изменение в `src/context/AppContext.jsx` и/или `src/services/feed-service.js` без тестов не принимается. Минимум: добавить/обновить тесты в `src/test/`, подтверждающие новое поведение и регрессионные сценарии.
 
 ## Структура проекта
 
