@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { useApp } from '../context/useApp'
 import { feedService } from '../services/feed-service'
 import {
@@ -19,6 +19,7 @@ import {
   ExternalLink,
   Info,
 } from 'lucide-react'
+import { classifyVideoFormat, getDesktopContainerType, getAspectRatio } from '../services/video-layout'
 import './ClipCard.css'
 
 function formatCount(num) {
@@ -34,6 +35,16 @@ const THRESHOLDS = [
   { rate: 0.95, value: VIEW_THRESHOLD.P95 },
 ]
 
+const DESKTOP_BREAKPOINT = 1024
+
+function getDeviceType() {
+  if (typeof window === 'undefined') {
+    return 'mobile'
+  }
+
+  return window.innerWidth >= DESKTOP_BREAKPOINT ? 'desktop' : 'mobile'
+}
+
 export default function ClipCard({ clip, isActive, onOpenComments, position, feedRequestId, impressionId }) {
   const { likes, toggleLike, bookmarks, toggleBookmark } = useApp()
   const [playing, setPlaying] = useState(false)
@@ -42,6 +53,12 @@ export default function ClipCard({ clip, isActive, onOpenComments, position, fee
   const [shareToast, setShareToast] = useState(false)
   const [progress, setProgress] = useState(0)
   const [duration, setDuration] = useState(0)
+  const [deviceType, setDeviceType] = useState(getDeviceType)
+  const [videoMeta, setVideoMeta] = useState(() => ({
+    width: Number(clip.videoWidth) || 0,
+    height: Number(clip.videoHeight) || 0,
+    status: Number(clip.videoWidth) > 0 && Number(clip.videoHeight) > 0 ? 'ready' : 'loading',
+  }))
   const videoRef = useRef(null)
   const playSequenceRef = useRef(0)
   const thresholdsSentRef = useRef(new Set())
@@ -49,21 +66,24 @@ export default function ClipCard({ clip, isActive, onOpenComments, position, fee
   const isLiked = likes[clip.id]
   const isBookmarked = bookmarks.includes(clip.id)
 
-  const trackEvent = useCallback((event, payload) => {
-    if (!feedRequestId || !impressionId) {
-      return
-    }
+  const trackEvent = useCallback(
+    (event, payload) => {
+      if (!feedRequestId || !impressionId) {
+        return
+      }
 
-    feedService.trackEvent(event, {
-      ...payload,
-      clipId: clip.id,
-      impressionId,
-      position,
-      feedRequestId,
-      source: EVENT_SOURCE.CLIENT,
-      surface: EVENT_SURFACE.FEED,
-    })
-  }, [clip.id, feedRequestId, impressionId, position])
+      feedService.trackEvent(event, {
+        ...payload,
+        clipId: clip.id,
+        impressionId,
+        position,
+        feedRequestId,
+        source: EVENT_SOURCE.CLIENT,
+        surface: EVENT_SURFACE.FEED,
+      })
+    },
+    [clip.id, feedRequestId, impressionId, position]
+  )
 
   const getDurationMs = useCallback(() => {
     const mediaDuration = Number(videoRef.current?.duration || duration || 0)
@@ -82,21 +102,36 @@ export default function ClipCard({ clip, isActive, onOpenComments, position, fee
     }
   }, [getDurationMs, progress])
 
-  const emitViewEnded = useCallback((reason) => {
-    if (!feedRequestId || !impressionId || playSequenceRef.current === 0) {
-      return
+  const emitViewEnded = useCallback(
+    (reason) => {
+      if (!feedRequestId || !impressionId || playSequenceRef.current === 0) {
+        return
+      }
+
+      const { watchMs, clipDurationMs, completionRate } = getWatchStats()
+
+      trackEvent(EVENT_NAMES.CLIP_VIEW_ENDED, {
+        watchMs,
+        clipDurationMs,
+        completionRate,
+        playSequence: playSequenceRef.current,
+        endReason: reason,
+      })
+    },
+    [feedRequestId, getWatchStats, impressionId, trackEvent]
+  )
+
+  useEffect(() => {
+    const handleResize = () => {
+      setDeviceType(getDeviceType())
     }
 
-    const { watchMs, clipDurationMs, completionRate } = getWatchStats()
+    window.addEventListener('resize', handleResize)
 
-    trackEvent(EVENT_NAMES.CLIP_VIEW_ENDED, {
-      watchMs,
-      clipDurationMs,
-      completionRate,
-      playSequence: playSequenceRef.current,
-      endReason: reason,
-    })
-  }, [feedRequestId, getWatchStats, impressionId, trackEvent])
+    return () => {
+      window.removeEventListener('resize', handleResize)
+    }
+  }, [])
 
   useEffect(() => {
     if (!videoRef.current) return
@@ -145,7 +180,13 @@ export default function ClipCard({ clip, isActive, onOpenComments, position, fee
 
   const handleLoadedMetadata = () => {
     if (!videoRef.current) return
+
     setDuration(videoRef.current.duration || 0)
+    setVideoMeta({
+      width: videoRef.current.videoWidth || 0,
+      height: videoRef.current.videoHeight || 0,
+      status: 'ready',
+    })
   }
 
   const handleSeek = (event) => {
@@ -202,148 +243,183 @@ export default function ClipCard({ clip, isActive, onOpenComments, position, fee
     trackEvent(EVENT_NAMES.BOOKMARK_SET, { value })
   }
 
+  const aspectRatio = useMemo(
+    () => getAspectRatio({ width: videoMeta.width, height: videoMeta.height }),
+    [videoMeta.height, videoMeta.width]
+  )
+  const videoFormat = useMemo(() => classifyVideoFormat(aspectRatio), [aspectRatio])
+  const desktopContainerType = useMemo(() => getDesktopContainerType(aspectRatio), [aspectRatio])
+  const clipCardClassName = useMemo(() => {
+    const classes = [
+      'clip-card',
+      `clip-card--${deviceType}`,
+      `clip-card--${videoFormat}`,
+      `clip-card--container-${desktopContainerType}`,
+    ]
+
+    if (videoMeta.status !== 'ready') {
+      classes.push('clip-card--metadata-loading')
+    }
+
+    if (videoMeta.status === 'error') {
+      classes.push('clip-card--error')
+    }
+
+    return classes.join(' ')
+  }, [desktopContainerType, deviceType, videoFormat, videoMeta.status])
+
   return (
-    <div className="clip-card">
+    <div className={clipCardClassName}>
       {/* Video */}
-      <div className="clip-video-wrap" onClick={togglePlay}>
-        <video
-          ref={videoRef}
-          src={clip.clipUrl}
-          loop
-          muted={muted}
-          playsInline
-          preload={isActive ? 'auto' : 'none'}
-          className="clip-video"
-          poster={clip.poster}
-          onTimeUpdate={handleTimeUpdate}
-          onLoadedMetadata={handleLoadedMetadata}
-          onPlay={() => {
-            setPlaying(true)
-            playSequenceRef.current += 1
-            trackEvent(EVENT_NAMES.CLIP_PLAY_STARTED, {
-              clipDurationMs: getDurationMs(),
-              playSequence: playSequenceRef.current,
-            })
-          }}
-          onPause={() => {
-            setPlaying(false)
-            setProgress(videoRef.current?.currentTime || 0)
-          }}
-        />
+      <div className="clip-video-frame">
+        <div className="clip-video-wrap" onClick={togglePlay}>
+          <video
+            ref={videoRef}
+            src={clip.clipUrl}
+            loop
+            muted={muted}
+            playsInline
+            preload={isActive ? 'auto' : 'metadata'}
+            className="clip-video"
+            poster={clip.poster}
+            onTimeUpdate={handleTimeUpdate}
+            onLoadedMetadata={handleLoadedMetadata}
+            onError={() => setVideoMeta((current) => ({ ...current, status: 'error' }))}
+            onPlay={() => {
+              setPlaying(true)
+              playSequenceRef.current += 1
+              trackEvent(EVENT_NAMES.CLIP_PLAY_STARTED, {
+                clipDurationMs: getDurationMs(),
+                playSequence: playSequenceRef.current,
+              })
+            }}
+            onPause={() => {
+              setPlaying(false)
+              setProgress(videoRef.current?.currentTime || 0)
+            }}
+          />
 
-        {/* Play/Pause overlay */}
-        {!playing && (
-          <div className="clip-play-overlay">
-            <div className="clip-play-btn">
-              <Play size={48} fill="white" />
+          {videoMeta.status === 'loading' && (
+            <div className="clip-loading-overlay" aria-label="Video metadata loading" />
+          )}
+
+          {videoMeta.status === 'error' && (
+            <div className="clip-loading-overlay clip-loading-overlay--error" aria-live="polite">
+              Video is unavailable
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Gradient overlays */}
-        <div className="clip-gradient-top" />
-        <div className="clip-gradient-bottom" />
-      </div>
+          {/* Play/Pause overlay */}
+          {!playing && videoMeta.status !== 'error' && (
+            <div className="clip-play-overlay">
+              <div className="clip-play-btn">
+                <Play size={48} fill="white" />
+              </div>
+            </div>
+          )}
 
-      <div className="clip-progress-wrap">
-        <input
-          type="range"
-          className="clip-progress"
-          min="0"
-          max={duration || 0}
-          step="0.01"
-          value={Math.min(progress, duration || 0)}
-          onClick={(e) => e.stopPropagation()}
-          onChange={handleSeek}
-          style={{ '--clip-progress': duration ? `${(progress / duration) * 100}%` : '0%' }}
-          aria-label={`Seek ${clip.title}`}
-        />
-      </div>
-
-      {/* Top bar */}
-      <div className="clip-top-bar">
-        <div className="clip-badge glass">
-          <Star size={12} fill="#f59e0b" color="#f59e0b" />
-          <span>{clip.rating}</span>
-        </div>
-        <button
-          className="clip-mute-btn glass"
-          onClick={(e) => {
-            e.stopPropagation()
-            setMuted(!muted)
-          }}
-        >
-          {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-        </button>
-      </div>
-
-      {/* Right action bar */}
-      <div className="clip-actions">
-        <button className={`clip-action-btn ${isLiked ? 'liked' : ''}`} onClick={handleToggleLike}>
-          <div className="clip-action-icon">
-            <Heart
-              size={26}
-              fill={isLiked ? '#ec4899' : 'none'}
-              color={isLiked ? '#ec4899' : 'white'}
-            />
-          </div>
-          <span className="clip-action-count">{formatCount(clip.likes + (isLiked ? 1 : 0))}</span>
-        </button>
-
-        <button
-          className="clip-action-btn"
-          onClick={() => onOpenComments({ clipId: clip.id, impressionId, position })}
-        >
-          <div className="clip-action-icon">
-            <MessageCircle size={26} />
-          </div>
-          <span className="clip-action-count">{formatCount(clip.comments)}</span>
-        </button>
-
-        <button
-          className={`clip-action-btn ${isBookmarked ? 'bookmarked' : ''}`}
-          onClick={handleToggleBookmark}
-        >
-          <div className="clip-action-icon">
-            <Bookmark
-              size={26}
-              fill={isBookmarked ? '#f59e0b' : 'none'}
-              color={isBookmarked ? '#f59e0b' : 'white'}
-            />
-          </div>
-          <span className="clip-action-count">{formatCount(clip.bookmarks)}</span>
-        </button>
-
-        <button className="clip-action-btn" onClick={handleShare}>
-          <div className="clip-action-icon">
-            <Share2 size={24} />
-          </div>
-          <span className="clip-action-count">{formatCount(clip.shares)}</span>
-        </button>
-
-        <button className="clip-action-btn" onClick={() => setShowInfo(!showInfo)}>
-          <div className="clip-action-icon">
-            <Info size={24} />
-          </div>
-        </button>
-      </div>
-
-      {/* Bottom info */}
-      <div className="clip-info">
-        <h2 className="clip-movie-title">{clip.title}</h2>
-        <p className="clip-movie-desc">{clip.clipDescription}</p>
-        <div className="clip-meta">
-          <span className="clip-year">{clip.year}</span>
-          <span className="clip-separator">•</span>
-          <span className="clip-director">{clip.director}</span>
-          <span className="clip-separator">•</span>
-          <span className="clip-duration">{clip.duration}</span>
+          {/* Gradient overlays */}
+          <div className="clip-gradient-top" />
+          <div className="clip-gradient-bottom" />
         </div>
 
-        <button className="clip-watch-btn" onClick={handleWatch}>
-          <ExternalLink size={16} />
-          <span>Watch Full Movie</span>
-        </button>
+        <div className="clip-progress-wrap">
+          <input
+            type="range"
+            className="clip-progress"
+            min="0"
+            max={duration || 0}
+            step="0.01"
+            value={Math.min(progress, duration || 0)}
+            onClick={(e) => e.stopPropagation()}
+            onChange={handleSeek}
+            style={{ '--clip-progress': duration ? `${(progress / duration) * 100}%` : '0%' }}
+            aria-label={`Seek ${clip.title}`}
+          />
+        </div>
+
+        {/* Top bar */}
+        <div className="clip-top-bar">
+          <div className="clip-badge glass">
+            <Star size={12} fill="#f59e0b" color="#f59e0b" />
+            <span>{clip.rating}</span>
+          </div>
+          <button
+            className="clip-mute-btn glass"
+            onClick={(e) => {
+              e.stopPropagation()
+              setMuted(!muted)
+            }}
+          >
+            {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+          </button>
+        </div>
+
+        {/* Right action bar */}
+        <div className="clip-actions">
+          <button className={`clip-action-btn ${isLiked ? 'liked' : ''}`} onClick={handleToggleLike}>
+            <div className="clip-action-icon">
+              <Heart
+                size={26}
+                fill={isLiked ? '#ec4899' : 'none'}
+                color={isLiked ? '#ec4899' : 'white'}
+              />
+            </div>
+            <span className="clip-action-count">{formatCount(clip.likes + (isLiked ? 1 : 0))}</span>
+          </button>
+
+          <button
+            className="clip-action-btn"
+            onClick={() => onOpenComments({ clipId: clip.id, impressionId, position })}
+          >
+            <div className="clip-action-icon">
+              <MessageCircle size={26} />
+            </div>
+            <span className="clip-action-count">{formatCount(clip.comments)}</span>
+          </button>
+
+          <button className={`clip-action-btn ${isBookmarked ? 'bookmarked' : ''}`} onClick={handleToggleBookmark}>
+            <div className="clip-action-icon">
+              <Bookmark
+                size={24}
+                fill={isBookmarked ? '#f59e0b' : 'none'}
+                color={isBookmarked ? '#f59e0b' : 'white'}
+              />
+            </div>
+            <span className="clip-action-count">{formatCount(clip.bookmarks)}</span>
+          </button>
+
+          <button className="clip-action-btn" onClick={handleShare}>
+            <div className="clip-action-icon">
+              <Share2 size={24} />
+            </div>
+            <span className="clip-action-count">{formatCount(clip.shares)}</span>
+          </button>
+
+          <button className="clip-action-btn" onClick={() => setShowInfo(!showInfo)}>
+            <div className="clip-action-icon">
+              <Info size={24} />
+            </div>
+          </button>
+        </div>
+
+        {/* Bottom info */}
+        <div className="clip-info">
+          <h2 className="clip-movie-title">{clip.title}</h2>
+          <p className="clip-movie-desc">{clip.clipDescription}</p>
+          <div className="clip-meta">
+            <span className="clip-year">{clip.year}</span>
+            <span className="clip-separator">•</span>
+            <span className="clip-director">{clip.director}</span>
+            <span className="clip-separator">•</span>
+            <span className="clip-duration">{clip.duration}</span>
+          </div>
+
+          <button className="clip-watch-btn" onClick={handleWatch}>
+            <ExternalLink size={16} />
+            <span>Watch Full Movie</span>
+          </button>
+        </div>
       </div>
 
       {/* Movie detail panel */}
