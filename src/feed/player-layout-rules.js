@@ -6,6 +6,59 @@ export const PLAYER_LAYOUT_BREAKPOINTS = {
 
 export const PLAYER_LAYOUT_FEATURE_FLAGS = {
   enableFillMode: false,
+  adaptiveFeedPlayerV1: {
+    stage: 1,
+    internalAudienceOnly: true,
+    trafficPercent: 0,
+  },
+}
+
+export const ADAPTIVE_FEED_PLAYER_V1_STAGES = {
+  OFF: 0,
+  PHASE_1_AR_AND_PLACEHOLDER: 1,
+  PHASE_2_SAFE_ZONES_AND_DESKTOP_REFINEMENT: 2,
+  PHASE_3_METRICS_AND_FULL_ROLLOUT: 3,
+}
+
+function hashToBucket(seed) {
+  const value = String(seed || '')
+  let hash = 0
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(index)
+    hash |= 0
+  }
+
+  return Math.abs(hash % 100)
+}
+
+export function isAdaptiveFeedPlayerEnabled({
+  userId,
+  isInternalAudience = false,
+  trafficPercent,
+  featureConfig = PLAYER_LAYOUT_FEATURE_FLAGS.adaptiveFeedPlayerV1,
+} = {}) {
+  const safeTrafficPercent = Number.isFinite(trafficPercent)
+    ? trafficPercent
+    : Number(featureConfig.trafficPercent)
+
+  if (!featureConfig || featureConfig.stage <= ADAPTIVE_FEED_PLAYER_V1_STAGES.OFF) {
+    return false
+  }
+
+  if (featureConfig.internalAudienceOnly && !isInternalAudience) {
+    return false
+  }
+
+  if (!Number.isFinite(safeTrafficPercent) || safeTrafficPercent <= 0) {
+    return false
+  }
+
+  if (safeTrafficPercent >= 100) {
+    return true
+  }
+
+  return hashToBucket(userId) < safeTrafficPercent
 }
 
 export const PLAYER_OVERLAY_SAFE_INSETS = {
@@ -110,7 +163,26 @@ export function resolveOverlaySafeInsets({ viewportType, containerKind }) {
   return PLAYER_OVERLAY_SAFE_INSETS[resolvedViewportType][resolvedContainerKind]
 }
 
-export function resolvePlayerLayout({ viewportType, videoWidth, videoHeight }) {
+function resolveOverlaySafeInsetsByPhase({ viewportType, containerKind, adaptiveStage }) {
+  const baseInsets = resolveOverlaySafeInsets({ viewportType, containerKind })
+
+  if (adaptiveStage < ADAPTIVE_FEED_PLAYER_V1_STAGES.PHASE_2_SAFE_ZONES_AND_DESKTOP_REFINEMENT) {
+    return baseInsets
+  }
+
+  if (viewportType !== 'desktop') {
+    return baseInsets
+  }
+
+  return {
+    top: baseInsets.top + 4,
+    right: baseInsets.right + 4,
+    bottom: baseInsets.bottom + 4,
+    left: baseInsets.left + 4,
+  }
+}
+
+export function resolvePlayerLayout({ viewportType, videoWidth, videoHeight, adaptiveStage = 0 }) {
   const normalizedViewportType = normalizeViewportType(viewportType)
   const aspectRatio = toAspectRatio(videoWidth, videoHeight)
 
@@ -127,6 +199,10 @@ export function resolvePlayerLayout({ viewportType, videoWidth, videoHeight }) {
       ? 'contain'
       : 'fill'
 
+  const safeAdaptiveStage = Number.isFinite(adaptiveStage)
+    ? adaptiveStage
+    : ADAPTIVE_FEED_PLAYER_V1_STAGES.OFF
+
   if (normalizedViewportType === 'desktop') {
     return {
       viewportType: normalizedViewportType,
@@ -134,6 +210,7 @@ export function resolvePlayerLayout({ viewportType, videoWidth, videoHeight }) {
       container: resolveDesktopContainer(format),
       fitMode,
       isMetadataKnown: true,
+      adaptiveStage: safeAdaptiveStage,
     }
   }
 
@@ -143,6 +220,7 @@ export function resolvePlayerLayout({ viewportType, videoWidth, videoHeight }) {
     container: 'fluid',
     fitMode,
     isMetadataKnown: true,
+    adaptiveStage: safeAdaptiveStage,
   }
 }
 
@@ -219,10 +297,25 @@ export function resolveOverlayLayout({
   videoHeight,
   containerWidth,
   containerHeight,
+  userId,
+  isInternalAudience,
+  trafficPercent,
 }) {
-  const playerLayout = resolvePlayerLayout({ viewportType, videoWidth, videoHeight })
+  const isAdaptiveEnabled = isAdaptiveFeedPlayerEnabled({
+    userId,
+    isInternalAudience,
+    trafficPercent,
+  })
+  const adaptiveStage = isAdaptiveEnabled
+    ? PLAYER_LAYOUT_FEATURE_FLAGS.adaptiveFeedPlayerV1.stage
+    : ADAPTIVE_FEED_PLAYER_V1_STAGES.OFF
+  const playerLayout = resolvePlayerLayout({ viewportType, videoWidth, videoHeight, adaptiveStage })
   const containerKind = getContainerKind(playerLayout.format)
-  const overlaySafeInsets = resolveOverlaySafeInsets({ viewportType, containerKind })
+  const overlaySafeInsets = resolveOverlaySafeInsetsByPhase({
+    viewportType,
+    containerKind,
+    adaptiveStage,
+  })
   const contentRect = resolveContentRect({
     containerWidth,
     containerHeight,

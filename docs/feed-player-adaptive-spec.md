@@ -55,12 +55,12 @@
 
 ### Таблица соответствия
 
-| Input aspect ratio | Container type | Render mode (MVP) | Overlays |
-|---|---|---|---|
-| `< 1.0` (portrait) | Vertical feed cell (mobile/tablet) | `contain` | Overlays привязаны к контейнеру; не должны выходить за safe area; видео может иметь поля сверху/снизу или по бокам |
-| `= 1.0` (square) | Any feed cell | `contain` | Overlays центрируются по контейнеру; интерактивные зоны не пересекают системные inset |
-| `> 1.0` и `<= 1.77` (landscape, up to 16:9) | Any feed cell | `contain` | Overlays рендерятся поверх контейнера, без crop контента; учитывать letterbox |
-| `> 1.77` (ultra-wide) | Any feed cell (особенно mobile) | `contain` | Overlays сохраняют позиционирование относительно контейнера; увеличенные поля не ломают CTA и controls |
+| Input aspect ratio                          | Container type                     | Render mode (MVP) | Overlays                                                                                                           |
+| ------------------------------------------- | ---------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `< 1.0` (portrait)                          | Vertical feed cell (mobile/tablet) | `contain`         | Overlays привязаны к контейнеру; не должны выходить за safe area; видео может иметь поля сверху/снизу или по бокам |
+| `= 1.0` (square)                            | Any feed cell                      | `contain`         | Overlays центрируются по контейнеру; интерактивные зоны не пересекают системные inset                              |
+| `> 1.0` и `<= 1.77` (landscape, up to 16:9) | Any feed cell                      | `contain`         | Overlays рендерятся поверх контейнера, без crop контента; учитывать letterbox                                      |
+| `> 1.77` (ultra-wide)                       | Any feed cell (особенно mobile)    | `contain`         | Overlays сохраняют позиционирование относительно контейнера; увеличенные поля не ломают CTA и controls             |
 
 > Примечание: колонка `Render mode (MVP)` намеренно зафиксирована как `contain` для всех комбинаций. Будущее изменение в `cover` возможно только в отдельной спецификации для режима «Заполнить экран».
 
@@ -72,19 +72,67 @@
 
 ## Rollout Plan
 
+### Feature flag
+
+- Новый layout-движок управляется флагом `adaptive_feed_player_v1`.
+- Флаг содержит параметры:
+  - `stage` (`0..3`);
+  - `internalAudienceOnly`;
+  - `trafficPercent`.
+- Любое расширение трафика выполняется только после прохождения check-list текущего этапа и фиксации rollback-критериев.
+
+### Этап 1 — AR + placeholder для внутренней аудитории/процента трафика
+
+- Scope:
+  - включить базовые правила aspect-ratio классификации;
+  - включить fallback `placeholder` при неизвестных метаданных;
+  - запуск только на internal audience и ограниченный `%` трафика.
+- Pre-scale checks:
+  - smoke на mobile/tablet/desktop для `contain`-поведения;
+  - проверка стабильности overlay anchor при letterbox/pillarbox;
+  - проверка корректного fallback при `videoWidth/videoHeight = null|0`.
+- Rollback criteria:
+  - рост crash/error rate по плееру выше согласованного порога;
+  - массовые визуальные дефекты (смещение overlay, неверный placeholder);
+  - деградация watch/completion метрик относительно control.
+
+### Этап 2 — safe zones + desktop refinement (без изменения API карточек)
+
+- Scope:
+  - включить safe-zone refinement для desktop;
+  - сохранить текущий API карточек (без новых обязательных полей).
+- Pre-scale checks:
+  - визуальная регрессия desktop overlay (top/right/bottom/left insets);
+  - проверка доступности кликабельных зон в safe areas;
+  - проверка обратной совместимости существующих card props.
+- Rollback criteria:
+  - перекрытие CTA/контролов системными зонами;
+  - поломка desktop-specific layout контейнеров;
+  - несовместимость со старыми данными карточек.
+
+### Этап 3 — автотесты + метрики + поэтапный rollout до 100%
+
+- Scope:
+  - включить автотесты для флага, стадий и safe-zone логики;
+  - добавить мониторинг ключевых метрик и алертов;
+  - раскатывать трафик по шагам (например: 10% → 25% → 50% → 100%).
+- Pre-scale checks (на каждом шаге):
+  - green unit/integration suite;
+  - отсутствие регрессий в error budget;
+  - подтверждение Product/Design/Frontend по дашбордам и QA выборке.
+- Rollback criteria:
+  - отклонение KPI (watch time, completion, CTR CTA) за guardrail;
+  - рост client-side ошибок/времени старта плеера;
+  - критические баги в accessibility/interaction.
+
+### Governance
+
 1. **Spec alignment (обязательный gate)**
-   - Согласовать этот документ с Product/Design/Frontend.
+   - Согласовать документ с Product/Design/Frontend.
    - Зафиксировать статус: `Approved`.
-2. **Implementation prep**
-   - Описать FE-задачи: вычисление ratio, `contain` рендер, overlay anchoring.
-   - Подготовить тест-кейсы по platform matrix.
-3. **MVP implementation**
-   - Включить только `contain` flow.
-   - Исключить любые UI/flags для crop/fill.
-4. **Validation & release**
-   - Проверка acceptance criteria на mobile/tablet/desktop web.
-   - Выпуск после sign-off Product + Design + FE.
-5. **Post-MVP (future)**
+2. **Validation & release**
+   - Выпуск только после sign-off Product + Design + FE на текущем этапе.
+3. **Post-MVP (future)**
    - Отдельный RFC/спека для режима «Заполнить экран» (`cover` + правила crop).
 
 ## Acceptance Criteria
