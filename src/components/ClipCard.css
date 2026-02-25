@@ -1,3 +1,4 @@
+
 .clip-card {
   --content-left: 0px;
   --content-top: 0px;
@@ -48,14 +49,6 @@
 
 .clip-video-wrap--placeholder .clip-video {
   width: min(100%, 900px);
-}
-
-.clip-card--low-resolution {
-  background: #14161b;
-}
-
-.clip-card--low-resolution .clip-video-wrap {
-  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.04), rgba(20, 22, 27, 0.96));
 }
 
 .clip-play-overlay {
@@ -519,6 +512,7 @@
   }
 }
 
+
 .clip-card--overlay-bars .clip-top-bar {
   top: max(calc(var(--overlay-inset-top) + env(safe-area-inset-top)), calc(var(--bar-top) * 0.28));
   left: calc(var(--overlay-inset-left) + env(safe-area-inset-left));
@@ -580,10 +574,10 @@
   }
 
   .clip-movie-title {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
     font-size: var(--text-xl);
   }
 }
@@ -604,14 +598,6 @@
   width: min(56vw, 280px);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
-}
-
-.clip-error-message {
-  margin: 0;
-  max-width: min(80vw, 360px);
-  text-align: center;
-  color: rgba(255, 255, 255, 0.86);
-  font-size: 14px;
 }
 
 .clip-error-retry {
