@@ -1,7 +1,9 @@
 export const PLAYER_LAYOUT_BREAKPOINTS = {
+  extremeTallMax: 0.56,
   vertical: 1,
   squareUniversalMax: 1.1,
   wideMax: 1.85,
+  extremeWideMin: 2.2,
 }
 
 export const PLAYER_LAYOUT_FEATURE_FLAGS = {
@@ -110,6 +112,10 @@ function classifyFormat(aspectRatio) {
     return 'unknown'
   }
 
+  if (aspectRatio <= PLAYER_LAYOUT_BREAKPOINTS.extremeTallMax) {
+    return 'extreme-vertical'
+  }
+
   if (aspectRatio < PLAYER_LAYOUT_BREAKPOINTS.vertical) {
     return 'vertical'
   }
@@ -122,15 +128,19 @@ function classifyFormat(aspectRatio) {
     return 'wide'
   }
 
+  if (aspectRatio >= PLAYER_LAYOUT_BREAKPOINTS.extremeWideMin) {
+    return 'extreme-wide'
+  }
+
   return 'ultraWide'
 }
 
 function resolveDesktopContainer(format) {
-  if (format === 'vertical') {
+  if (format === 'vertical' || format === 'extreme-vertical') {
     return 'desktop-tall'
   }
 
-  if (format === 'wide' || format === 'ultraWide') {
+  if (format === 'wide' || format === 'ultraWide' || format === 'extreme-wide') {
     return 'desktop-wide'
   }
 
@@ -142,7 +152,7 @@ function resolveDesktopContainer(format) {
 }
 
 export function getContainerKind(format) {
-  if (format === 'vertical') {
+  if (format === 'vertical' || format === 'extreme-vertical') {
     return 'vertical'
   }
 
@@ -194,8 +204,11 @@ export function resolvePlayerLayout({ viewportType, videoWidth, videoHeight, ada
   }
 
   const format = classifyFormat(aspectRatio)
+  const isExtremeAspect = format === 'extreme-wide' || format === 'extreme-vertical'
   const fitMode =
-    normalizedViewportType === 'mobile' || !PLAYER_LAYOUT_FEATURE_FLAGS.enableFillMode
+    normalizedViewportType === 'mobile' ||
+    !PLAYER_LAYOUT_FEATURE_FLAGS.enableFillMode ||
+    isExtremeAspect
       ? 'contain'
       : 'fill'
 
@@ -233,6 +246,8 @@ export function resolveContentRect({
 }) {
   const width = Number(containerWidth)
   const height = Number(containerHeight)
+  const nativeWidth = Number(videoWidth)
+  const nativeHeight = Number(videoHeight)
   const videoAspect = toAspectRatio(videoWidth, videoHeight)
 
   if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
@@ -244,6 +259,7 @@ export function resolveContentRect({
       bars: { top: 0, right: 0, bottom: 0, left: 0 },
       hasLetterbox: false,
       hasPillarbox: false,
+      isLowResolution: false,
     }
   }
 
@@ -256,6 +272,7 @@ export function resolveContentRect({
       bars: { top: 0, right: 0, bottom: 0, left: 0 },
       hasLetterbox: false,
       hasPillarbox: false,
+      isLowResolution: false,
     }
   }
 
@@ -269,6 +286,25 @@ export function resolveContentRect({
   } else {
     contentHeight = height
     contentWidth = height * videoAspect
+  }
+
+  const isLowResolution =
+    Number.isFinite(nativeWidth) &&
+    Number.isFinite(nativeHeight) &&
+    nativeWidth > 0 &&
+    nativeHeight > 0 &&
+    Math.max(nativeWidth, nativeHeight) <= 960
+
+  if (isLowResolution) {
+    const scaleX = contentWidth / nativeWidth
+    const scaleY = contentHeight / nativeHeight
+    const targetScale = Math.min(scaleX, scaleY)
+    const maxUpscaleFactor = 1.25
+
+    if (targetScale > maxUpscaleFactor) {
+      contentWidth = nativeWidth * maxUpscaleFactor
+      contentHeight = nativeHeight * maxUpscaleFactor
+    }
   }
 
   const x = Math.max(0, (width - contentWidth) / 2)
@@ -288,6 +324,7 @@ export function resolveContentRect({
     bars,
     hasLetterbox: bars.top > 0,
     hasPillarbox: bars.left > 0,
+    isLowResolution,
   }
 }
 
@@ -326,7 +363,9 @@ export function resolveOverlayLayout({
 
   const prefersBarAnchoring =
     playerLayout.viewportType === 'mobile' &&
-    (playerLayout.format === 'wide' || playerLayout.format === 'ultraWide') &&
+    (playerLayout.format === 'wide' ||
+      playerLayout.format === 'ultraWide' ||
+      playerLayout.format === 'extreme-wide') &&
     contentRect.bars.top >= 44
 
   const overlayAnchor = prefersBarAnchoring ? 'bars' : 'content'
