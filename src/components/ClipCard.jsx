@@ -34,7 +34,15 @@ const THRESHOLDS = [
   { rate: 0.95, value: VIEW_THRESHOLD.P95 },
 ]
 
-export default function ClipCard({ clip, isActive, onOpenComments, position, feedRequestId, impressionId }) {
+export default function ClipCard({
+  clip,
+  isActive,
+  onOpenComments,
+  position,
+  feedRequestId,
+  impressionId,
+  onAspectRatioDetected,
+}) {
   const { likes, toggleLike, bookmarks, toggleBookmark } = useApp()
   const [playing, setPlaying] = useState(false)
   const [muted, setMuted] = useState(true)
@@ -42,6 +50,7 @@ export default function ClipCard({ clip, isActive, onOpenComments, position, fee
   const [shareToast, setShareToast] = useState(false)
   const [progress, setProgress] = useState(0)
   const [duration, setDuration] = useState(0)
+  const [videoAspectRatio, setVideoAspectRatio] = useState(null)
   const videoRef = useRef(null)
   const playSequenceRef = useRef(0)
   const thresholdsSentRef = useRef(new Set())
@@ -145,7 +154,17 @@ export default function ClipCard({ clip, isActive, onOpenComments, position, fee
 
   const handleLoadedMetadata = () => {
     if (!videoRef.current) return
-    setDuration(videoRef.current.duration || 0)
+
+    const video = videoRef.current
+    setDuration(video.duration || 0)
+
+    const width = Number(video.videoWidth || 0)
+    const height = Number(video.videoHeight || 0)
+    if (width > 0 && height > 0) {
+      const aspectRatio = width / height
+      setVideoAspectRatio(aspectRatio)
+      onAspectRatioDetected?.(clip.id, aspectRatio)
+    }
   }
 
   const handleSeek = (event) => {
@@ -213,7 +232,7 @@ export default function ClipCard({ clip, isActive, onOpenComments, position, fee
           muted={muted}
           playsInline
           preload={isActive ? 'auto' : 'none'}
-          className="clip-video"
+          className={`clip-video ${videoAspectRatio && videoAspectRatio > 1 ? 'clip-video-landscape' : ''}`}
           poster={clip.poster}
           onTimeUpdate={handleTimeUpdate}
           onLoadedMetadata={handleLoadedMetadata}

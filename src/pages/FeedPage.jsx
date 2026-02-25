@@ -25,6 +25,7 @@ export default function FeedPage() {
   const [activeClipId, setActiveClipId] = useState(null)
   const [feedRequestId, setFeedRequestId] = useState('')
   const [impressionMap, setImpressionMap] = useState({})
+  const [clipAspectRatios, setClipAspectRatios] = useState({})
   const containerRef = useRef(null)
   const isScrolling = useRef(false)
 
@@ -178,6 +179,25 @@ export default function FeedPage() {
   }
 
   const activeClipPosition = clips.findIndex((clip) => clip.id === activeClipId)
+  const currentClipId = clips[currentIndex]?.id
+  const activeAspectRatio = currentClipId ? clipAspectRatios[currentClipId] : undefined
+
+  const handleAspectRatioDetected = useCallback((clipId, aspectRatio) => {
+    if (!clipId || !Number.isFinite(aspectRatio) || aspectRatio <= 0) {
+      return
+    }
+
+    setClipAspectRatios((prev) => {
+      if (prev[clipId] === aspectRatio) {
+        return prev
+      }
+
+      return {
+        ...prev,
+        [clipId]: aspectRatio,
+      }
+    })
+  }, [])
 
   return (
     <div className="feed-page">
@@ -210,7 +230,17 @@ export default function FeedPage() {
 
       {loadState.status === 'ready' && clips.length > 0 && (
         <>
-          <div className="feed-container" ref={containerRef}>
+          <div
+            className="feed-container"
+            ref={containerRef}
+            style={
+              activeAspectRatio
+                ? {
+                    '--active-clip-aspect-ratio': activeAspectRatio,
+                  }
+                : undefined
+            }
+          >
             {clips.map((clip, index) => (
               <ClipCard
                 key={clip.id}
@@ -220,6 +250,7 @@ export default function FeedPage() {
                 feedRequestId={feedRequestId}
                 impressionId={impressionMap[clip.id]}
                 onOpenComments={openComments}
+                onAspectRatioDetected={handleAspectRatioDetected}
               />
             ))}
           </div>
