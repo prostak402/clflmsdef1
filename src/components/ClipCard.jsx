@@ -19,7 +19,7 @@ import {
   ExternalLink,
   Info,
 } from 'lucide-react'
-import { detectViewportType, resolveOverlayLayout } from '../feed/player-layout-rules'
+import { detectViewportType, resolvePlayerLayout } from '../feed/player-layout-rules'
 import './ClipCard.css'
 
 function formatCount(num) {
@@ -45,9 +45,7 @@ export default function ClipCard({ clip, isActive, onOpenComments, position, fee
   const [duration, setDuration] = useState(0)
   const [videoMetadata, setVideoMetadata] = useState({ width: null, height: null })
   const [viewportType, setViewportType] = useState(() => detectViewportType())
-  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 })
   const videoRef = useRef(null)
-  const videoWrapRef = useRef(null)
   const playSequenceRef = useRef(0)
   const thresholdsSentRef = useRef(new Set())
 
@@ -169,49 +167,11 @@ export default function ClipCard({ clip, isActive, onOpenComments, position, fee
     }
   }, [])
 
-  useEffect(() => {
-    if (!videoWrapRef.current) {
-      return
-    }
-
-    const node = videoWrapRef.current
-    const updateRect = () => {
-      const rect = node.getBoundingClientRect()
-      setContainerSize({ width: rect.width, height: rect.height })
-    }
-
-    updateRect()
-    const resizeObserver = new ResizeObserver(updateRect)
-    resizeObserver.observe(node)
-
-    return () => {
-      resizeObserver.disconnect()
-    }
-  }, [])
-
-  const overlayLayout = resolveOverlayLayout({
+  const playerLayout = resolvePlayerLayout({
     viewportType,
     videoWidth: videoMetadata.width,
     videoHeight: videoMetadata.height,
-    containerWidth: containerSize.width,
-    containerHeight: containerSize.height,
   })
-  const playerLayout = overlayLayout.playerLayout
-
-  const overlayStyle = {
-    '--content-left': `${overlayLayout.contentRect.x}px`,
-    '--content-top': `${overlayLayout.contentRect.y}px`,
-    '--content-width': `${overlayLayout.contentRect.width}px`,
-    '--content-height': `${overlayLayout.contentRect.height}px`,
-    '--content-right': `${Math.max(0, containerSize.width - (overlayLayout.contentRect.x + overlayLayout.contentRect.width))}px`,
-    '--content-bottom': `${Math.max(0, containerSize.height - (overlayLayout.contentRect.y + overlayLayout.contentRect.height))}px`,
-    '--overlay-inset-top': `${overlayLayout.overlaySafeInsets.top}px`,
-    '--overlay-inset-right': `${overlayLayout.overlaySafeInsets.right}px`,
-    '--overlay-inset-bottom': `${overlayLayout.overlaySafeInsets.bottom}px`,
-    '--overlay-inset-left': `${overlayLayout.overlaySafeInsets.left}px`,
-    '--bar-top': `${overlayLayout.contentRect.bars.top}px`,
-    '--bar-bottom': `${overlayLayout.contentRect.bars.bottom}px`,
-  }
 
   const handleSeek = (event) => {
     if (!videoRef.current) return
@@ -268,14 +228,10 @@ export default function ClipCard({ clip, isActive, onOpenComments, position, fee
   }
 
   return (
-    <div
-      className={`clip-card clip-card--overlay-${overlayLayout.overlayAnchor}`}
-      style={overlayStyle}
-    >
+    <div className="clip-card">
       {/* Video */}
       <div
         className={`clip-video-wrap clip-video-wrap--${playerLayout.container}`}
-        ref={videoWrapRef}
         onClick={togglePlay}
       >
         <video
@@ -403,7 +359,7 @@ export default function ClipCard({ clip, isActive, onOpenComments, position, fee
 
       {/* Bottom info */}
       <div className="clip-info">
-        <h2 className="clip-movie-title" title={clip.title}>{clip.title}</h2>
+        <h2 className="clip-movie-title">{clip.title}</h2>
         <p className="clip-movie-desc">{clip.clipDescription}</p>
         <div className="clip-meta">
           <span className="clip-year">{clip.year}</span>

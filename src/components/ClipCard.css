@@ -1,17 +1,4 @@
-
 .clip-card {
-  --content-left: 0px;
-  --content-top: 0px;
-  --content-right: 0px;
-  --content-bottom: 0px;
-  --content-width: 100%;
-  --content-height: 100%;
-  --overlay-inset-top: 0px;
-  --overlay-inset-right: 0px;
-  --overlay-inset-bottom: 0px;
-  --overlay-inset-left: 0px;
-  --bar-top: 0px;
-  --bar-bottom: 0px;
   height: 100vh;
   width: 100%;
   position: relative;
@@ -167,10 +154,11 @@
 /* Top bar */
 .clip-top-bar {
   position: absolute;
-  top: calc(var(--content-top) + var(--overlay-inset-top));
-  left: calc(var(--content-left) + var(--overlay-inset-left));
-  right: calc(var(--content-right) + var(--overlay-inset-right));
-  padding: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: var(--space-lg) var(--space-md);
+  padding-top: 60px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -204,8 +192,8 @@
 /* Action sidebar */
 .clip-actions {
   position: absolute;
-  right: calc(var(--content-right) + var(--overlay-inset-right));
-  bottom: calc(var(--content-bottom) + var(--overlay-inset-bottom) + 70px);
+  right: var(--space-md);
+  bottom: 200px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -264,24 +252,13 @@
 /* Bottom info */
 .clip-info {
   position: absolute;
-  bottom: calc(var(--content-bottom) + var(--overlay-inset-bottom));
-  left: calc(var(--content-left) + var(--overlay-inset-left));
-  right: calc(var(--content-right) + var(--overlay-inset-right) + 64px);
+  bottom: 80px;
+  left: var(--space-md);
+  right: 80px;
   z-index: 5;
-  max-height: min(38vh, calc(var(--content-height) * 0.45));
-  overflow: hidden;
-  padding: 12px 14px;
-  border-radius: var(--radius-lg);
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.82), rgba(0, 0, 0, 0.28));
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(6px);
 }
 
 .clip-movie-title {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  overflow: hidden;
   font-size: var(--text-2xl);
   font-weight: 700;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
@@ -512,24 +489,6 @@
   }
 }
 
-
-.clip-card--overlay-bars .clip-top-bar {
-  top: max(calc(var(--overlay-inset-top) + env(safe-area-inset-top)), calc(var(--bar-top) * 0.28));
-  left: calc(var(--overlay-inset-left) + env(safe-area-inset-left));
-  right: calc(var(--overlay-inset-right) + env(safe-area-inset-right));
-}
-
-.clip-card--overlay-bars .clip-actions {
-  bottom: calc(var(--overlay-inset-bottom) + env(safe-area-inset-bottom) + 58px);
-  right: calc(var(--overlay-inset-right) + env(safe-area-inset-right));
-}
-
-.clip-card--overlay-bars .clip-info {
-  bottom: calc(var(--overlay-inset-bottom) + env(safe-area-inset-bottom));
-  left: calc(var(--overlay-inset-left) + env(safe-area-inset-left));
-  right: calc(var(--overlay-inset-right) + env(safe-area-inset-right) + 64px);
-}
-
 /* Desktop: clip fills container, not viewport */
 @media (min-width: 1024px) {
   .clip-card {
@@ -569,15 +528,11 @@
   }
 
   .clip-info {
-    right: calc(var(--content-right) + var(--overlay-inset-right) + 56px);
-    bottom: calc(var(--content-bottom) + var(--overlay-inset-bottom));
+    right: 65px;
+    bottom: 70px;
   }
 
   .clip-movie-title {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
     font-size: var(--text-xl);
   }
 }

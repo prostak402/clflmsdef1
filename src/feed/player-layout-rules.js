@@ -8,24 +8,6 @@ export const PLAYER_LAYOUT_FEATURE_FLAGS = {
   enableFillMode: false,
 }
 
-export const PLAYER_OVERLAY_SAFE_INSETS = {
-  mobile: {
-    vertical: { top: 56, right: 12, bottom: 76, left: 12 },
-    universal: { top: 56, right: 12, bottom: 84, left: 12 },
-    wide: { top: 48, right: 10, bottom: 64, left: 10 },
-  },
-  tablet: {
-    vertical: { top: 40, right: 20, bottom: 48, left: 20 },
-    universal: { top: 40, right: 24, bottom: 52, left: 24 },
-    wide: { top: 36, right: 24, bottom: 44, left: 24 },
-  },
-  desktop: {
-    vertical: { top: 28, right: 24, bottom: 36, left: 24 },
-    universal: { top: 28, right: 28, bottom: 36, left: 28 },
-    wide: { top: 24, right: 32, bottom: 32, left: 32 },
-  },
-}
-
 const UNKNOWN_METADATA_LAYOUT = {
   format: 'unknown',
   container: 'placeholder',
@@ -88,28 +70,6 @@ function resolveDesktopContainer(format) {
   return 'placeholder'
 }
 
-export function getContainerKind(format) {
-  if (format === 'vertical') {
-    return 'vertical'
-  }
-
-  if (format === 'square-universal') {
-    return 'universal'
-  }
-
-  return 'wide'
-}
-
-export function resolveOverlaySafeInsets({ viewportType, containerKind }) {
-  const resolvedViewportType = normalizeViewportType(viewportType)
-  const resolvedContainerKind =
-    containerKind === 'vertical' || containerKind === 'universal' || containerKind === 'wide'
-      ? containerKind
-      : 'wide'
-
-  return PLAYER_OVERLAY_SAFE_INSETS[resolvedViewportType][resolvedContainerKind]
-}
-
 export function resolvePlayerLayout({ viewportType, videoWidth, videoHeight }) {
   const normalizedViewportType = normalizeViewportType(viewportType)
   const aspectRatio = toAspectRatio(videoWidth, videoHeight)
@@ -143,107 +103,6 @@ export function resolvePlayerLayout({ viewportType, videoWidth, videoHeight }) {
     container: 'fluid',
     fitMode,
     isMetadataKnown: true,
-  }
-}
-
-export function resolveContentRect({
-  containerWidth,
-  containerHeight,
-  videoWidth,
-  videoHeight,
-  fitMode = 'contain',
-}) {
-  const width = Number(containerWidth)
-  const height = Number(containerHeight)
-  const videoAspect = toAspectRatio(videoWidth, videoHeight)
-
-  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
-    return {
-      x: 0,
-      y: 0,
-      width: 0,
-      height: 0,
-      bars: { top: 0, right: 0, bottom: 0, left: 0 },
-      hasLetterbox: false,
-      hasPillarbox: false,
-    }
-  }
-
-  if (fitMode !== 'contain' || videoAspect === null) {
-    return {
-      x: 0,
-      y: 0,
-      width,
-      height,
-      bars: { top: 0, right: 0, bottom: 0, left: 0 },
-      hasLetterbox: false,
-      hasPillarbox: false,
-    }
-  }
-
-  const containerAspect = width / height
-  let contentWidth = width
-  let contentHeight = height
-
-  if (videoAspect > containerAspect) {
-    contentWidth = width
-    contentHeight = width / videoAspect
-  } else {
-    contentHeight = height
-    contentWidth = height * videoAspect
-  }
-
-  const x = Math.max(0, (width - contentWidth) / 2)
-  const y = Math.max(0, (height - contentHeight) / 2)
-  const bars = {
-    top: y,
-    right: x,
-    bottom: y,
-    left: x,
-  }
-
-  return {
-    x,
-    y,
-    width: contentWidth,
-    height: contentHeight,
-    bars,
-    hasLetterbox: bars.top > 0,
-    hasPillarbox: bars.left > 0,
-  }
-}
-
-export function resolveOverlayLayout({
-  viewportType,
-  videoWidth,
-  videoHeight,
-  containerWidth,
-  containerHeight,
-}) {
-  const playerLayout = resolvePlayerLayout({ viewportType, videoWidth, videoHeight })
-  const containerKind = getContainerKind(playerLayout.format)
-  const overlaySafeInsets = resolveOverlaySafeInsets({ viewportType, containerKind })
-  const contentRect = resolveContentRect({
-    containerWidth,
-    containerHeight,
-    videoWidth,
-    videoHeight,
-    fitMode: playerLayout.fitMode,
-  })
-
-  const prefersBarAnchoring =
-    playerLayout.viewportType === 'mobile' &&
-    (playerLayout.format === 'wide' || playerLayout.format === 'ultraWide') &&
-    contentRect.bars.top >= 44
-
-  const overlayAnchor = prefersBarAnchoring ? 'bars' : 'content'
-
-  return {
-    playerLayout,
-    containerKind,
-    overlaySafeInsets,
-    contentRect,
-    overlayAnchor,
   }
 }
 
