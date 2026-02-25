@@ -581,30 +581,3 @@
     font-size: var(--text-xl);
   }
 }
-
-.clip-error-fallback {
-  position: absolute;
-  inset: 0;
-  z-index: 4;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  background: rgba(0, 0, 0, 0.7);
-}
-
-.clip-error-poster {
-  width: min(56vw, 280px);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
-}
-
-.clip-error-retry {
-  padding: 10px 20px;
-  border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.14);
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  color: #fff;
-  font-weight: 600;
-}
