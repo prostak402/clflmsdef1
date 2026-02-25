@@ -48,7 +48,7 @@ describe('TASK-013: key business flow integration', () => {
     await user.click(screen.getAllByRole('button', { name: /saved/i })[0])
     expect(await screen.findByRole('heading', { name: /^Saved Movies$/i })).toBeInTheDocument()
     expect(await screen.findByText(/1 movie saved/i)).toBeInTheDocument()
-  }, 10000)
+  })
 
   it('redirects unauthenticated user from protected route to auth page', async () => {
     window.history.replaceState({}, '', '/feed')
