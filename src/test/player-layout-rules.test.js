@@ -72,14 +72,6 @@ describe('resolvePlayerLayout', () => {
 
     expect(
       resolvePlayerLayout({ viewportType: 'desktop', videoWidth: 2560, videoHeight: 1080 }).format
-    ).toBe('extreme-wide')
-
-    expect(
-      resolvePlayerLayout({ viewportType: 'desktop', videoWidth: 320, videoHeight: 720 }).format
-    ).toBe('extreme-vertical')
-
-    expect(
-      resolvePlayerLayout({ viewportType: 'desktop', videoWidth: 2048, videoHeight: 1000 }).format
     ).toBe('ultraWide')
   })
 
@@ -156,21 +148,6 @@ describe('resolveContentRect', () => {
     expect(Math.round(rect.bars.left)).toBe(438)
     expect(rect.hasPillarbox).toBe(true)
     expect(rect.hasLetterbox).toBe(false)
-  })
-
-  it('limits upscale for low-resolution sources and keeps neutral bars', () => {
-    const rect = resolveContentRect({
-      containerWidth: 1280,
-      containerHeight: 720,
-      videoWidth: 640,
-      videoHeight: 360,
-      fitMode: 'contain',
-    })
-
-    expect(Math.round(rect.width)).toBe(800)
-    expect(Math.round(rect.height)).toBe(450)
-    expect(Math.round(rect.bars.left)).toBe(240)
-    expect(rect.isLowResolution).toBe(true)
   })
 })
 

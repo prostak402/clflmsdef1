@@ -1,4 +1,11 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react'
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from 'react'
 
 const PLAYER_STATE = {
   LOADING_METADATA: 'loadingMetadata',
@@ -7,8 +14,6 @@ const PLAYER_STATE = {
   PAUSED: 'paused',
   ERROR: 'error',
 }
-
-const ORIENTATION_RESTORE_DELAY = 120
 
 const FeedPlayer = forwardRef(function FeedPlayer(
   {
@@ -22,11 +27,12 @@ const FeedPlayer = forwardRef(function FeedPlayer(
     onProgress,
     onLayoutInvalidated,
   },
-  ref
+  ref,
 ) {
   const videoRef = useRef(null)
   const isMountedRef = useRef(false)
   const [playbackState, setPlaybackState] = useState(PLAYER_STATE.LOADING_METADATA)
+
 
   useEffect(() => {
     isMountedRef.current = true
@@ -36,100 +42,63 @@ const FeedPlayer = forwardRef(function FeedPlayer(
     }
   }, [])
 
-  const updatePlaybackState = useCallback(
-    (nextState) => {
-      setPlaybackState((prevState) => {
-        if (!isMountedRef.current) {
-          return prevState
-        }
-        if (prevState === nextState) {
-          return prevState
-        }
-
-        onPlaybackStateChange?.(nextState)
-        return nextState
-      })
-    },
-    [onPlaybackStateChange]
-  )
-
-  const emitLayoutResolve = useCallback(
-    (snapshot) => {
-      onLayoutInvalidated?.(snapshot)
-    },
-    [onLayoutInvalidated]
-  )
-
-  const safePlay = useCallback(
-    (node) => {
-      if (!node || typeof node.play !== 'function') return
-
-      const result = node.play()
-      if (result && typeof result.catch === 'function') {
-        result.catch(() => {
-          updatePlaybackState(PLAYER_STATE.ERROR)
-        })
+  const updatePlaybackState = useCallback((nextState) => {
+    setPlaybackState((prevState) => {
+      if (!isMountedRef.current) {
+        return prevState
       }
-    },
-    [updatePlaybackState]
-  )
+      if (prevState === nextState) {
+        return prevState
+      }
 
-  const pauseAndDispose = useCallback(() => {
-    const node = videoRef.current
-    if (!node) {
-      return
+      onPlaybackStateChange?.(nextState)
+      return nextState
+    })
+  }, [onPlaybackStateChange])
+
+  const emitLayoutResolve = useCallback(() => {
+    onLayoutInvalidated?.()
+  }, [onLayoutInvalidated])
+
+  const safePlay = useCallback((node) => {
+    if (!node || typeof node.play !== 'function') return
+
+    const result = node.play()
+    if (result && typeof result.catch === 'function') {
+      result.catch(() => {
+        updatePlaybackState(PLAYER_STATE.ERROR)
+      })
     }
-
-    node.pause()
-    node.removeAttribute('src')
-    node.load()
-    updatePlaybackState(PLAYER_STATE.PAUSED)
   }, [updatePlaybackState])
 
-  useImperativeHandle(
-    ref,
-    () => ({
-      togglePlayback() {
-        const node = videoRef.current
-        if (!node) return
+  useImperativeHandle(ref, () => ({
+    togglePlayback() {
+      const node = videoRef.current
+      if (!node) return
 
-        if (node.paused) {
-          safePlay(node)
-          return
-        }
+      if (node.paused) {
+        safePlay(node)
+        return
+      }
 
-        node.pause()
-      },
-      seek(time) {
-        const node = videoRef.current
-        if (!node) return
-        node.currentTime = Number(time)
-      },
-      getCurrentTime() {
-        return videoRef.current?.currentTime || 0
-      },
-      getDuration() {
-        return videoRef.current?.duration || 0
-      },
-      pauseAndDispose,
-    }),
-    [pauseAndDispose, safePlay]
-  )
-
-  const shouldHydrate = shouldAutoplay || preload !== 'none'
-
-  useEffect(() => {
-    if (!shouldHydrate) {
-      pauseAndDispose()
-      return
-    }
-
-    updatePlaybackState(PLAYER_STATE.LOADING_METADATA)
-  }, [pauseAndDispose, shouldHydrate, updatePlaybackState])
+      node.pause()
+    },
+    seek(time) {
+      const node = videoRef.current
+      if (!node) return
+      node.currentTime = Number(time)
+    },
+    getCurrentTime() {
+      return videoRef.current?.currentTime || 0
+    },
+    getDuration() {
+      return videoRef.current?.duration || 0
+    },
+  }), [safePlay])
 
   useEffect(() => {
     const node = videoRef.current
-    if (!node || !shouldHydrate) return
+    if (!node) return
 
     if (shouldAutoplay) {
       safePlay(node)
@@ -137,54 +106,28 @@ const FeedPlayer = forwardRef(function FeedPlayer(
     }
 
     node.pause()
-  }, [shouldAutoplay, shouldHydrate, safePlay])
+  }, [shouldAutoplay, safePlay])
+
 
   useEffect(() => {
     let timer = null
 
-    const handleLayoutInvalidation = (isOrientationChange = false) => {
-      const node = videoRef.current
-      const snapshot = {
-        currentTime: node?.currentTime || 0,
-        wasPlaying: Boolean(node && !node.paused),
-        isOrientationChange,
-      }
-
+    const handleLayoutInvalidation = () => {
       window.clearTimeout(timer)
       timer = window.setTimeout(() => {
-        emitLayoutResolve(snapshot)
-
-        if (!isOrientationChange || !node) {
-          return
-        }
-
-        const restoreAt = snapshot.currentTime
-        const shouldResume = snapshot.wasPlaying
-        window.setTimeout(() => {
-          if (!videoRef.current || !shouldHydrate) {
-            return
-          }
-
-          videoRef.current.currentTime = restoreAt
-          if (shouldResume) {
-            safePlay(videoRef.current)
-          }
-        }, ORIENTATION_RESTORE_DELAY)
-      }, 120)
+        emitLayoutResolve()
+      }, 150)
     }
 
-    const onResize = () => handleLayoutInvalidation(false)
-    const onOrientation = () => handleLayoutInvalidation(true)
-
-    window.addEventListener('resize', onResize)
-    window.addEventListener('orientationchange', onOrientation)
+    window.addEventListener('resize', handleLayoutInvalidation)
+    window.addEventListener('orientationchange', handleLayoutInvalidation)
 
     return () => {
       window.clearTimeout(timer)
-      window.removeEventListener('resize', onResize)
-      window.removeEventListener('orientationchange', onOrientation)
+      window.removeEventListener('resize', handleLayoutInvalidation)
+      window.removeEventListener('orientationchange', handleLayoutInvalidation)
     }
-  }, [emitLayoutResolve, safePlay, shouldHydrate])
+  }, [emitLayoutResolve])
 
   const handleRetry = () => {
     const node = videoRef.current
@@ -197,14 +140,12 @@ const FeedPlayer = forwardRef(function FeedPlayer(
     }
   }
 
-  const effectiveSrc = shouldHydrate ? clipUrl : undefined
-
   return (
     <>
       <video
         key={clipUrl}
         ref={videoRef}
-        src={effectiveSrc}
+        src={clipUrl}
         loop
         muted={muted}
         playsInline
@@ -239,12 +180,7 @@ const FeedPlayer = forwardRef(function FeedPlayer(
       {playbackState === PLAYER_STATE.ERROR && (
         <div className="clip-error-fallback">
           <img src={poster} alt="Playback fallback" className="clip-error-poster" />
-          <p className="clip-error-message">
-            Не удалось воспроизвести ролик. Проверьте сеть и попробуйте снова.
-          </p>
-          <button className="clip-error-retry" onClick={handleRetry}>
-            Повторить загрузку
-          </button>
+          <button className="clip-error-retry" onClick={handleRetry}>Retry</button>
         </div>
       )}
     </>

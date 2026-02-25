@@ -36,15 +36,7 @@ const THRESHOLDS = [
   { rate: 0.95, value: VIEW_THRESHOLD.P95 },
 ]
 
-export default function PlayerCard({
-  clip,
-  isActive,
-  isNearActive,
-  onOpenComments,
-  position,
-  feedRequestId,
-  impressionId,
-}) {
+export default function PlayerCard({ clip, isActive, onOpenComments, position, feedRequestId, impressionId }) {
   const { likes, toggleLike, bookmarks, toggleBookmark } = useApp()
   const [playing, setPlaying] = useState(false)
   const [muted, setMuted] = useState(true)
@@ -56,9 +48,7 @@ export default function PlayerCard({
   const [viewportType, setViewportType] = useState(() => detectViewportType())
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 })
   const [layoutVersion, setLayoutVersion] = useState(0)
-  const [isInViewport, setIsInViewport] = useState(
-    () => typeof IntersectionObserver === 'undefined'
-  )
+  const [isInViewport, setIsInViewport] = useState(() => typeof IntersectionObserver === 'undefined')
   const playerRef = useRef(null)
   const videoWrapRef = useRef(null)
   const cardRef = useRef(null)
@@ -70,26 +60,22 @@ export default function PlayerCard({
   const isLiked = likes[clip.id]
   const isBookmarked = bookmarks.includes(clip.id)
   const shouldAutoplay = isActive && isInViewport
-  const shouldPreload = isNearActive || shouldAutoplay
 
-  const trackEvent = useCallback(
-    (event, payload) => {
-      if (!feedRequestId || !impressionId) {
-        return
-      }
+  const trackEvent = useCallback((event, payload) => {
+    if (!feedRequestId || !impressionId) {
+      return
+    }
 
-      feedService.trackEvent(event, {
-        ...payload,
-        clipId: clip.id,
-        impressionId,
-        position,
-        feedRequestId,
-        source: EVENT_SOURCE.CLIENT,
-        surface: EVENT_SURFACE.FEED,
-      })
-    },
-    [clip.id, feedRequestId, impressionId, position]
-  )
+    feedService.trackEvent(event, {
+      ...payload,
+      clipId: clip.id,
+      impressionId,
+      position,
+      feedRequestId,
+      source: EVENT_SOURCE.CLIENT,
+      surface: EVENT_SURFACE.FEED,
+    })
+  }, [clip.id, feedRequestId, impressionId, position])
 
   const getDurationMs = useCallback(() => {
     const mediaDuration = Number(playerRef.current?.getDuration() || duration || 0)
@@ -97,10 +83,7 @@ export default function PlayerCard({
   }, [duration])
 
   const getWatchStats = useCallback(() => {
-    const watchMs = Math.max(
-      0,
-      Math.round((playerRef.current?.getCurrentTime() || progress || 0) * 1000)
-    )
+    const watchMs = Math.max(0, Math.round((playerRef.current?.getCurrentTime() || progress || 0) * 1000))
     const clipDurationMs = Math.max(getDurationMs(), 1)
     const completionRate = Math.min(1, watchMs / clipDurationMs)
 
@@ -111,24 +94,21 @@ export default function PlayerCard({
     }
   }, [getDurationMs, progress])
 
-  const emitViewEnded = useCallback(
-    (reason) => {
-      if (!feedRequestId || !impressionId || playSequenceRef.current === 0) {
-        return
-      }
+  const emitViewEnded = useCallback((reason) => {
+    if (!feedRequestId || !impressionId || playSequenceRef.current === 0) {
+      return
+    }
 
-      const { watchMs, clipDurationMs, completionRate } = getWatchStats()
+    const { watchMs, clipDurationMs, completionRate } = getWatchStats()
 
-      trackEvent(EVENT_NAMES.CLIP_VIEW_ENDED, {
-        watchMs,
-        clipDurationMs,
-        completionRate,
-        playSequence: playSequenceRef.current,
-        endReason: reason,
-      })
-    },
-    [feedRequestId, getWatchStats, impressionId, trackEvent]
-  )
+    trackEvent(EVENT_NAMES.CLIP_VIEW_ENDED, {
+      watchMs,
+      clipDurationMs,
+      completionRate,
+      playSequence: playSequenceRef.current,
+      endReason: reason,
+    })
+  }, [feedRequestId, getWatchStats, impressionId, trackEvent])
 
   useEffect(() => {
     if (wasAutoplayingRef.current && !shouldAutoplay && progress > 0) {
@@ -197,7 +177,7 @@ export default function PlayerCard({
       ([entry]) => {
         setIsInViewport(entry.isIntersecting && entry.intersectionRatio > 0.6)
       },
-      { threshold: [0.6] }
+      { threshold: [0.6] },
     )
 
     observer.observe(node)
@@ -276,21 +256,9 @@ export default function PlayerCard({
     trackEvent(EVENT_NAMES.BOOKMARK_SET, { value })
   }
 
-  useEffect(() => {
-    if (shouldAutoplay || shouldPreload || isInViewport) {
-      return undefined
-    }
-
-    const timer = window.setTimeout(() => {
-      playerRef.current?.pauseAndDispose?.()
-    }, 120)
-
-    return () => window.clearTimeout(timer)
-  }, [isInViewport, shouldAutoplay, shouldPreload])
-
   return (
     <div
-      className={`clip-card clip-card--overlay-${overlayLayout.overlayAnchor}${overlayLayout.contentRect.isLowResolution ? ' clip-card--low-resolution' : ''}`}
+      className={`clip-card clip-card--overlay-${overlayLayout.overlayAnchor}`}
       style={overlayStyle}
       ref={cardRef}
     >
@@ -304,7 +272,7 @@ export default function PlayerCard({
           clipUrl={clip.clipUrl}
           poster={clip.poster}
           muted={muted}
-          preload={shouldPreload ? 'metadata' : 'none'}
+          preload={isActive ? 'auto' : 'none'}
           shouldAutoplay={shouldAutoplay}
           onMetadata={({ duration: nextDuration, width, height }) => {
             setDuration(nextDuration)
@@ -448,9 +416,7 @@ export default function PlayerCard({
       </div>
 
       <div className="clip-info">
-        <h2 className="clip-movie-title" title={clip.title}>
-          {clip.title}
-        </h2>
+        <h2 className="clip-movie-title" title={clip.title}>{clip.title}</h2>
         <p className="clip-movie-desc">{clip.clipDescription}</p>
         <div className="clip-meta">
           <span className="clip-year">{clip.year}</span>
