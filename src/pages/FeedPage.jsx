@@ -217,6 +217,7 @@ export default function FeedPage() {
                 clip={clip}
                 position={index}
                 isActive={index === currentIndex}
+                isNearActive={Math.abs(index - currentIndex) <= 1}
                 feedRequestId={feedRequestId}
                 impressionId={impressionMap[clip.id]}
                 onOpenComments={openComments}
