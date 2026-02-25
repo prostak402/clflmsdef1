@@ -54,6 +54,7 @@ export default function ClipCard({
   const videoRef = useRef(null)
   const playSequenceRef = useRef(0)
   const thresholdsSentRef = useRef(new Set())
+  const emitViewEndedRef = useRef(() => {})
 
   const isLiked = likes[clip.id]
   const isBookmarked = bookmarks.includes(clip.id)
@@ -91,38 +92,41 @@ export default function ClipCard({
     }
   }, [getDurationMs, progress])
 
-  const emitViewEnded = useCallback((reason) => {
-    if (!feedRequestId || !impressionId || playSequenceRef.current === 0) {
-      return
+  useEffect(() => {
+    emitViewEndedRef.current = (reason) => {
+      if (!feedRequestId || !impressionId || playSequenceRef.current === 0) {
+        return
+      }
+
+      const { watchMs, clipDurationMs, completionRate } = getWatchStats()
+
+      trackEvent(EVENT_NAMES.CLIP_VIEW_ENDED, {
+        watchMs,
+        clipDurationMs,
+        completionRate,
+        playSequence: playSequenceRef.current,
+        endReason: reason,
+      })
     }
-
-    const { watchMs, clipDurationMs, completionRate } = getWatchStats()
-
-    trackEvent(EVENT_NAMES.CLIP_VIEW_ENDED, {
-      watchMs,
-      clipDurationMs,
-      completionRate,
-      playSequence: playSequenceRef.current,
-      endReason: reason,
-    })
   }, [feedRequestId, getWatchStats, impressionId, trackEvent])
 
   useEffect(() => {
     if (!videoRef.current) return
+
     if (isActive) {
       videoRef.current.play().catch(() => {})
     } else {
-      emitViewEnded('scrolled_away')
+      emitViewEndedRef.current('scrolled_away')
       videoRef.current.currentTime = 0
       videoRef.current.pause()
     }
-  }, [emitViewEnded, isActive])
+  }, [isActive])
 
   useEffect(() => {
     return () => {
-      emitViewEnded('swiped_away')
+      emitViewEndedRef.current('swiped_away')
     }
-  }, [emitViewEnded])
+  }, [])
 
   useEffect(() => {
     thresholdsSentRef.current = new Set()
