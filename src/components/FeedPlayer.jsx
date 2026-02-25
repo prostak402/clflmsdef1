@@ -15,15 +15,6 @@ const PLAYER_STATE = {
   ERROR: 'error',
 }
 
-function debounce(fn, delay) {
-  let timer = null
-
-  return () => {
-    window.clearTimeout(timer)
-    timer = window.setTimeout(fn, delay)
-  }
-}
-
 const FeedPlayer = forwardRef(function FeedPlayer(
   {
     clipUrl,
@@ -39,11 +30,30 @@ const FeedPlayer = forwardRef(function FeedPlayer(
   ref,
 ) {
   const videoRef = useRef(null)
+  const isMountedRef = useRef(false)
   const [playbackState, setPlaybackState] = useState(PLAYER_STATE.LOADING_METADATA)
 
+
+  useEffect(() => {
+    isMountedRef.current = true
+
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
+
   const updatePlaybackState = useCallback((nextState) => {
-    setPlaybackState(nextState)
-    onPlaybackStateChange?.(nextState)
+    setPlaybackState((prevState) => {
+      if (!isMountedRef.current) {
+        return prevState
+      }
+      if (prevState === nextState) {
+        return prevState
+      }
+
+      onPlaybackStateChange?.(nextState)
+      return nextState
+    })
   }, [onPlaybackStateChange])
 
   const emitLayoutResolve = useCallback(() => {
@@ -98,19 +108,24 @@ const FeedPlayer = forwardRef(function FeedPlayer(
     node.pause()
   }, [shouldAutoplay, safePlay])
 
-  useEffect(() => {
-    updatePlaybackState(PLAYER_STATE.LOADING_METADATA)
-  }, [clipUrl, updatePlaybackState])
 
   useEffect(() => {
-    const debouncedResolve = debounce(emitLayoutResolve, 150)
+    let timer = null
 
-    window.addEventListener('resize', debouncedResolve)
-    window.addEventListener('orientationchange', debouncedResolve)
+    const handleLayoutInvalidation = () => {
+      window.clearTimeout(timer)
+      timer = window.setTimeout(() => {
+        emitLayoutResolve()
+      }, 150)
+    }
+
+    window.addEventListener('resize', handleLayoutInvalidation)
+    window.addEventListener('orientationchange', handleLayoutInvalidation)
 
     return () => {
-      window.removeEventListener('resize', debouncedResolve)
-      window.removeEventListener('orientationchange', debouncedResolve)
+      window.clearTimeout(timer)
+      window.removeEventListener('resize', handleLayoutInvalidation)
+      window.removeEventListener('orientationchange', handleLayoutInvalidation)
     }
   }, [emitLayoutResolve])
 
@@ -128,6 +143,7 @@ const FeedPlayer = forwardRef(function FeedPlayer(
   return (
     <>
       <video
+        key={clipUrl}
         ref={videoRef}
         src={clipUrl}
         loop
@@ -136,6 +152,7 @@ const FeedPlayer = forwardRef(function FeedPlayer(
         preload={preload}
         className="clip-video"
         poster={poster}
+        onLoadStart={() => updatePlaybackState(PLAYER_STATE.LOADING_METADATA)}
         onLoadedMetadata={() => {
           const node = videoRef.current
           if (!node) return

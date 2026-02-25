@@ -48,13 +48,14 @@ export default function PlayerCard({ clip, isActive, onOpenComments, position, f
   const [viewportType, setViewportType] = useState(() => detectViewportType())
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 })
   const [layoutVersion, setLayoutVersion] = useState(0)
-  const [isInViewport, setIsInViewport] = useState(false)
+  const [isInViewport, setIsInViewport] = useState(() => typeof IntersectionObserver === 'undefined')
   const playerRef = useRef(null)
   const videoWrapRef = useRef(null)
   const cardRef = useRef(null)
   const playSequenceRef = useRef(0)
   const thresholdsSentRef = useRef(new Set())
   const wasAutoplayingRef = useRef(false)
+  const playbackStateRef = useRef(PLAYER_STATE.LOADING_METADATA)
 
   const isLiked = likes[clip.id]
   const isBookmarked = bookmarks.includes(clip.id)
@@ -169,7 +170,6 @@ export default function PlayerCard({ clip, isActive, onOpenComments, position, f
 
     const node = cardRef.current
     if (typeof IntersectionObserver === 'undefined') {
-      setIsInViewport(true)
       return undefined
     }
 
@@ -304,9 +304,15 @@ export default function PlayerCard({ clip, isActive, onOpenComments, position, f
             setLayoutVersion((prev) => prev + 1)
           }}
           onPlaybackStateChange={(state) => {
+            if (playbackStateRef.current === state) {
+              return
+            }
+
+            const prevState = playbackStateRef.current
+            playbackStateRef.current = state
             setPlaying(state === PLAYER_STATE.PLAYING)
 
-            if (state === PLAYER_STATE.PLAYING) {
+            if (state === PLAYER_STATE.PLAYING && prevState !== PLAYER_STATE.PLAYING) {
               playSequenceRef.current += 1
               trackEvent(EVENT_NAMES.CLIP_PLAY_STARTED, {
                 clipDurationMs: getDurationMs(),
