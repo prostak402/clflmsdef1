@@ -5,6 +5,17 @@
   scroll-snap-align: start;
   overflow: hidden;
   background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.clip-video-frame {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  overflow: hidden;
 }
 
 .clip-video-wrap {
@@ -16,7 +27,37 @@
 .clip-video {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  background: #000;
+}
+
+.clip-loading-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.05));
+  background-size: 200% 100%;
+  animation: clipSkeletonPulse 1.4s ease-in-out infinite;
+  z-index: 3;
+}
+
+.clip-loading-overlay--error {
+  animation: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  background: rgba(0, 0, 0, 0.8);
+}
+
+@keyframes clipSkeletonPulse {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
 }
 
 .clip-play-overlay {
@@ -25,7 +66,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 2;
+  z-index: 4;
 }
 
 .clip-play-btn {
@@ -207,7 +248,8 @@
   transform: scale(1.1);
 }
 
-.clip-action-btn.liked .clip-action-icon {
+.clip-action-btn.liked .clip-action-icon,
+.clip-action-btn.bookmarked .clip-action-icon {
   animation: likeHeart 0.4s ease-out;
 }
 
@@ -470,11 +512,30 @@
   }
 }
 
-/* Desktop: clip fills container, not viewport */
 @media (min-width: 1024px) {
   .clip-card {
     height: calc(100vh - 48px);
     max-height: 860px;
+    padding: var(--space-md);
+  }
+
+  .clip-video-frame {
+    width: min(100%, 420px);
+    aspect-ratio: 9 / 16;
+    height: auto;
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+  }
+
+  .clip-card--container-universal .clip-video-frame {
+    width: min(100%, 560px);
+    aspect-ratio: 4 / 5;
+  }
+
+  .clip-card--container-wide .clip-video-frame {
+    width: min(100%, 760px);
+    aspect-ratio: 16 / 9;
   }
 
   .clip-top-bar {
@@ -493,6 +554,14 @@
 @media (max-width: 1023px) {
   .clip-progress-wrap {
     bottom: 62px;
+  }
+
+  .clip-card--landscape .clip-actions {
+    bottom: 132px;
+  }
+
+  .clip-card--landscape .clip-info {
+    bottom: 44px;
   }
 }
 
@@ -515,5 +584,9 @@
 
   .clip-movie-title {
     font-size: var(--text-xl);
+  }
+
+  .clip-card--landscape .clip-actions {
+    bottom: 118px;
   }
 }
