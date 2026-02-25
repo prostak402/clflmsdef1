@@ -499,6 +499,10 @@
   .clip-progress-wrap {
     bottom: 62px;
   }
+
+  .clip-info {
+    bottom: calc(96px + env(safe-area-inset-bottom));
+  }
 }
 
 @media (max-width: 480px) {
@@ -515,7 +519,6 @@
 
   .clip-info {
     right: 65px;
-    bottom: 70px;
   }
 
   .clip-movie-title {
