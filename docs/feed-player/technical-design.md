@@ -30,11 +30,11 @@
    - учитываются safe-zones из смежных спецификаций.
 
 3. **UI-состояния карточки**
-   - `idle` (готова, не играет),
-   - `loading` (ожидаем metadata/буфер),
-   - `playing`,
-   - `paused`,
-   - `muted`/`unmuted`,
+   - `idle` (карточка создана, media не активирован),
+   - `loadingMetadata` (ожидание `loadedmetadata` и первичных проверок),
+   - `ready` (metadata валидны, карточка может стартовать),
+   - `playing` / `paused`,
+   - `muted`/`unmuted` как orthogonal-флаг,
    - `error` (битый источник или metadata недоступны).
 
 4. **Интеграционный слой**
@@ -218,18 +218,140 @@ interface FeedPlayerProps {
 ```
 
 ### Состояния (state model)
-Минимальная модель состояния для интеграции:
+Целевая state machine для интеграции:
 
-- `status`: `idle | loading | playing | paused | error`
+- `idle -> loadingMetadata -> ready -> playing/paused -> error`
+
+Пояснения по переходам:
+
+1. `idle -> loadingMetadata`
+   - карточка стала активной для подготовки (в viewport по порогу видимости или prewarm по соседним индексам);
+   - создаем/реюзаем media-элемент, подписываемся на media events.
+2. `loadingMetadata -> ready`
+   - получен `loadedmetadata`, dimensions и duration прошли валидацию;
+   - фиксируем `aspectRatio` и `videoClass`, готовим UI-контролы.
+3. `ready -> playing`
+   - autoplay разрешен политикой браузера **или** пользователь инициировал play.
+4. `playing -> paused`
+   - user pause, потеря активной карточки, уход ниже visibility threshold, app lifecycle/power-save.
+5. `paused -> playing`
+   - возврат активной карточки в зону autoplay + policy allow, либо явный user resume.
+6. `* -> error`
+   - metadata timeout/invalid, media error, фатальная ошибка play promise;
+   - в `error` блокируем авто-ретраи без cooldown.
+
+Минимальная структура состояния:
+
+- `status`: `idle | loadingMetadata | ready | playing | paused | error`
 - `muted`: `boolean`
 - `metadata`: `FeedPlayerMetadata | null`
 - `error`: `FeedPlayerError | null`
 
 ---
 
-## 6) Fallback при ошибке metadata / битом источнике
+## 6) Feed autoplay orchestration (`IntersectionObserver`-совместимость)
 
-### 6.1 Ошибка metadata
+### 6.1 Базовый контракт видимости
+
+1. Используем `IntersectionObserver` как основной источник видимости карточек.
+2. Для feed-autoplay вводим **двойной порог** (hysteresis), чтобы избежать дерганий на границе:
+   - `activateThreshold` (например `0.75`) — карточка может стать активной;
+   - `deactivateThreshold` (например `0.40`) — активная карточка снимается.
+3. Активной может быть только **одна** карточка (`activeCardId`) — с максимальным `intersectionRatio` среди кандидатов выше `activateThreshold`.
+
+### 6.2 Быстрый скролл и debounce
+
+1. Пересчет `activeCardId` выполняем через debounce (рекомендуемо 80–150 мс), чтобы не дергать play/pause на каждом micro-scroll.
+2. Пока debounce не истек:
+   - не запускать новый autoplay;
+   - текущая active-card продолжает play, если не пересекла `deactivateThreshold`.
+3. Если detected velocity высока (быстрый fling):
+   - candidate-карточки оставляем в `loadingMetadata`/`ready` без старта playback;
+   - стартуем только после стабилизации видимости.
+
+### 6.3 Правило «только активная карточка играет»
+
+1. `activeCardId`:
+   - переходит в `playing` (при выполнении autoplay policy);
+   - сохраняет `muted=true` по умолчанию для автозапуска.
+2. Все неактивные карточки:
+   - переводим в `paused`;
+   - сбрасываем тяжелые операции: отключаем частые `timeupdate`-обработчики, прогресс-анимации, декодирование preview, если применимо;
+   - не держим конкурирующие `play()` promise.
+3. Для карточек далеко от viewport допускается downgrade preload (`auto -> metadata/none`) по budget.
+
+### 6.4 Fallback при отсутствии `IntersectionObserver`
+
+Если API недоступен (legacy webview):
+
+1. используем throttled scroll/resize listener + `getBoundingClientRect`;
+2. применяем те же пороги (`activate/deactivate`) и singleton-active правило;
+3. cadence измерений не чаще одного раза на animation frame (через `requestAnimationFrame`).
+
+---
+
+## 7) Resize/orientation handling
+
+### 7.1 Смена ориентации устройства
+
+1. Источники: `screen.orientation`/`orientationchange` + `resize` fallback.
+2. После смены ориентации:
+   - пересчитываем viewport метрики и safe-zones;
+   - **не** пересоздаем player без необходимости;
+   - сохраняем текущее playback-state (`playing`/`paused`) и currentTime.
+3. Если карточка перестала быть активной по новым метрикам, применяем стандартный переход `playing -> paused`.
+
+### 7.2 Resize окна (desktop)
+
+1. `resize` обрабатываем throttled (или через `ResizeObserver` на feed-контейнере).
+2. На resize:
+   - пересчитываем только derived layout-данные (container size, visible ratios);
+   - не триггерим повторный network fetch metadata;
+   - не инициируем `play()` повторно, если активная карточка не изменилась.
+3. При частых resize events (drag window edge) применяем trailing update для autoplay-переключений.
+
+---
+
+## 8) Autoplay/mute policy браузеров + fallback UX
+
+### 8.1 Политики, которые фиксируем в MVP
+
+1. **Mobile Safari (iOS):** autoplay допустим только для `muted` + `playsinline`; любой unmuted autoplay считается недопустимым.
+2. **Mobile Chrome (Android):** muted autoplay обычно разрешен; unmuted autoplay ограничен engagement policy и пользовательским жестом.
+3. Общий безопасный baseline для feed:
+   - автозапуск только `muted=true`;
+   - unmute — только по явному user gesture.
+
+### 8.2 UX fallback при блокировке autoplay
+
+Если `video.play()` отклонен (`NotAllowedError`/policy block):
+
+1. карточка остается в `ready`/`paused`, не падает в `error`;
+2. показываем явный play CTA (`Tap to play` / локализованный аналог);
+3. при пользовательском tap повторяем `play()` и логируем telemetry (`autoplay_blocked`, `manual_play_started`);
+4. mute toggle оставляем доступным, но unmute без play не должен создавать ложные ожидания старта.
+
+---
+
+## 9) Anti-jank требования
+
+1. **Без скачков размеров карточки:**
+   - контейнер имеет предсказуемый `aspect-ratio` до metadata;
+   - смена ratio после metadata — один раз, без каскадных reflow.
+2. **Без layout thrash на scroll:**
+   - не выполняем синхронные layout-чтения/записи в одном цикле для каждой карточки;
+   - используем `IntersectionObserver`/batched rAF измерения вместо per-event пересчетов.
+3. **Стабильность overlay-слоев:**
+   - play/mute/progress рендерятся поверх media и не влияют на геометрию контейнера.
+4. **Ограничение частоты тяжелых обновлений:**
+   - прогресс/timeline обновляются с разумным cadence;
+   - offscreen карточки не выполняют дорогое UI-обновление.
+
+---
+
+## 10) Fallback при ошибке metadata / битом источнике
+
+### 10.1 Ошибка metadata
 Сценарии:
 
 - `loadedmetadata` не приходит в допустимый таймаут;
@@ -244,7 +366,7 @@ interface FeedPlayerProps {
 4. показываем fallback-overlay: «Не удалось загрузить видео» + retry;
 5. отправляем telemetry `metadata_error` с диагностикой.
 
-### 6.2 Битый источник (`source error`)
+### 10.2 Битый источник (`source error`)
 Сценарии:
 
 - media `error` event,
