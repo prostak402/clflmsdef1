@@ -34,9 +34,18 @@
   }
 
   .feed-container {
-    width: 420px;
-    height: calc(100vh - 48px);
-    max-height: 860px;
+    --desktop-feed-height: min(calc(100vh - 48px), 860px);
+    --desktop-feed-base-width: 420px;
+    --desktop-feed-min-width: 360px;
+    --desktop-feed-max-width: 80vw;
+    --desktop-feed-aspect-ratio: var(--active-clip-aspect-ratio, 0.485);
+    width: clamp(
+      var(--desktop-feed-min-width),
+      calc(var(--desktop-feed-height) * var(--desktop-feed-aspect-ratio)),
+      var(--desktop-feed-max-width)
+    );
+    min-width: var(--desktop-feed-base-width);
+    height: var(--desktop-feed-height);
     border-radius: var(--radius-xl);
     overflow: hidden;
     position: relative;
@@ -44,6 +53,7 @@
       0 0 0 1px rgba(255, 255, 255, 0.06),
       0 20px 60px rgba(0, 0, 0, 0.5),
       0 0 40px rgba(168, 85, 247, 0.08);
+    transition: width 220ms ease;
   }
 
   .feed-empty {
