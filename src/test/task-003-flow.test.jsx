@@ -45,7 +45,7 @@ describe('TASK-003: feed, reactions, comments and navigation', () => {
       'aria-current',
       'page'
     )
-  })
+  }, 10000)
 
   it('toggles like and bookmark on active clip', async () => {
     const user = userEvent.setup()

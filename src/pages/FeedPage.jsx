@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useApp } from '../context/useApp'
 import { feedService } from '../services/feed-service'
 import { EVENT_NAMES, EVENT_SOURCE, EVENT_SURFACE } from '../services/analytics/events'
-import ClipCard from '../components/ClipCard'
+import PlayerCard from '../components/PlayerCard'
 import CommentsPanel from '../components/CommentsPanel'
 import GenrePickerFloat from '../components/GenrePickerFloat'
 import DataState from '../components/DataState'
@@ -212,7 +212,7 @@ export default function FeedPage() {
         <>
           <div className="feed-container" ref={containerRef}>
             {clips.map((clip, index) => (
-              <ClipCard
+              <PlayerCard
                 key={clip.id}
                 clip={clip}
                 position={index}
