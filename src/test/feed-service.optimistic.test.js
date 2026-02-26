@@ -12,10 +12,11 @@ describe('TASK-006: centralized optimistic updates', () => {
     const applyLocal = vi.fn()
     const rollbackLocal = vi.fn()
 
-    vi.spyOn(mockFeedAdapter, 'persistLikeToggle').mockResolvedValueOnce()
+    const persistSpy = vi.spyOn(mockFeedAdapter, 'persistLikeToggle').mockResolvedValueOnce()
 
     const isSuccess = await feedService.optimisticToggleLike({
       clipId: 'clip_1',
+      shouldLike: true,
       applyLocal,
       rollbackLocal,
     })
@@ -23,8 +24,8 @@ describe('TASK-006: centralized optimistic updates', () => {
     expect(isSuccess).toBe(true)
     expect(applyLocal).toHaveBeenCalledTimes(1)
     expect(rollbackLocal).not.toHaveBeenCalled()
+    expect(persistSpy).toHaveBeenCalledWith({ clipId: 'clip_1', shouldLike: true })
   })
-
 
   it('rolls back optimistic like when persist fails', async () => {
     const applyLocal = vi.fn()
@@ -34,6 +35,7 @@ describe('TASK-006: centralized optimistic updates', () => {
 
     const isSuccess = await feedService.optimisticToggleLike({
       clipId: 'clip_3',
+      shouldLike: false,
       applyLocal,
       rollbackLocal,
     })
@@ -41,6 +43,25 @@ describe('TASK-006: centralized optimistic updates', () => {
     expect(isSuccess).toBe(false)
     expect(applyLocal).toHaveBeenCalledTimes(1)
     expect(rollbackLocal).toHaveBeenCalledTimes(1)
+  })
+
+  it('applies optimistic bookmark and keeps state on success', async () => {
+    const applyLocal = vi.fn()
+    const rollbackLocal = vi.fn()
+
+    const persistSpy = vi.spyOn(mockFeedAdapter, 'persistBookmarkToggle').mockResolvedValueOnce()
+
+    const isSuccess = await feedService.optimisticToggleBookmark({
+      clipId: 'clip_2',
+      shouldBookmark: true,
+      applyLocal,
+      rollbackLocal,
+    })
+
+    expect(isSuccess).toBe(true)
+    expect(applyLocal).toHaveBeenCalledTimes(1)
+    expect(rollbackLocal).not.toHaveBeenCalled()
+    expect(persistSpy).toHaveBeenCalledWith({ clipId: 'clip_2', shouldBookmark: true })
   })
 
   it('rolls back optimistic bookmark when persist fails', async () => {
@@ -53,6 +74,7 @@ describe('TASK-006: centralized optimistic updates', () => {
 
     const isSuccess = await feedService.optimisticToggleBookmark({
       clipId: 'clip_2',
+      shouldBookmark: false,
       applyLocal,
       rollbackLocal,
     })

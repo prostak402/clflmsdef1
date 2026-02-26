@@ -5,8 +5,8 @@
  * @property {(params?: { selectedGenres?: string[] }) => Array<Object>} getFeed
  * @property {(params: { clipId: string, likes: Record<string, boolean> }) => Record<string, boolean>} toggleLike
  * @property {(params: { clipId: string, bookmarks: string[] }) => string[]} toggleBookmark
- * @property {(params: { clipId: string }) => Promise<void>} persistLikeToggle
- * @property {(params: { clipId: string }) => Promise<void>} persistBookmarkToggle
+ * @property {(params: { clipId: string, shouldLike: boolean }) => Promise<void>} persistLikeToggle
+ * @property {(params: { clipId: string, shouldBookmark: boolean }) => Promise<void>} persistBookmarkToggle
  * @property {(params: { clipId: string, text: string, comments: Record<string, Array<Object>>, userName?: string, authorId?: string }) => Record<string, Array<Object>>} createComment
  * @property {(params?: { comments?: Record<string, Array<Object>>, clips?: Array<Object>, blockedUsers?: Record<string, boolean> }) => Array<Object>} getAllCommentsForModeration
  * @property {(params: { authorId: string, blockedUsers: Record<string, boolean> }) => Record<string, boolean>} blockUserComments

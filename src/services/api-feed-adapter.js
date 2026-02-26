@@ -93,6 +93,10 @@ function toggleBooleanMapEntry(map, key) {
   }
 }
 
+function shouldCreateToggleEntity(currentValue) {
+  return !currentValue
+}
+
 function toggleArrayEntry(list, value) {
   const safeList = Array.isArray(list) ? list : []
 
@@ -131,9 +135,10 @@ export const apiFeedAdapter = {
 
   async toggleLike(params) {
     const payload = normalizeWritePayload('toggleLike', params)
+    const method = shouldCreateToggleEntity(payload.likes[payload.clipId]) ? 'POST' : 'DELETE'
 
     const response = await requestJson(`/clips/${payload.clipId}/like`, {
-      method: 'POST',
+      method,
     })
 
     if (response?.likes && typeof response.likes === 'object') {
@@ -145,9 +150,12 @@ export const apiFeedAdapter = {
 
   async toggleBookmark(params) {
     const payload = normalizeWritePayload('toggleBookmark', params)
+    const method = shouldCreateToggleEntity(payload.bookmarks.includes(payload.clipId))
+      ? 'POST'
+      : 'DELETE'
 
     const response = await requestJson(`/clips/${payload.clipId}/bookmark`, {
-      method: 'POST',
+      method,
     })
 
     if (Array.isArray(response?.bookmarks)) {
@@ -159,17 +167,19 @@ export const apiFeedAdapter = {
 
   async persistLikeToggle(params) {
     const payload = normalizeWritePayload('persistLikeToggle', params)
+    const method = payload.shouldLike ? 'POST' : 'DELETE'
 
     await requestJson(`/clips/${payload.clipId}/like`, {
-      method: 'POST',
+      method,
     })
   },
 
   async persistBookmarkToggle(params) {
     const payload = normalizeWritePayload('persistBookmarkToggle', params)
+    const method = payload.shouldBookmark ? 'POST' : 'DELETE'
 
     await requestJson(`/clips/${payload.clipId}/bookmark`, {
-      method: 'POST',
+      method,
     })
   },
 
@@ -179,7 +189,7 @@ export const apiFeedAdapter = {
     const response = await requestJson(`/clips/${payload.clipId}/comments`, {
       method: 'POST',
       body: {
-        text: payload.text,
+        body: payload.text,
         userName: payload.userName,
         authorId: payload.authorId,
       },

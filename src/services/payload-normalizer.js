@@ -117,9 +117,15 @@ export function normalizeWritePayload(operation, payload = {}) {
       }
 
     case 'persistLikeToggle':
+      return {
+        clipId: normalizeClipId(payload.clipId),
+        shouldLike: Boolean(payload.shouldLike),
+      }
+
     case 'persistBookmarkToggle':
       return {
         clipId: normalizeClipId(payload.clipId),
+        shouldBookmark: Boolean(payload.shouldBookmark),
       }
 
     case 'toggleBookmark':
