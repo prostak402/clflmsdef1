@@ -16,9 +16,8 @@ import { contentService } from '../services/content-service'
 import './AdminPage.css'
 
 export default function AdminPage() {
-  const { user } = useApp()
+  const { user, adminUploads, addAdminClip, removeAdminUpload } = useApp()
   const navigate = useNavigate()
-  const [uploads, setUploads] = useState([])
   const [showForm, setShowForm] = useState(false)
   const [saved, setSaved] = useState(false)
   const [form, setForm] = useState({
@@ -57,13 +56,7 @@ export default function AdminPage() {
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    const newUpload = {
-      id: Date.now(),
-      ...form,
-      status: 'processing',
-      createdAt: new Date().toLocaleString(),
-    }
-    setUploads([newUpload, ...uploads])
+    addAdminClip(form)
     setForm({
       title: '',
       description: '',
@@ -80,11 +73,6 @@ export default function AdminPage() {
     setShowForm(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
-
-    // Simulate processing
-    setTimeout(() => {
-      setUploads((prev) => prev.map((u) => (u.id === newUpload.id ? { ...u, status: 'ready' } : u)))
-    }, 2000)
   }
 
   return (
@@ -258,14 +246,14 @@ export default function AdminPage() {
       {/* Upload list */}
       <div className="admin-uploads">
         <h3 className="admin-section-title">Recent Uploads</h3>
-        {uploads.length === 0 ? (
+        {adminUploads.length === 0 ? (
           <div className="admin-uploads-empty glass">
             <Film size={32} />
             <p>No clips uploaded yet</p>
           </div>
         ) : (
           <div className="admin-upload-list">
-            {uploads.map((upload) => (
+            {adminUploads.map((upload) => (
               <div key={upload.id} className="admin-upload-item glass">
                 <div className="admin-upload-info">
                   <h4>{upload.title}</h4>
@@ -281,7 +269,7 @@ export default function AdminPage() {
                 </div>
                 <button
                   className="admin-upload-delete"
-                  onClick={() => setUploads((prev) => prev.filter((u) => u.id !== upload.id))}
+                  onClick={() => removeAdminUpload(upload.id)}
                 >
                   <Trash2 size={16} />
                 </button>

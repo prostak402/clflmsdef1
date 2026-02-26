@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { GENRE_SELECTION_MAX } from '../constants/onboarding'
 import { feedService } from '../services/feed-service'
 import { validateCommentText } from '../services/comment-validation'
+import { MOCK_CATALOG } from '../data/mock'
 
 import { AppContext } from './app-context'
 
@@ -26,6 +27,8 @@ const DEFAULT_STATE = {
   likes: {},
   blockedCommentUsers: {},
   draftPreferences: DEFAULT_DRAFT_PREFERENCES,
+  adminUploads: [],
+  adminCatalogMovies: [],
 }
 
 function sanitizeBlockedCommentUsers(value) {
@@ -66,6 +69,8 @@ function sanitizeState(value) {
       value.draftPreferences && typeof value.draftPreferences === 'object'
         ? { ...DEFAULT_DRAFT_PREFERENCES, ...value.draftPreferences }
         : DEFAULT_DRAFT_PREFERENCES,
+    adminUploads: Array.isArray(value.adminUploads) ? value.adminUploads : [],
+    adminCatalogMovies: Array.isArray(value.adminCatalogMovies) ? value.adminCatalogMovies : [],
   }
 }
 
@@ -144,6 +149,8 @@ export function AppProvider({ children }) {
   const [blockedCommentUsers, setBlockedCommentUsers] = useState(persistedState.blockedCommentUsers)
   const [draftPreferences, setDraftPreferences] = useState(persistedState.draftPreferences)
   const [comments, setComments] = useState(feedService.getInitialComments())
+  const [adminUploads, setAdminUploads] = useState(persistedState.adminUploads)
+  const [adminCatalogMovies, setAdminCatalogMovies] = useState(persistedState.adminCatalogMovies)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -156,6 +163,8 @@ export function AppProvider({ children }) {
       likes,
       blockedCommentUsers,
       draftPreferences,
+      adminUploads,
+      adminCatalogMovies,
     })
   }, [
     user,
@@ -165,6 +174,8 @@ export function AppProvider({ children }) {
     likes,
     blockedCommentUsers,
     draftPreferences,
+    adminUploads,
+    adminCatalogMovies,
   ])
 
   const login = useCallback((userData) => {
@@ -387,6 +398,69 @@ export function AppProvider({ children }) {
     setDraftPreferences((prev) => ({ ...prev, ...patch }))
   }, [])
 
+  const addAdminClip = useCallback((form) => {
+    const uploadId = `upload_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
+    const createdAt = new Date().toLocaleString()
+    const poster = form.posterFile ? URL.createObjectURL(form.posterFile) : ''
+
+    const upload = {
+      id: uploadId,
+      title: form.title,
+      year: form.year,
+      status: 'processing',
+      createdAt,
+      poster,
+    }
+
+    setAdminUploads((prev) => [upload, ...prev])
+
+    const catalogMovie = {
+      id: `admin_${uploadId}`,
+      title: form.title,
+      year: Number(form.year) || new Date().getFullYear(),
+      rating: 0,
+      genres: form.genres,
+      poster,
+      watchUrl: form.watchUrl || '#',
+      description: form.description,
+      clipDescription: form.clipDescription,
+      duration: form.duration,
+      director: form.director,
+      kinopoiskId: form.kinopoiskId,
+      createdAt,
+    }
+
+    setAdminCatalogMovies((prev) => {
+      const existingIndex = prev.findIndex(
+        (movie) =>
+          movie.title.trim().toLowerCase() === form.title.trim().toLowerCase() &&
+          Number(movie.year) === Number(catalogMovie.year)
+      )
+
+      if (existingIndex === -1) {
+        return [catalogMovie, ...prev]
+      }
+
+      const next = [...prev]
+      next[existingIndex] = { ...next[existingIndex], ...catalogMovie }
+      return next
+    })
+
+    setTimeout(() => {
+      setAdminUploads((prev) =>
+        prev.map((item) => (item.id === uploadId ? { ...item, status: 'ready' } : item))
+      )
+    }, 2000)
+  }, [])
+
+  const removeAdminUpload = useCallback((uploadId) => {
+    setAdminUploads((prev) => prev.filter((upload) => upload.id !== uploadId))
+  }, [])
+
+  const getCatalog = useCallback(() => {
+    return [...adminCatalogMovies, ...MOCK_CATALOG]
+  }, [adminCatalogMovies])
+
   const getFilteredClips = useCallback(() => {
     return feedService.getFeed({ selectedGenres })
   }, [selectedGenres])
@@ -408,6 +482,8 @@ export function AppProvider({ children }) {
     blockedCommentUsers,
     comments,
     draftPreferences,
+    adminUploads,
+    adminCatalogMovies,
     login,
     logout,
     setHasCompletedOnboarding,
@@ -426,6 +502,9 @@ export function AppProvider({ children }) {
     setSelectedGenres,
     setDraftPreferences,
     updateDraftPreferences,
+    addAdminClip,
+    removeAdminUpload,
+    getCatalog,
   }
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
