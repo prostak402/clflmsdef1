@@ -1,20 +1,22 @@
 import { useState, useMemo } from 'react'
 import { contentService } from '../services/content-service'
+import { useApp } from '../context/useApp'
 import { Search, Star, ExternalLink, Filter, X } from 'lucide-react'
 import './CatalogPage.css'
 
 export default function CatalogPage() {
+  const { getCatalog } = useApp()
   const [search, setSearch] = useState('')
   const [activeGenre, setActiveGenre] = useState('all')
   const [showFilter, setShowFilter] = useState(false)
 
   const filtered = useMemo(() => {
-    return contentService.getCatalog().filter((movie) => {
+    return getCatalog().filter((movie) => {
       const matchesSearch = movie.title.toLowerCase().includes(search.toLowerCase())
       const matchesGenre = activeGenre === 'all' || movie.genres.includes(activeGenre)
       return matchesSearch && matchesGenre
     })
-  }, [search, activeGenre])
+  }, [search, activeGenre, getCatalog])
 
   return (
     <div className="catalog-page">
