@@ -433,18 +433,34 @@ export const feedService = {
     return feedAdapter.getInitialComments()
   },
 
-  async optimisticToggleLike({ clipId, applyLocal, rollbackLocal, requestId, correlationId }) {
+  async optimisticToggleLike({
+    clipId,
+    shouldLike,
+    applyLocal,
+    rollbackLocal,
+    requestId,
+    correlationId,
+  }) {
     return performOptimisticUpdate({
       endpoint: 'POST /clips/:clipId/like/persist',
       payload: { clipId, requestId, correlationId },
       applyLocal,
       rollbackLocal,
       persist: () =>
-        feedAdapter.persistLikeToggle(normalizeWritePayload('persistLikeToggle', { clipId })),
+        feedAdapter.persistLikeToggle(
+          normalizeWritePayload('persistLikeToggle', { clipId, shouldLike })
+        ),
     })
   },
 
-  async optimisticToggleBookmark({ clipId, applyLocal, rollbackLocal, requestId, correlationId }) {
+  async optimisticToggleBookmark({
+    clipId,
+    shouldBookmark,
+    applyLocal,
+    rollbackLocal,
+    requestId,
+    correlationId,
+  }) {
     return performOptimisticUpdate({
       endpoint: 'POST /clips/:clipId/bookmark/persist',
       payload: { clipId, requestId, correlationId },
@@ -452,7 +468,7 @@ export const feedService = {
       rollbackLocal,
       persist: () =>
         feedAdapter.persistBookmarkToggle(
-          normalizeWritePayload('persistBookmarkToggle', { clipId })
+          normalizeWritePayload('persistBookmarkToggle', { clipId, shouldBookmark })
         ),
     })
   },

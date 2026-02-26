@@ -329,10 +329,12 @@ export function AppProvider({ children }) {
       }
 
       const prevBookmarks = bookmarks
+      const shouldBookmark = !bookmarks.includes(clipId)
 
       try {
         return await feedService.optimisticToggleBookmark({
           clipId,
+          shouldBookmark,
           applyLocal: () => {
             setBookmarks((current) => feedService.toggleBookmark({ clipId, bookmarks: current }))
           },
@@ -359,10 +361,12 @@ export function AppProvider({ children }) {
       }
 
       const prevLikes = likes
+      const shouldLike = !likes[clipId]
 
       try {
         return await feedService.optimisticToggleLike({
           clipId,
+          shouldLike,
           applyLocal: () => {
             setLikes((current) => feedService.toggleLike({ clipId, likes: current }))
           },
