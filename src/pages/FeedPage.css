@@ -38,7 +38,7 @@
     --desktop-feed-base-width: 420px;
     --desktop-feed-min-width: 360px;
     --desktop-feed-max-width: 80vw;
-    --desktop-feed-aspect-ratio: min(var(--active-clip-aspect-ratio, 0.485), 0.62);
+    --desktop-feed-aspect-ratio: var(--active-clip-aspect-ratio, 0.485);
     width: clamp(
       var(--desktop-feed-min-width),
       calc(var(--desktop-feed-height) * var(--desktop-feed-aspect-ratio)),
