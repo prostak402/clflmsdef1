@@ -89,7 +89,7 @@ async function requestJson(path, { method = 'GET', query, body } = {}) {
 function toggleBooleanMapEntry(map, key) {
   return {
     ...(map || {}),
-    [key]: !Boolean(map?.[key]),
+    [key]: !map?.[key],
   }
 }
 
