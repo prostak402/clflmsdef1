@@ -407,6 +407,13 @@ export function AppProvider({ children }) {
       id: uploadId,
       title: form.title,
       year: form.year,
+      description: form.description,
+      clipDescription: form.clipDescription,
+      genres: form.genres,
+      director: form.director,
+      duration: form.duration,
+      kinopoiskId: form.kinopoiskId,
+      watchUrl: form.watchUrl,
       status: 'processing',
       createdAt,
       poster,
@@ -451,6 +458,61 @@ export function AppProvider({ children }) {
         prev.map((item) => (item.id === uploadId ? { ...item, status: 'ready' } : item))
       )
     }, 2000)
+  }, [])
+
+  const updateAdminClip = useCallback((uploadId, form) => {
+    if (!isValidClipId(uploadId)) {
+      return false
+    }
+
+    const normalizedUploadId = uploadId.trim()
+    const createdAt = new Date().toLocaleString()
+    const poster = form.posterFile ? URL.createObjectURL(form.posterFile) : form.poster || ''
+
+    setAdminUploads((prev) =>
+      prev.map((upload) =>
+        upload.id === normalizedUploadId
+          ? {
+              ...upload,
+              title: form.title,
+              year: form.year,
+              description: form.description,
+              clipDescription: form.clipDescription,
+              genres: form.genres,
+              director: form.director,
+              duration: form.duration,
+              kinopoiskId: form.kinopoiskId,
+              watchUrl: form.watchUrl,
+              poster,
+              createdAt,
+              status: 'ready',
+            }
+          : upload
+      )
+    )
+
+    setAdminCatalogMovies((prev) =>
+      prev.map((movie) =>
+        movie.id === `admin_${normalizedUploadId}`
+          ? {
+              ...movie,
+              title: form.title,
+              year: Number(form.year) || new Date().getFullYear(),
+              genres: form.genres,
+              poster,
+              watchUrl: form.watchUrl || '#',
+              description: form.description,
+              clipDescription: form.clipDescription,
+              duration: form.duration,
+              director: form.director,
+              kinopoiskId: form.kinopoiskId,
+              createdAt,
+            }
+          : movie
+      )
+    )
+
+    return true
   }, [])
 
   const removeAdminUpload = useCallback((uploadId) => {
@@ -503,6 +565,7 @@ export function AppProvider({ children }) {
     setDraftPreferences,
     updateDraftPreferences,
     addAdminClip,
+    updateAdminClip,
     removeAdminUpload,
     getCatalog,
   }

@@ -336,6 +336,31 @@
   animation: spin 0.6s linear infinite;
 }
 
+
+.admin-upload-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.admin-upload-edit {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  transition: var(--transition-base);
+}
+
+.admin-upload-edit:hover {
+  background: rgba(59, 130, 246, 0.12);
+  color: #60a5fa;
+}
+
 .admin-upload-delete {
   width: 32px;
   height: 32px;
