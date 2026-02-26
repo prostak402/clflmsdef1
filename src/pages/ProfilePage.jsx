@@ -8,7 +8,6 @@ import {
   Bookmark,
   Heart,
   ChevronRight,
-  Palette,
   Bell,
   Shield,
   HelpCircle,
@@ -62,11 +61,6 @@ export default function ProfilePage() {
           icon: Heart,
           label: 'Liked Clips',
           value: `${profile.likeCount}`,
-        },
-        {
-          icon: Palette,
-          label: 'Genre Preferences',
-          onClick: () => navigate('/genres'),
         },
         {
           icon: Bell,
