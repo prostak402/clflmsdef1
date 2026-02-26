@@ -16,6 +16,8 @@ function createTrackingId(prefix) {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`
 }
 
+const MAX_ACTIVE_CLIP_ASPECT_RATIO = 1.5777777777777777
+
 export default function FeedPage() {
   const { getFilteredClips, selectedGenres } = useApp()
   const [clips, setClips] = useState([])
@@ -181,6 +183,9 @@ export default function FeedPage() {
   const activeClipPosition = clips.findIndex((clip) => clip.id === activeClipId)
   const currentClipId = clips[currentIndex]?.id
   const activeAspectRatio = currentClipId ? clipAspectRatios[currentClipId] : undefined
+  const visibleAspectRatio = activeAspectRatio
+    ? Math.min(activeAspectRatio, MAX_ACTIVE_CLIP_ASPECT_RATIO)
+    : undefined
 
   const handleAspectRatioDetected = useCallback((clipId, aspectRatio) => {
     if (!clipId || !Number.isFinite(aspectRatio) || aspectRatio <= 0) {
@@ -234,9 +239,9 @@ export default function FeedPage() {
             className="feed-container"
             ref={containerRef}
             style={
-              activeAspectRatio
+              visibleAspectRatio
                 ? {
-                    '--active-clip-aspect-ratio': activeAspectRatio,
+                    '--active-clip-aspect-ratio': visibleAspectRatio,
                   }
                 : undefined
             }
