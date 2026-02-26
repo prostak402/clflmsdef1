@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { GENRE_SELECTION_MAX } from '../constants/onboarding'
 import { feedService } from '../services/feed-service'
+import { authService } from '../services/auth-service'
 import { validateCommentText } from '../services/comment-validation'
 import { MOCK_CATALOG } from '../data/mock'
 
@@ -178,6 +179,60 @@ export function AppProvider({ children }) {
   const [comments, setComments] = useState(feedService.getInitialComments())
   const [adminUploads, setAdminUploads] = useState(persistedState.adminUploads)
   const [adminCatalogMovies, setAdminCatalogMovies] = useState(persistedState.adminCatalogMovies)
+  const [authStatus, setAuthStatus] = useState('checking')
+  const [sessionExpired, setSessionExpired] = useState(false)
+
+  useEffect(() => {
+    let isMounted = true
+
+    authService
+      .restoreSession()
+      .then(({ session, expired }) => {
+        if (!isMounted) {
+          return
+        }
+
+        setSessionExpired(Boolean(expired))
+
+        if (!session?.user) {
+          if (persistedState.user) {
+            const persistedRole = persistedState.user.role || (persistedState.user.isAdmin ? 'admin' : 'user')
+            setUser({ ...persistedState.user, role: persistedRole })
+            setHasCompletedOnboarding(Boolean(persistedState.hasCompletedOnboarding))
+            setAuthStatus('authenticated')
+            return
+          }
+
+          setUser(null)
+          setHasCompletedOnboarding(false)
+          setAuthStatus('anonymous')
+          return
+        }
+
+        const normalizedUser = {
+          ...session.user,
+          name: session.user?.displayName || session.user?.name,
+          avatar: session.user?.avatarUrl || session.user?.avatar || null,
+        }
+
+        setUser(normalizedUser)
+        setHasCompletedOnboarding(Boolean(session.user?.hasCompletedOnboarding))
+        setAuthStatus('authenticated')
+      })
+      .catch(() => {
+        if (!isMounted) {
+          return
+        }
+
+        setUser(null)
+        setSessionExpired(true)
+        setAuthStatus('anonymous')
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -205,12 +260,42 @@ export function AppProvider({ children }) {
     adminCatalogMovies,
   ])
 
-  const login = useCallback((userData) => {
-    setUser(userData)
+  const login = useCallback(async (credentials = {}) => {
+    if (credentials && (credentials.name || credentials.isAdmin !== undefined) && !credentials.mode) {
+      const legacyRole = credentials.role || (credentials.isAdmin ? 'admin' : 'user')
+      const legacyUser = {
+        ...credentials,
+        role: legacyRole,
+      }
+      setUser(legacyUser)
+      setSessionExpired(false)
+      setAuthStatus('authenticated')
+      return legacyUser
+    }
+
+    const session = credentials?.mode === 'signup'
+      ? await authService.signUp(credentials)
+      : await authService.signIn(credentials)
+
+    const sessionUser = session?.user || {}
+    const normalizedUser = {
+      ...sessionUser,
+      name: sessionUser?.displayName || sessionUser?.name,
+      avatar: sessionUser?.avatarUrl || sessionUser?.avatar || null,
+    }
+
+    setUser(normalizedUser)
+    setSessionExpired(false)
+    setHasCompletedOnboarding(Boolean(sessionUser?.hasCompletedOnboarding))
+    setAuthStatus('authenticated')
+
+    return normalizedUser
   }, [])
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    await authService.logout()
     setUser(null)
+    setAuthStatus('anonymous')
     setHasCompletedOnboarding(false)
     setSelectedGenres([])
     setBookmarks([])
@@ -669,6 +754,8 @@ export function AppProvider({ children }) {
 
   const value = {
     user,
+    authStatus,
+    sessionExpired,
     hasCompletedOnboarding,
     selectedGenres,
     bookmarks,

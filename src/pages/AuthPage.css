@@ -359,3 +359,9 @@
     padding: var(--space-lg);
   }
 }
+
+.auth-session-expired {
+  margin: 0 0 12px;
+  color: #fda4af;
+  font-size: 0.9rem;
+}

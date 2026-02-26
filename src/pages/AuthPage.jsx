@@ -9,7 +9,7 @@ export default function AuthPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [formData, setFormData] = useState({ name: '', email: '', password: '' })
   const [loading, setLoading] = useState(false)
-  const { user, hasCompletedOnboarding, login } = useApp()
+  const { user, hasCompletedOnboarding, login, sessionExpired } = useApp()
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -17,20 +17,25 @@ export default function AuthPage() {
     navigate(hasCompletedOnboarding ? '/feed' : '/genres', { replace: true })
   }, [user, hasCompletedOnboarding, navigate])
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     if (loading) return
     setLoading(true)
-    setTimeout(() => {
-      login({
-        name: formData.name || formData.email.split('@')[0],
-        email: formData.email,
-        avatar: null,
-        isAdmin: formData.email === 'admin@clipflow.com',
-      })
-      setLoading(false)
+    try {
+      await login(
+        isLogin
+          ? { email: formData.email, password: formData.password, mode: 'signin' }
+          : {
+              displayName: formData.name,
+              email: formData.email,
+              password: formData.password,
+              mode: 'signup',
+            }
+      )
       navigate('/genres')
-    }, 800)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -65,6 +70,8 @@ export default function AuthPage() {
               Sign Up
             </button>
           </div>
+
+          {sessionExpired && <p className="auth-session-expired">Session expired. Please sign in again.</p>}
 
           <form className="auth-form" onSubmit={handleSubmit}>
             {!isLogin && (
@@ -140,13 +147,9 @@ export default function AuthPage() {
             <button
               className="auth-social-btn glass"
               onClick={() => {
-                login({
-                  name: 'Demo User',
-                  email: 'demo@clipflow.com',
-                  avatar: null,
-                  isAdmin: false,
+                login({ email: 'demo@clipflow.com', password: 'demo', mode: 'signin' }).then(() => {
+                  navigate('/genres')
                 })
-                navigate('/genres')
               }}
             >
               <span className="auth-social-icon">🎬</span>
@@ -155,8 +158,9 @@ export default function AuthPage() {
             <button
               className="auth-social-btn glass"
               onClick={() => {
-                login({ name: 'Admin', email: 'admin@clipflow.com', avatar: null, isAdmin: true })
-                navigate('/genres')
+                login({ email: 'admin@clipflow.com', password: 'demo', mode: 'signin' }).then(() => {
+                  navigate('/genres')
+                })
               }}
             >
               <span className="auth-social-icon">👑</span>

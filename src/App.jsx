@@ -16,7 +16,11 @@ function getDefaultAuthorizedPath(hasCompletedOnboarding) {
 }
 
 function AuthOnlyRoute({ children }) {
-  const { user, hasCompletedOnboarding } = useApp()
+  const { user, hasCompletedOnboarding, authStatus } = useApp()
+
+  if (authStatus === 'checking') {
+    return null
+  }
 
   if (user) {
     return <Navigate to={getDefaultAuthorizedPath(hasCompletedOnboarding)} replace />
@@ -31,7 +35,11 @@ function ProtectedRoute({
   requireOnboarding = false,
   requireAdmin = false,
 }) {
-  const { user, hasCompletedOnboarding } = useApp()
+  const { user, hasCompletedOnboarding, authStatus } = useApp()
+
+  if (authStatus === 'checking') {
+    return null
+  }
 
   if (!user) {
     return <Navigate to="/" replace />
@@ -45,7 +53,9 @@ function ProtectedRoute({
     return <Navigate to="/feed" replace />
   }
 
-  if (requireAdmin && !user.isAdmin) {
+  const userRole = user?.role || (user?.isAdmin ? 'admin' : 'user')
+
+  if (requireAdmin && userRole !== 'admin') {
     return <Navigate to="/feed" replace />
   }
 
