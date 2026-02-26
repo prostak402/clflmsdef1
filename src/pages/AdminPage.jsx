@@ -82,9 +82,11 @@ export default function AdminPage() {
   }
 
   const handleStartEdit = (upload) => {
+    const clipId = typeof upload.movieId === 'string' && upload.movieId.trim() ? upload.movieId : upload.id
+
     setShowForm(true)
     setIsEditMode(true)
-    setEditingClipId(upload.id)
+    setEditingClipId(clipId)
     setForm({
       title: upload.title || '',
       description: upload.description || '',
