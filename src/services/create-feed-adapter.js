@@ -1,29 +1,8 @@
 import { mockFeedAdapter } from './mock-feed-adapter'
+import { apiFeedAdapter } from './api-feed-adapter'
 
 const DEFAULT_DATA_SOURCE = 'mock'
 const API_ADAPTER_ERROR_MESSAGE = 'API adapter not configured'
-
-function createApiAdapterStub() {
-  const throwNotConfigured = () => {
-    throw new Error(API_ADAPTER_ERROR_MESSAGE)
-  }
-
-  return {
-    getFeed: throwNotConfigured,
-    toggleLike: throwNotConfigured,
-    toggleBookmark: throwNotConfigured,
-    persistLikeToggle: throwNotConfigured,
-    persistBookmarkToggle: throwNotConfigured,
-    createComment: throwNotConfigured,
-    getAllCommentsForModeration: throwNotConfigured,
-    blockUserComments: throwNotConfigured,
-    deleteComment: throwNotConfigured,
-    deleteCommentsByUser: throwNotConfigured,
-    getBookmarks: throwNotConfigured,
-    getProfile: throwNotConfigured,
-    getInitialComments: throwNotConfigured,
-  }
-}
 
 function normalizeDataSource(dataSource) {
   if (typeof dataSource !== 'string') {
@@ -38,7 +17,7 @@ export function createFeedAdapter(dataSource = import.meta.env?.VITE_DATA_SOURCE
   const normalizedDataSource = normalizeDataSource(dataSource)
 
   if (normalizedDataSource === 'api') {
-    return createApiAdapterStub()
+    return apiFeedAdapter
   }
 
   return mockFeedAdapter
