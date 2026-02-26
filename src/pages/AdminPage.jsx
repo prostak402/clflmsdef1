@@ -11,15 +11,35 @@ import {
   AlertTriangle,
   Check,
   Link as LinkIcon,
+  Pencil,
 } from 'lucide-react'
 import { contentService } from '../services/content-service'
 import './AdminPage.css'
 
 export default function AdminPage() {
-  const { user, adminUploads, addAdminClip, removeAdminUpload } = useApp()
+  const { user, adminUploads, addAdminClip, updateAdminClip, removeAdminUpload } = useApp()
   const navigate = useNavigate()
   const [showForm, setShowForm] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [saveAction, setSaveAction] = useState('create')
+  const [editingClipId, setEditingClipId] = useState('')
+  const [isEditMode, setIsEditMode] = useState(false)
+
+  const emptyForm = {
+    title: '',
+    description: '',
+    clipDescription: '',
+    genres: [],
+    year: '',
+    director: '',
+    duration: '',
+    kinopoiskId: '',
+    watchUrl: '',
+    poster: '',
+    clipFile: null,
+    posterFile: null,
+  }
+
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -30,6 +50,7 @@ export default function AdminPage() {
     duration: '',
     kinopoiskId: '',
     watchUrl: '',
+    poster: '',
     clipFile: null,
     posterFile: null,
   })
@@ -54,22 +75,47 @@ export default function AdminPage() {
     }))
   }
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    addAdminClip(form)
+  const resetFormState = () => {
+    setForm(emptyForm)
+    setEditingClipId('')
+    setIsEditMode(false)
+  }
+
+  const handleStartEdit = (upload) => {
+    setShowForm(true)
+    setIsEditMode(true)
+    setEditingClipId(upload.id)
     setForm({
-      title: '',
-      description: '',
-      clipDescription: '',
-      genres: [],
-      year: '',
-      director: '',
-      duration: '',
-      kinopoiskId: '',
-      watchUrl: '',
+      title: upload.title || '',
+      description: upload.description || '',
+      clipDescription: upload.clipDescription || '',
+      genres: upload.genres || [],
+      year: upload.year || '',
+      director: upload.director || '',
+      duration: upload.duration || '',
+      kinopoiskId: upload.kinopoiskId || '',
+      watchUrl: upload.watchUrl || '',
+      poster: upload.poster || '',
       clipFile: null,
       posterFile: null,
     })
+  }
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+
+    if (isEditMode) {
+      const updated = updateAdminClip(editingClipId, form)
+      if (!updated) {
+        return
+      }
+      setSaveAction('edit')
+    } else {
+      addAdminClip(form)
+      setSaveAction('create')
+    }
+
+    resetFormState()
     setShowForm(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
@@ -85,7 +131,15 @@ export default function AdminPage() {
             Go to comments moderation
           </Link>
         </div>
-        <button className="admin-add-btn" onClick={() => setShowForm(!showForm)}>
+        <button
+          className="admin-add-btn"
+          onClick={() => {
+            if (showForm) {
+              resetFormState()
+            }
+            setShowForm(!showForm)
+          }}
+        >
           {showForm ? <X size={20} /> : <Plus size={20} />}
           <span>{showForm ? 'Cancel' : 'Add Clip'}</span>
         </button>
@@ -95,7 +149,7 @@ export default function AdminPage() {
         <form className="admin-form glass-strong" onSubmit={handleSubmit}>
           <h3 className="admin-form-title">
             <Upload size={20} />
-            Upload New Clip
+            {isEditMode ? 'Edit Clip' : 'Upload New Clip'}
           </h3>
 
           <div className="admin-form-grid">
@@ -238,7 +292,7 @@ export default function AdminPage() {
 
           <button type="submit" className="admin-submit">
             <Save size={18} />
-            Upload Clip
+            {isEditMode ? 'Save Changes' : 'Upload Clip'}
           </button>
         </form>
       )}
@@ -267,12 +321,23 @@ export default function AdminPage() {
                   )}
                   <span>{upload.status === 'processing' ? 'Processing' : 'Ready'}</span>
                 </div>
-                <button
-                  className="admin-upload-delete"
-                  onClick={() => removeAdminUpload(upload.id)}
-                >
-                  <Trash2 size={16} />
-                </button>
+                <div className="admin-upload-actions">
+                  <button
+                    type="button"
+                    className="admin-upload-edit"
+                    onClick={() => handleStartEdit(upload)}
+                  >
+                    <Pencil size={16} />
+                    <span>Edit</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="admin-upload-delete"
+                    onClick={() => removeAdminUpload(upload.id)}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -282,7 +347,7 @@ export default function AdminPage() {
       {saved && (
         <div className="admin-toast glass-strong">
           <Check size={18} />
-          Clip uploaded successfully!
+          {saveAction === 'edit' ? 'Clip updated successfully!' : 'Clip uploaded successfully!'}
         </div>
       )}
     </div>
