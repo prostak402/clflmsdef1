@@ -220,4 +220,111 @@ describe('TASK-012: AppContext state transitions', () => {
     expect(getCurrent().likes).toEqual(likesSnapshot)
     expect(getCurrent().bookmarks).toEqual(bookmarksSnapshot)
   })
+
+  it('removes upload and linked catalog movie by movieId', async () => {
+    const { getCurrent } = await renderAppContext()
+
+    await act(async () => {
+      getCurrent().addAdminClip({
+        title: 'Linked Movie',
+        description: 'desc',
+        clipDescription: 'clip',
+        genres: ['drama'],
+        year: '2020',
+        director: 'Director',
+        duration: '120',
+        kinopoiskId: '123',
+        watchUrl: 'https://example.com/movie',
+        posterFile: null,
+        clipFile: null,
+      })
+    })
+
+    const createdUpload = getCurrent().adminUploads[0]
+    expect(createdUpload.movieId).toBeTruthy()
+
+    const createdMovie = getCurrent().adminCatalogMovies.find((movie) => movie.id === createdUpload.movieId)
+    expect(createdMovie).toBeTruthy()
+
+    await act(async () => {
+      const removed = getCurrent().removeAdminUpload(createdUpload.id)
+      expect(removed).toBe(true)
+    })
+
+    expect(getCurrent().adminUploads.find((upload) => upload.id === createdUpload.id)).toBeFalsy()
+    expect(getCurrent().adminCatalogMovies.find((movie) => movie.id === createdUpload.movieId)).toBeFalsy()
+    expect(getCurrent().getCatalog().find((movie) => movie.id === createdUpload.movieId)).toBeFalsy()
+  })
+
+  it('supports legacy fallback by title/year and keeps getCatalog consistent after edit/delete', async () => {
+    const legacyUploadId = 'upload_legacy_1'
+    const legacyMovieId = 'admin_legacy_1'
+    window.localStorage.setItem(
+      'app_state_v1',
+      JSON.stringify({
+        version: 1,
+        state: {
+          user: null,
+          hasCompletedOnboarding: false,
+          selectedGenres: [],
+          bookmarks: [],
+          likes: {},
+          blockedCommentUsers: {},
+          draftPreferences: {
+            notificationsEnabled: true,
+            autoplayEnabled: true,
+            preferredLanguage: 'en',
+          },
+          adminUploads: [
+            {
+              id: legacyUploadId,
+              title: 'Legacy Movie',
+              year: 1999,
+              status: 'ready',
+              createdAt: 'legacy',
+            },
+          ],
+          adminCatalogMovies: [
+            {
+              id: legacyMovieId,
+              title: 'Legacy Movie',
+              year: 1999,
+              rating: 0,
+              genres: [],
+              poster: '',
+              watchUrl: '#',
+              description: '',
+              clipDescription: '',
+              duration: '',
+              director: '',
+              kinopoiskId: '',
+              createdAt: 'legacy',
+            },
+          ],
+        },
+      })
+    )
+
+    const { getCurrent } = await renderAppContext()
+
+    await act(async () => {
+      const updated = getCurrent().updateAdminClip(legacyMovieId, {
+        title: 'Legacy Movie Edited',
+      })
+      expect(updated).toBe(true)
+    })
+
+    expect(getCurrent().getCatalog().find((movie) => movie.id === legacyMovieId)?.title).toBe(
+      'Legacy Movie Edited'
+    )
+
+    await act(async () => {
+      const removed = getCurrent().removeAdminUpload(legacyUploadId)
+      expect(removed).toBe(true)
+    })
+
+    expect(getCurrent().adminCatalogMovies.find((movie) => movie.id === legacyMovieId)).toBeFalsy()
+    expect(getCurrent().getCatalog().find((movie) => movie.id === legacyMovieId)).toBeFalsy()
+  })
+
 })

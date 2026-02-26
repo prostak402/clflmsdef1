@@ -152,6 +152,17 @@ function isBlobUrl(value) {
   return typeof value === 'string' && value.startsWith('blob:')
 }
 
+function normalizeMovieTitle(value) {
+  return typeof value === 'string' ? value.trim().toLowerCase() : ''
+}
+
+function areSameMovieByTitleAndYear(left, right) {
+  return (
+    normalizeMovieTitle(left?.title) === normalizeMovieTitle(right?.title) &&
+    Number(left?.year) === Number(right?.year)
+  )
+}
+
 export function AppProvider({ children }) {
   const [persistedState] = useState(() => readPersistedState())
 
@@ -419,8 +430,10 @@ export function AppProvider({ children }) {
     const createdAt = new Date().toLocaleString()
     const poster = form.posterFile ? URL.createObjectURL(form.posterFile) : ''
 
+    const catalogMovieId = `admin_${uploadId}`
     const upload = {
       id: uploadId,
+      movieId: catalogMovieId,
       title: form.title,
       year: form.year,
       description: form.description,
@@ -438,7 +451,7 @@ export function AppProvider({ children }) {
     setAdminUploads((prev) => [upload, ...prev])
 
     const catalogMovie = {
-      id: `admin_${uploadId}`,
+      id: catalogMovieId,
       title: form.title,
       year: Number(form.year) || new Date().getFullYear(),
       rating: 0,
@@ -454,11 +467,7 @@ export function AppProvider({ children }) {
     }
 
     setAdminCatalogMovies((prev) => {
-      const existingIndex = prev.findIndex(
-        (movie) =>
-          movie.title.trim().toLowerCase() === form.title.trim().toLowerCase() &&
-          Number(movie.year) === Number(catalogMovie.year)
-      )
+      const existingIndex = prev.findIndex((movie) => areSameMovieByTitleAndYear(movie, catalogMovie))
 
       if (existingIndex === -1) {
         return [catalogMovie, ...prev]
@@ -476,125 +485,167 @@ export function AppProvider({ children }) {
     }, 2000)
   }, [])
 
-  const updateAdminClip = useCallback((clipId, patchOrForm) => {
-    if (!isValidClipId(clipId)) {
-      return false
-    }
-
-    const normalizedPatch = normalizeClipPatch(patchOrForm)
-    const normalizedClipId = clipId.trim()
-    const resolvedUploadId = normalizedClipId.startsWith('admin_')
-      ? normalizedClipId.slice('admin_'.length)
-      : normalizedClipId
-    const resolvedCatalogId = normalizedClipId.startsWith('admin_')
-      ? normalizedClipId
-      : `admin_${normalizedClipId}`
-    const hasPosterFile = Boolean(normalizedPatch.posterFile)
-    const hasClipFile = Boolean(normalizedPatch.clipFile)
-    const shouldRefreshCreatedAt = hasPosterFile || hasClipFile
-    const nextCreatedAt = shouldRefreshCreatedAt ? new Date().toLocaleString() : undefined
-
-    let previousPoster = ''
-    let nextPoster = ''
-    let didUpdateCatalog = false
-
-    setAdminCatalogMovies((prev) => {
-      const existingIndex = prev.findIndex((movie) => movie.id === resolvedCatalogId)
-      if (existingIndex === -1) {
-        return prev
+  const updateAdminClip = useCallback(
+    (clipId, patchOrForm) => {
+      if (!isValidClipId(clipId)) {
+        return false
       }
 
-      didUpdateCatalog = true
-      const prevItem = prev[existingIndex]
-      previousPoster = prevItem.poster || ''
-
-      const shouldUsePatchPoster = typeof normalizedPatch.poster === 'string' && normalizedPatch.poster.trim()
-      nextPoster = hasPosterFile
-        ? URL.createObjectURL(normalizedPatch.posterFile)
-        : shouldUsePatchPoster || normalizedPatch.poster === ''
-          ? normalizedPatch.poster
-          : prevItem.poster || ''
-
-      const catalogPatch = {
-        ...(Object.hasOwn(normalizedPatch, 'title') ? { title: normalizedPatch.title } : {}),
-        ...(Object.hasOwn(normalizedPatch, 'genres') ? { genres: normalizedPatch.genres } : {}),
-        ...(Object.hasOwn(normalizedPatch, 'watchUrl') ? { watchUrl: normalizedPatch.watchUrl } : {}),
-        ...(Object.hasOwn(normalizedPatch, 'description')
-          ? { description: normalizedPatch.description }
-          : {}),
-        ...(Object.hasOwn(normalizedPatch, 'clipDescription')
-          ? { clipDescription: normalizedPatch.clipDescription }
-          : {}),
-        ...(Object.hasOwn(normalizedPatch, 'duration') ? { duration: normalizedPatch.duration } : {}),
-        ...(Object.hasOwn(normalizedPatch, 'director') ? { director: normalizedPatch.director } : {}),
-        ...(Object.hasOwn(normalizedPatch, 'kinopoiskId')
-          ? { kinopoiskId: normalizedPatch.kinopoiskId }
-          : {}),
-        ...(Object.hasOwn(normalizedPatch, 'status') ? { status: normalizedPatch.status } : {}),
-        ...(Object.hasOwn(normalizedPatch, 'year')
-          ? {
-              year:
-                Number(normalizedPatch.year) || Number(prevItem.year) || new Date().getFullYear(),
-            }
-          : {}),
-        ...(hasPosterFile || Object.hasOwn(normalizedPatch, 'poster') ? { poster: nextPoster } : {}),
-        ...(shouldRefreshCreatedAt ? { createdAt: nextCreatedAt } : {}),
+      const normalizedPatch = normalizeClipPatch(patchOrForm)
+      const normalizedClipId = clipId.trim()
+      const resolvedUploadId = normalizedClipId.startsWith('admin_')
+        ? normalizedClipId.slice('admin_'.length)
+        : normalizedClipId
+      const resolvedCatalogId = normalizedClipId.startsWith('admin_')
+        ? normalizedClipId
+        : `admin_${normalizedClipId}`
+      const existingCatalogMovie = adminCatalogMovies.find((movie) => movie.id === resolvedCatalogId)
+      if (!existingCatalogMovie) {
+        return false
       }
 
-      const next = [...prev]
-      next[existingIndex] = { ...prevItem, ...catalogPatch }
-      return next
-    })
+      const hasPosterFile = Boolean(normalizedPatch.posterFile)
+      const hasClipFile = Boolean(normalizedPatch.clipFile)
+      const shouldRefreshCreatedAt = hasPosterFile || hasClipFile
+      const nextCreatedAt = shouldRefreshCreatedAt ? new Date().toLocaleString() : undefined
 
-    if (!didUpdateCatalog) {
-      return false
-    }
+      let previousPoster = ''
+      let nextPoster = ''
 
-    setAdminUploads((prev) =>
-      prev.map((upload) => {
-        if (upload.id !== resolvedUploadId) {
-          return upload
+      setAdminCatalogMovies((prev) => {
+        const existingIndex = prev.findIndex((movie) => movie.id === resolvedCatalogId)
+        if (existingIndex === -1) {
+          return prev
         }
 
-        const uploadPatch = {
+        const prevItem = prev[existingIndex]
+        previousPoster = prevItem.poster || ''
+
+        const shouldUsePatchPoster =
+          typeof normalizedPatch.poster === 'string' && normalizedPatch.poster.trim()
+        nextPoster = hasPosterFile
+          ? URL.createObjectURL(normalizedPatch.posterFile)
+          : shouldUsePatchPoster || normalizedPatch.poster === ''
+            ? normalizedPatch.poster
+            : prevItem.poster || ''
+
+        const catalogPatch = {
           ...(Object.hasOwn(normalizedPatch, 'title') ? { title: normalizedPatch.title } : {}),
-          ...(Object.hasOwn(normalizedPatch, 'year') ? { year: normalizedPatch.year } : {}),
+          ...(Object.hasOwn(normalizedPatch, 'genres') ? { genres: normalizedPatch.genres } : {}),
+          ...(Object.hasOwn(normalizedPatch, 'watchUrl') ? { watchUrl: normalizedPatch.watchUrl } : {}),
           ...(Object.hasOwn(normalizedPatch, 'description')
             ? { description: normalizedPatch.description }
             : {}),
           ...(Object.hasOwn(normalizedPatch, 'clipDescription')
             ? { clipDescription: normalizedPatch.clipDescription }
             : {}),
-          ...(Object.hasOwn(normalizedPatch, 'genres') ? { genres: normalizedPatch.genres } : {}),
-          ...(Object.hasOwn(normalizedPatch, 'director') ? { director: normalizedPatch.director } : {}),
           ...(Object.hasOwn(normalizedPatch, 'duration') ? { duration: normalizedPatch.duration } : {}),
+          ...(Object.hasOwn(normalizedPatch, 'director') ? { director: normalizedPatch.director } : {}),
           ...(Object.hasOwn(normalizedPatch, 'kinopoiskId')
             ? { kinopoiskId: normalizedPatch.kinopoiskId }
             : {}),
-          ...(Object.hasOwn(normalizedPatch, 'watchUrl') ? { watchUrl: normalizedPatch.watchUrl } : {}),
-          ...(Object.hasOwn(normalizedPatch, 'status')
-            ? { status: normalizedPatch.status }
-            : shouldRefreshCreatedAt
-              ? { status: 'ready' }
-              : {}),
+          ...(Object.hasOwn(normalizedPatch, 'status') ? { status: normalizedPatch.status } : {}),
+          ...(Object.hasOwn(normalizedPatch, 'year')
+            ? {
+                year:
+                  Number(normalizedPatch.year) || Number(prevItem.year) || new Date().getFullYear(),
+              }
+            : {}),
           ...(hasPosterFile || Object.hasOwn(normalizedPatch, 'poster') ? { poster: nextPoster } : {}),
           ...(shouldRefreshCreatedAt ? { createdAt: nextCreatedAt } : {}),
         }
 
-        return { ...upload, ...uploadPatch }
+        const next = [...prev]
+        next[existingIndex] = { ...prevItem, ...catalogPatch }
+        return next
       })
-    )
 
-    if (hasPosterFile && isBlobUrl(previousPoster) && previousPoster !== nextPoster) {
-      URL.revokeObjectURL(previousPoster)
-    }
+      setAdminUploads((prev) =>
+        prev.map((upload) => {
+          const shouldUpdateUpload =
+            upload.id === resolvedUploadId ||
+            upload.movieId === resolvedCatalogId ||
+            (!upload.movieId &&
+              normalizedClipId.startsWith('admin_') &&
+              areSameMovieByTitleAndYear(upload, existingCatalogMovie))
 
-    return true
-  }, [])
+          if (!shouldUpdateUpload) {
+            return upload
+          }
 
-  const removeAdminUpload = useCallback((uploadId) => {
-    setAdminUploads((prev) => prev.filter((upload) => upload.id !== uploadId))
-  }, [])
+          const uploadPatch = {
+            ...(Object.hasOwn(normalizedPatch, 'title') ? { title: normalizedPatch.title } : {}),
+            ...(Object.hasOwn(normalizedPatch, 'year') ? { year: normalizedPatch.year } : {}),
+            ...(Object.hasOwn(normalizedPatch, 'description')
+              ? { description: normalizedPatch.description }
+              : {}),
+            ...(Object.hasOwn(normalizedPatch, 'clipDescription')
+              ? { clipDescription: normalizedPatch.clipDescription }
+              : {}),
+            ...(Object.hasOwn(normalizedPatch, 'genres') ? { genres: normalizedPatch.genres } : {}),
+            ...(Object.hasOwn(normalizedPatch, 'director') ? { director: normalizedPatch.director } : {}),
+            ...(Object.hasOwn(normalizedPatch, 'duration') ? { duration: normalizedPatch.duration } : {}),
+            ...(Object.hasOwn(normalizedPatch, 'kinopoiskId')
+              ? { kinopoiskId: normalizedPatch.kinopoiskId }
+              : {}),
+            ...(Object.hasOwn(normalizedPatch, 'watchUrl') ? { watchUrl: normalizedPatch.watchUrl } : {}),
+            ...(Object.hasOwn(normalizedPatch, 'status')
+              ? { status: normalizedPatch.status }
+              : shouldRefreshCreatedAt
+                ? { status: 'ready' }
+                : {}),
+            ...(hasPosterFile || Object.hasOwn(normalizedPatch, 'poster')
+              ? { poster: nextPoster }
+              : {}),
+            ...(shouldRefreshCreatedAt ? { createdAt: nextCreatedAt } : {}),
+          }
+
+          return { ...upload, ...uploadPatch }
+        })
+      )
+
+      if (hasPosterFile && isBlobUrl(previousPoster) && previousPoster !== nextPoster) {
+        URL.revokeObjectURL(previousPoster)
+      }
+
+      return true
+    },
+    [adminCatalogMovies]
+  )
+
+  const removeAdminUpload = useCallback(
+    (uploadId) => {
+      if (!isValidClipId(uploadId)) {
+        return false
+      }
+
+      const normalizedUploadId = uploadId.trim()
+      const removedUpload = adminUploads.find((upload) => upload.id === normalizedUploadId)
+      if (!removedUpload) {
+        return false
+      }
+
+      setAdminUploads((prevUploads) =>
+        prevUploads.filter((upload) => upload.id !== normalizedUploadId)
+      )
+
+      const resolvedMovieId =
+        typeof removedUpload.movieId === 'string' && removedUpload.movieId.trim()
+          ? removedUpload.movieId.trim()
+          : ''
+
+      setAdminCatalogMovies((prevCatalogMovies) => {
+        if (resolvedMovieId) {
+          return prevCatalogMovies.filter((movie) => movie.id !== resolvedMovieId)
+        }
+
+        return prevCatalogMovies.filter((movie) => !areSameMovieByTitleAndYear(movie, removedUpload))
+      })
+
+      return true
+    },
+    [adminUploads]
+  )
 
   const getCatalog = useCallback(() => {
     return [...adminCatalogMovies, ...MOCK_CATALOG]
