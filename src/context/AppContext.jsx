@@ -136,6 +136,22 @@ function isValidClipId(value) {
   return typeof value === 'string' && value.trim().length > 0 && value.trim().length <= 64
 }
 
+function normalizeClipPatch(patchOrForm) {
+  if (!patchOrForm) {
+    return {}
+  }
+
+  if (typeof FormData !== 'undefined' && patchOrForm instanceof FormData) {
+    return Object.fromEntries(patchOrForm.entries())
+  }
+
+  return typeof patchOrForm === 'object' ? patchOrForm : {}
+}
+
+function isBlobUrl(value) {
+  return typeof value === 'string' && value.startsWith('blob:')
+}
+
 export function AppProvider({ children }) {
   const [persistedState] = useState(() => readPersistedState())
 
@@ -460,57 +476,118 @@ export function AppProvider({ children }) {
     }, 2000)
   }, [])
 
-  const updateAdminClip = useCallback((uploadId, form) => {
-    if (!isValidClipId(uploadId)) {
+  const updateAdminClip = useCallback((clipId, patchOrForm) => {
+    if (!isValidClipId(clipId)) {
       return false
     }
 
-    const normalizedUploadId = uploadId.trim()
-    const createdAt = new Date().toLocaleString()
-    const poster = form.posterFile ? URL.createObjectURL(form.posterFile) : form.poster || ''
+    const normalizedPatch = normalizeClipPatch(patchOrForm)
+    const normalizedClipId = clipId.trim()
+    const resolvedUploadId = normalizedClipId.startsWith('admin_')
+      ? normalizedClipId.slice('admin_'.length)
+      : normalizedClipId
+    const resolvedCatalogId = normalizedClipId.startsWith('admin_')
+      ? normalizedClipId
+      : `admin_${normalizedClipId}`
+    const hasPosterFile = Boolean(normalizedPatch.posterFile)
+    const hasClipFile = Boolean(normalizedPatch.clipFile)
+    const shouldRefreshCreatedAt = hasPosterFile || hasClipFile
+    const nextCreatedAt = shouldRefreshCreatedAt ? new Date().toLocaleString() : undefined
+
+    let previousPoster = ''
+    let nextPoster = ''
+    let didUpdateCatalog = false
+
+    setAdminCatalogMovies((prev) => {
+      const existingIndex = prev.findIndex((movie) => movie.id === resolvedCatalogId)
+      if (existingIndex === -1) {
+        return prev
+      }
+
+      didUpdateCatalog = true
+      const prevItem = prev[existingIndex]
+      previousPoster = prevItem.poster || ''
+
+      const shouldUsePatchPoster = typeof normalizedPatch.poster === 'string' && normalizedPatch.poster.trim()
+      nextPoster = hasPosterFile
+        ? URL.createObjectURL(normalizedPatch.posterFile)
+        : shouldUsePatchPoster || normalizedPatch.poster === ''
+          ? normalizedPatch.poster
+          : prevItem.poster || ''
+
+      const catalogPatch = {
+        ...(Object.hasOwn(normalizedPatch, 'title') ? { title: normalizedPatch.title } : {}),
+        ...(Object.hasOwn(normalizedPatch, 'genres') ? { genres: normalizedPatch.genres } : {}),
+        ...(Object.hasOwn(normalizedPatch, 'watchUrl') ? { watchUrl: normalizedPatch.watchUrl } : {}),
+        ...(Object.hasOwn(normalizedPatch, 'description')
+          ? { description: normalizedPatch.description }
+          : {}),
+        ...(Object.hasOwn(normalizedPatch, 'clipDescription')
+          ? { clipDescription: normalizedPatch.clipDescription }
+          : {}),
+        ...(Object.hasOwn(normalizedPatch, 'duration') ? { duration: normalizedPatch.duration } : {}),
+        ...(Object.hasOwn(normalizedPatch, 'director') ? { director: normalizedPatch.director } : {}),
+        ...(Object.hasOwn(normalizedPatch, 'kinopoiskId')
+          ? { kinopoiskId: normalizedPatch.kinopoiskId }
+          : {}),
+        ...(Object.hasOwn(normalizedPatch, 'status') ? { status: normalizedPatch.status } : {}),
+        ...(Object.hasOwn(normalizedPatch, 'year')
+          ? {
+              year:
+                Number(normalizedPatch.year) || Number(prevItem.year) || new Date().getFullYear(),
+            }
+          : {}),
+        ...(hasPosterFile || Object.hasOwn(normalizedPatch, 'poster') ? { poster: nextPoster } : {}),
+        ...(shouldRefreshCreatedAt ? { createdAt: nextCreatedAt } : {}),
+      }
+
+      const next = [...prev]
+      next[existingIndex] = { ...prevItem, ...catalogPatch }
+      return next
+    })
+
+    if (!didUpdateCatalog) {
+      return false
+    }
 
     setAdminUploads((prev) =>
-      prev.map((upload) =>
-        upload.id === normalizedUploadId
-          ? {
-              ...upload,
-              title: form.title,
-              year: form.year,
-              description: form.description,
-              clipDescription: form.clipDescription,
-              genres: form.genres,
-              director: form.director,
-              duration: form.duration,
-              kinopoiskId: form.kinopoiskId,
-              watchUrl: form.watchUrl,
-              poster,
-              createdAt,
-              status: 'ready',
-            }
-          : upload
-      )
+      prev.map((upload) => {
+        if (upload.id !== resolvedUploadId) {
+          return upload
+        }
+
+        const uploadPatch = {
+          ...(Object.hasOwn(normalizedPatch, 'title') ? { title: normalizedPatch.title } : {}),
+          ...(Object.hasOwn(normalizedPatch, 'year') ? { year: normalizedPatch.year } : {}),
+          ...(Object.hasOwn(normalizedPatch, 'description')
+            ? { description: normalizedPatch.description }
+            : {}),
+          ...(Object.hasOwn(normalizedPatch, 'clipDescription')
+            ? { clipDescription: normalizedPatch.clipDescription }
+            : {}),
+          ...(Object.hasOwn(normalizedPatch, 'genres') ? { genres: normalizedPatch.genres } : {}),
+          ...(Object.hasOwn(normalizedPatch, 'director') ? { director: normalizedPatch.director } : {}),
+          ...(Object.hasOwn(normalizedPatch, 'duration') ? { duration: normalizedPatch.duration } : {}),
+          ...(Object.hasOwn(normalizedPatch, 'kinopoiskId')
+            ? { kinopoiskId: normalizedPatch.kinopoiskId }
+            : {}),
+          ...(Object.hasOwn(normalizedPatch, 'watchUrl') ? { watchUrl: normalizedPatch.watchUrl } : {}),
+          ...(Object.hasOwn(normalizedPatch, 'status')
+            ? { status: normalizedPatch.status }
+            : shouldRefreshCreatedAt
+              ? { status: 'ready' }
+              : {}),
+          ...(hasPosterFile || Object.hasOwn(normalizedPatch, 'poster') ? { poster: nextPoster } : {}),
+          ...(shouldRefreshCreatedAt ? { createdAt: nextCreatedAt } : {}),
+        }
+
+        return { ...upload, ...uploadPatch }
+      })
     )
 
-    setAdminCatalogMovies((prev) =>
-      prev.map((movie) =>
-        movie.id === `admin_${normalizedUploadId}`
-          ? {
-              ...movie,
-              title: form.title,
-              year: Number(form.year) || new Date().getFullYear(),
-              genres: form.genres,
-              poster,
-              watchUrl: form.watchUrl || '#',
-              description: form.description,
-              clipDescription: form.clipDescription,
-              duration: form.duration,
-              director: form.director,
-              kinopoiskId: form.kinopoiskId,
-              createdAt,
-            }
-          : movie
-      )
-    )
+    if (hasPosterFile && isBlobUrl(previousPoster) && previousPoster !== nextPoster) {
+      URL.revokeObjectURL(previousPoster)
+    }
 
     return true
   }, [])
