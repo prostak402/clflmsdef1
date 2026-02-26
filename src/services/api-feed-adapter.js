@@ -167,7 +167,7 @@ export const apiFeedAdapter = {
 
   async persistLikeToggle(params) {
     const payload = normalizeWritePayload('persistLikeToggle', params)
-    const method = payload.shouldLike ? 'POST' : 'DELETE'
+    const method = payload.shouldLike === false ? 'DELETE' : 'POST'
 
     await requestJson(`/clips/${payload.clipId}/like`, {
       method,
@@ -176,7 +176,7 @@ export const apiFeedAdapter = {
 
   async persistBookmarkToggle(params) {
     const payload = normalizeWritePayload('persistBookmarkToggle', params)
-    const method = payload.shouldBookmark ? 'POST' : 'DELETE'
+    const method = payload.shouldBookmark === false ? 'DELETE' : 'POST'
 
     await requestJson(`/clips/${payload.clipId}/bookmark`, {
       method,
