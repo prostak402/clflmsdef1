@@ -147,9 +147,8 @@ export default function AuthPage() {
             <button
               className="auth-social-btn glass"
               onClick={() => {
-                login({ email: 'demo@clipflow.com', password: 'demo', mode: 'signin' }).then(() => {
-                  navigate('/genres')
-                })
+                login({ name: 'Demo User', email: 'demo@clipflow.com', avatar: null, isAdmin: false })
+                navigate('/genres')
               }}
             >
               <span className="auth-social-icon">🎬</span>
@@ -158,9 +157,8 @@ export default function AuthPage() {
             <button
               className="auth-social-btn glass"
               onClick={() => {
-                login({ email: 'admin@clipflow.com', password: 'demo', mode: 'signin' }).then(() => {
-                  navigate('/genres')
-                })
+                login({ name: 'Admin', email: 'admin@clipflow.com', avatar: null, isAdmin: true })
+                navigate('/genres')
               }}
             >
               <span className="auth-social-icon">👑</span>

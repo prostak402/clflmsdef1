@@ -18,8 +18,8 @@ function getDefaultAuthorizedPath(hasCompletedOnboarding) {
 function AuthOnlyRoute({ children }) {
   const { user, hasCompletedOnboarding, authStatus } = useApp()
 
-  if (authStatus === 'checking') {
-    return null
+  if (authStatus === 'checking' && !user) {
+    return children
   }
 
   if (user) {

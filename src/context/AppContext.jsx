@@ -167,9 +167,12 @@ function areSameMovieByTitleAndYear(left, right) {
 export function AppProvider({ children }) {
   const [persistedState] = useState(() => readPersistedState())
 
-  const [user, setUser] = useState(persistedState.user)
+  const persistedUser = persistedState.user
+  const persistedOnboarding = persistedState.hasCompletedOnboarding
+
+  const [user, setUser] = useState(persistedUser)
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(
-    persistedState.hasCompletedOnboarding
+    persistedOnboarding
   )
   const [selectedGenres, setSelectedGenres] = useState(persistedState.selectedGenres)
   const [bookmarks, setBookmarks] = useState(persistedState.bookmarks)
@@ -195,10 +198,10 @@ export function AppProvider({ children }) {
         setSessionExpired(Boolean(expired))
 
         if (!session?.user) {
-          if (persistedState.user) {
-            const persistedRole = persistedState.user.role || (persistedState.user.isAdmin ? 'admin' : 'user')
-            setUser({ ...persistedState.user, role: persistedRole })
-            setHasCompletedOnboarding(Boolean(persistedState.hasCompletedOnboarding))
+          if (persistedUser) {
+            const persistedRole = persistedUser.role || (persistedUser.isAdmin ? 'admin' : 'user')
+            setUser({ ...persistedUser, role: persistedRole })
+            setHasCompletedOnboarding(Boolean(persistedOnboarding))
             setAuthStatus('authenticated')
             return
           }
@@ -232,7 +235,7 @@ export function AppProvider({ children }) {
     return () => {
       isMounted = false
     }
-  }, [])
+  }, [persistedOnboarding, persistedUser])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
