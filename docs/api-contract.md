@@ -229,6 +229,108 @@
 
 ## 4) HTTP endpoints (MVP)
 
+## 4.0 Auth
+
+### `POST /auth/signup`
+
+Регистрация пользователя и выдача сессии.
+
+Request:
+
+```json
+{
+  "email": "user@example.com",
+  "password": "string (min 8)",
+  "displayName": "John"
+}
+```
+
+Response `201`:
+
+```json
+{
+  "accessToken": "jwt",
+  "refreshToken": "opaque-or-jwt",
+  "tokenType": "Bearer",
+  "expiresAt": "2026-02-22T10:35:30Z",
+  "user": {
+    "id": "uuid",
+    "email": "user@example.com",
+    "displayName": "John",
+    "avatarUrl": null,
+    "role": "user",
+    "hasCompletedOnboarding": false
+  }
+}
+```
+
+### `POST /auth/signin`
+
+Аутентификация пользователя по email/password и выдача сессии.
+
+Request:
+
+```json
+{
+  "email": "user@example.com",
+  "password": "string"
+}
+```
+
+Response `200`: такой же формат как `POST /auth/signup`.
+
+### `POST /auth/refresh`
+
+Обновление access-токена по refresh-токену.
+
+Request:
+
+```json
+{
+  "refreshToken": "opaque-or-jwt"
+}
+```
+
+Response `200`:
+
+```json
+{
+  "accessToken": "jwt",
+  "refreshToken": "opaque-or-jwt",
+  "tokenType": "Bearer",
+  "expiresAt": "2026-02-22T10:50:30Z",
+  "user": {
+    "id": "uuid",
+    "email": "user@example.com",
+    "displayName": "John",
+    "avatarUrl": null,
+    "role": "user",
+    "hasCompletedOnboarding": true
+  }
+}
+```
+
+### `POST /auth/logout`
+
+Завершение текущей сессии (инвалидация refresh-токена).
+
+Request:
+
+```json
+{
+  "refreshToken": "opaque-or-jwt"
+}
+```
+
+Response `204` без тела.
+
+Ролевые claims:
+
+- роль пользователя (`user|admin`) является server-side truth и передается в `user.role` и/или claims токена (`role`/`roles`).
+- доступ к admin endpoint-ам определяется только серверной ролью из валидированной сессии.
+
+---
+
 ## 4.1 Me
 
 ### `GET /me`

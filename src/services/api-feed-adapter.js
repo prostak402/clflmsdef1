@@ -1,5 +1,6 @@
 import { normalizeComment, normalizeCommentsMap } from './comment-normalizer'
 import { normalizeWritePayload } from './payload-normalizer'
+import { authService } from './auth-service'
 
 const DEFAULT_API_BASE_URL = '/api/v1'
 
@@ -67,10 +68,13 @@ async function requestJson(path, { method = 'GET', query, body } = {}) {
   let response
 
   try {
+    const accessToken = authService.getAccessToken()
+
     response = await fetch(url, {
       method,
       headers: {
         'Content-Type': 'application/json',
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       },
       body: body === undefined ? undefined : JSON.stringify(body),
     })
