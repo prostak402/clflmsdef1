@@ -152,8 +152,15 @@ npm run dev
 | Переменная         | По умолчанию | Назначение                                                          |
 | ------------------ | ------------ | ------------------------------------------------------------------- |
 | `VITE_DATA_SOURCE` | `mock`       | Источник данных для `feedService`: `mock` (текущий режим) или `api` |
+| `VITE_API_BASE_URL`| —            | Базовый URL backend API для `api`-режима                            |
+| `VITE_APP_ENV`     | `dev`        | Маркер окружения (`dev`/`stage`)                                    |
 
-> Сейчас `api`-режим представлен stub-адаптером и не предназначен для production-использования.
+Env-матрица для backend-ready сценариев:
+
+- `.env.dev.example` — локальная разработка (CORS localhost, relaxed cookie policy, dev secrets).
+- `.env.stage.example` — stage-контур (strict CORS, secure cookies, секреты только из secret manager).
+
+Дополнительно добавлены переменные для CORS и auth policy: `CORS_ALLOWED_ORIGINS`, `CORS_ALLOW_CREDENTIALS`, `AUTH_COOKIE_*`, `AUTH_*_TOKEN_*`.
 
 ## Текущие ограничения MVP
 
@@ -177,10 +184,10 @@ npm run dev
 
 - [ ] Определён целевой хостинг (VPS/Cloud) и бюджет на среду `dev/stage/prod`.
 - [ ] Настроены домен и TLS (HTTPS), описаны DNS-записи.
-- [ ] Подготовлены backend-конфиги и секреты (env, CORS, cookie/token policy).
-- [ ] Доступны тестовые БД/хранилище и seed-данные для smoke-проверок.
+- [x] Подготовлены backend-конфиги и секреты (env, CORS, cookie/token policy) через `.env.dev.example` и `.env.stage.example`.
+- [x] Доступны тестовые БД/seed-данные и версии seed (`seed_meta`) для smoke-проверок.
 - [ ] Реализованы минимальные endpoint-ы для auth/feed/comments/likes/bookmarks/moderation.
-- [ ] Настроен CI/CD деплой frontend + backend со stage-окружением.
+- [x] Настроен минимальный stage pipeline (`.github/workflows/stage-smoke.yml`): migrate + seed + smoke API.
 - [ ] Подключены наблюдаемость и алёрты (логи, метрики, error tracking).
 - [ ] Пройден базовый security-check (закрытые порты, секреты, rate-limit, backup).
 - [ ] Выполнен e2e smoke: вход, онбординг, лента, реакции, комментарии, админ-модерация.
@@ -236,6 +243,25 @@ npm run test:smoke
 ```
 
 Стабильный smoke-набор критичных тестов (последовательный запуск без file parallelism).
+
+
+```bash
+npm run db:migrate
+```
+
+Применить SQL-миграции из `db/migrations` в SQLite БД (`DB_PATH` можно переопределить env-переменной).
+
+```bash
+npm run db:seed
+```
+
+Идемпотентно загрузить seed-набор (пользователи, жанры, клипы, комментарии, лайки, закладки) и записать версию в `seed_meta`.
+
+```bash
+npm run smoke:stage-api
+```
+
+Smoke-check stage API (`/api/v1/genres`, `/api/v1/clips/feed`) при наличии `STAGE_API_BASE_URL`.
 
 ## Процесс разработки (рекомендуемый)
 

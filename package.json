@@ -12,7 +12,10 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:smoke": "vitest run --fileParallelism=false src/test/task-016-route-guards.test.jsx src/test/feed-service.optimistic.test.js src/test/task-012-app-context-transitions.test.jsx src/test/task-027-comment-validation.test.js"
+    "test:smoke": "vitest run --fileParallelism=false src/test/task-016-route-guards.test.jsx src/test/feed-service.optimistic.test.js src/test/task-012-app-context-transitions.test.jsx src/test/task-027-comment-validation.test.js",
+    "db:migrate": "python3 scripts/db/migrate.py",
+    "db:seed": "python3 scripts/db/seed.py",
+    "smoke:stage-api": "python3 scripts/db/stage_api_smoke.py"
   },
   "dependencies": {
     "lucide-react": "^0.563.0",
