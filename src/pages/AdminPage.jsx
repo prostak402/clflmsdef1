@@ -14,6 +14,7 @@ import {
   Pencil,
 } from 'lucide-react'
 import { contentService } from '../services/content-service'
+import { uploadClipWithMetadata, validateClipFile } from '../services/admin-upload-service'
 import './AdminPage.css'
 
 export default function AdminPage() {
@@ -21,6 +22,9 @@ export default function AdminPage() {
   const navigate = useNavigate()
   const [showForm, setShowForm] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [submitError, setSubmitError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [lastFailedPayload, setLastFailedPayload] = useState(null)
   const [saveAction, setSaveAction] = useState('create')
   const [editingClipId, setEditingClipId] = useState('')
   const [isEditMode, setIsEditMode] = useState(false)
@@ -82,7 +86,8 @@ export default function AdminPage() {
   }
 
   const handleStartEdit = (upload) => {
-    const clipId = typeof upload.movieId === 'string' && upload.movieId.trim() ? upload.movieId : upload.id
+    const clipId =
+      typeof upload.movieId === 'string' && upload.movieId.trim() ? upload.movieId : upload.id
 
     setShowForm(true)
     setIsEditMode(true)
@@ -103,24 +108,65 @@ export default function AdminPage() {
     })
   }
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
+  const submitForm = async (payload, { allowRetryStore = true } = {}) => {
+    setSubmitError('')
+    setIsSubmitting(true)
 
-    if (isEditMode) {
-      const updated = updateAdminClip(editingClipId, form)
-      if (!updated) {
-        return
+    try {
+      if (isEditMode) {
+        const updated = updateAdminClip(editingClipId, payload)
+        if (!updated) {
+          setSubmitError('Failed to update clip metadata.')
+          return
+        }
+        setSaveAction('edit')
+      } else {
+        const clipValidationError = validateClipFile(payload.clipFile)
+        if (clipValidationError) {
+          setSubmitError(clipValidationError)
+          return
+        }
+
+        await uploadClipWithMetadata({
+          file: payload.clipFile,
+          metadata: {
+            title: payload.title,
+            year: payload.year,
+            description: payload.description,
+            clipDescription: payload.clipDescription,
+            genres: payload.genres,
+            director: payload.director,
+            duration: payload.duration,
+            kinopoiskId: payload.kinopoiskId,
+            watchUrl: payload.watchUrl,
+          },
+        })
+
+        addAdminClip(payload)
+        setSaveAction('create')
       }
-      setSaveAction('edit')
-    } else {
-      addAdminClip(form)
-      setSaveAction('create')
-    }
 
-    resetFormState()
-    setShowForm(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 3000)
+      resetFormState()
+      setLastFailedPayload(null)
+      setShowForm(false)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    } catch (error) {
+      const nextError = error instanceof Error ? error.message : 'Upload failed. Please try again.'
+
+      setSubmitError(nextError)
+
+      if (allowRetryStore) {
+        setLastFailedPayload(payload)
+      }
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    await submitForm(form)
   }
 
   return (
@@ -292,10 +338,25 @@ export default function AdminPage() {
             </div>
           </div>
 
-          <button type="submit" className="admin-submit">
+          <button type="submit" className="admin-submit" disabled={isSubmitting}>
             <Save size={18} />
-            {isEditMode ? 'Save Changes' : 'Upload Clip'}
+            {isSubmitting ? 'Uploading...' : isEditMode ? 'Save Changes' : 'Upload Clip'}
           </button>
+
+          {submitError && (
+            <div className="admin-submit-error" role="alert">
+              <p>{submitError}</p>
+              {lastFailedPayload && !isSubmitting && (
+                <button
+                  type="button"
+                  className="admin-upload-retry"
+                  onClick={() => submitForm(lastFailedPayload, { allowRetryStore: false })}
+                >
+                  Retry upload
+                </button>
+              )}
+            </div>
+          )}
         </form>
       )}
 

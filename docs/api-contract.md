@@ -150,22 +150,21 @@
 | isEdited  | boolean          |           да | Признак редактирования    |
 | deletedAt | datetime \| null |          нет | Мягкое удаление           |
 
-
 ### 2.4.1 Comment DTO для feed UI (переходный контракт)
 
 Для совместимости mock/API и единообразного рендера в UI используется нормализованный формат комментария:
 
-| Поле       | Тип      | Обязательное | Описание |
-| ---------- | -------- | -----------: | -------- |
-| id         | string   |           да | Идентификатор комментария |
-| clipId     | string   |           да | Идентификатор клипа |
+| Поле       | Тип      | Обязательное | Описание                                          |
+| ---------- | -------- | -----------: | ------------------------------------------------- |
+| id         | string   |           да | Идентификатор комментария                         |
+| clipId     | string   |           да | Идентификатор клипа                               |
 | authorId   | string   |           да | Идентификатор автора (в MVP допускается non-uuid) |
-| authorName | string   |           да | Публичное имя автора |
-| avatar     | string   |           да | Emoji/url/avatar token |
-| text       | string   |           да | Текст комментария |
-| likes      | integer  |           да | Количество лайков, `>=0` |
-| createdAt  | datetime |           да | Дата создания в ISO 8601 UTC |
-| timeLabel  | string   |           да | Человекочитаемая метка времени для UI |
+| authorName | string   |           да | Публичное имя автора                              |
+| avatar     | string   |           да | Emoji/url/avatar token                            |
+| text       | string   |           да | Текст комментария                                 |
+| likes      | integer  |           да | Количество лайков, `>=0`                          |
+| createdAt  | datetime |           да | Дата создания в ISO 8601 UTC                      |
+| timeLabel  | string   |           да | Человекочитаемая метка времени для UI             |
 
 Переходная совместимость:
 
@@ -176,14 +175,14 @@
 
 Поля модерации закладываются в API-контракт заранее, даже если в MVP могут не возвращаться во всех endpoint-ах:
 
-| Поле              | Тип              | Обязательное | Описание |
-| ----------------- | ---------------- | -----------: | -------- |
-| moderationStatus  | enum             |           да | `pending` \| `approved` \| `rejected` |
-| moderationReason  | string \| null   |          нет | Причина отклонения, max 500 |
-| moderatedBy       | uuid \| null     |          нет | `User.id` модератора |
-| moderatedAt       | datetime \| null |          нет | Время модерации |
-| isHidden          | boolean          |           да | Скрыт ли комментарий из публичной ленты |
-| reportsCount      | integer          |           да | Количество репортов, `>=0` |
+| Поле             | Тип              | Обязательное | Описание                                |
+| ---------------- | ---------------- | -----------: | --------------------------------------- |
+| moderationStatus | enum             |           да | `pending` \| `approved` \| `rejected`   |
+| moderationReason | string \| null   |          нет | Причина отклонения, max 500             |
+| moderatedBy      | uuid \| null     |          нет | `User.id` модератора                    |
+| moderatedAt      | datetime \| null |          нет | Время модерации                         |
+| isHidden         | boolean          |           да | Скрыт ли комментарий из публичной ленты |
+| reportsCount     | integer          |           да | Количество репортов, `>=0`              |
 
 Базовые требования:
 
@@ -556,6 +555,76 @@ Response `200`:
 ```
 
 `assetUrl` затем передается в `CreateClipRequest/UpdateClipRequest` как `videoUrl`/`thumbnailUrl`.
+
+---
+
+### `POST /admin/clips/upload-url` (admin)
+
+Создать presigned URL для загрузки клипа в S3-совместимое хранилище.
+
+Request:
+
+```json
+{
+  "fileName": "my-clip.mp4",
+  "contentType": "video/mp4",
+  "size": 10485760
+}
+```
+
+Response `200`:
+
+```json
+{
+  "objectKey": "clips/2026-02-22/uuid.mp4",
+  "uploadUrl": "https://s3-compatible-storage/presigned-put",
+  "expiresIn": 900,
+  "requiredHeaders": {
+    "Content-Type": "video/mp4"
+  }
+}
+```
+
+Валидация на backend:
+
+- `contentType` должен входить в allow-list (например `video/mp4`, `video/webm`, `video/quicktime`);
+- `size` должен быть `> 0` и `<= MAX_CLIP_SIZE_BYTES`.
+
+### `POST /admin/clips` (admin)
+
+Фиксировать metadata клипа после успешной загрузки файла по presigned URL.
+
+Request:
+
+```json
+{
+  "title": "Movie title",
+  "description": "Movie description",
+  "clipDescription": "Clip scene description",
+  "watchUrl": "https://cinema.example.com/watch/123",
+  "genres": ["drama"],
+  "year": "2024",
+  "director": "Director",
+  "duration": "2h 10m",
+  "kinopoiskId": "12345",
+  "objectKey": "clips/2026-02-22/uuid.mp4"
+}
+```
+
+Response `201`:
+
+```json
+{
+  "clip": {
+    "id": "uuid",
+    "title": "Movie title",
+    "objectKey": "clips/2026-02-22/uuid.mp4",
+    "createdAt": "2026-02-22T10:20:30Z"
+  }
+}
+```
+
+Перед созданием записи backend обязан проверить, что `objectKey` реально существует в storage (например, через `HeadObject`).
 
 ---
 

@@ -255,6 +255,38 @@
   transform: translateY(-1px);
 }
 
+.admin-submit:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.admin-submit-error {
+  margin-top: var(--space-md);
+  padding: var(--space-md);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: var(--radius-md);
+  background: rgba(239, 68, 68, 0.08);
+  color: #fca5a5;
+}
+
+.admin-submit-error p {
+  font-size: var(--text-sm);
+}
+
+.admin-upload-retry {
+  margin-top: var(--space-sm);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(252, 165, 165, 0.5);
+  color: #fecaca;
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.admin-upload-retry:hover {
+  background: rgba(252, 165, 165, 0.1);
+}
+
 /* Uploads list */
 .admin-section-title {
   font-size: var(--text-lg);
@@ -335,7 +367,6 @@
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
 }
-
 
 .admin-upload-actions {
   display: flex;

@@ -1,0 +1,53 @@
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
+
+import { uploadClipWithMetadata, validateClipFile } from '../services/admin-upload-service'
+
+describe('admin-upload-service', () => {
+  const originalFetch = globalThis.fetch
+
+  beforeEach(() => {
+    globalThis.fetch = vi.fn()
+  })
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch
+    vi.restoreAllMocks()
+  })
+
+  it('validates mime type and file size', () => {
+    const invalidTypeError = validateClipFile({ type: 'image/png', size: 1024 })
+    expect(invalidTypeError).toMatch(/unsupported file type/i)
+
+    const invalidSizeError = validateClipFile({ type: 'video/mp4', size: 9999999999 })
+    expect(invalidSizeError).toMatch(/file is too large/i)
+  })
+
+  it('retries upload for retryable errors and stores metadata', async () => {
+    globalThis.fetch
+      .mockResolvedValueOnce({
+        ok: true,
+        text: async () =>
+          JSON.stringify({
+            objectKey: 'clips/obj.mp4',
+            uploadUrl: 'https://storage/upload',
+            requiredHeaders: { 'Content-Type': 'video/mp4' },
+          }),
+      })
+      .mockResolvedValueOnce({ ok: false, status: 503 })
+      .mockResolvedValueOnce({ ok: true, status: 200 })
+      .mockResolvedValueOnce({
+        ok: true,
+        text: async () => JSON.stringify({ clip: { id: 'clip_1' } }),
+      })
+
+    const result = await uploadClipWithMetadata({
+      file: { name: 'clip.mp4', type: 'video/mp4', size: 1024 },
+      metadata: { title: 'Movie', description: 'd', clipDescription: 'cd', watchUrl: 'https://x' },
+      maxAttempts: 3,
+    })
+
+    expect(result.clip).toEqual({ id: 'clip_1' })
+    expect(result.attemptsUsed).toBe(2)
+    expect(globalThis.fetch).toHaveBeenCalledTimes(4)
+  })
+})
