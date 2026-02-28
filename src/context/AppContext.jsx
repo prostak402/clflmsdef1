@@ -3,7 +3,7 @@ import { GENRE_SELECTION_MAX } from '../constants/onboarding'
 import { feedService } from '../services/feed-service'
 import { authService } from '../services/auth-service'
 import { validateCommentText } from '../services/comment-validation'
-import { MOCK_CATALOG } from '../data/mock'
+import { contentService } from '../services/content-service'
 
 import { AppContext } from './app-context'
 
@@ -739,8 +739,11 @@ export function AppProvider({ children }) {
     [adminUploads]
   )
 
-  const getCatalog = useCallback(() => {
-    return [...adminCatalogMovies, ...MOCK_CATALOG]
+  const getCatalog = useCallback(async () => {
+    const adapterCatalog = await contentService.getCatalog()
+    const safeCatalog = Array.isArray(adapterCatalog) ? adapterCatalog : []
+
+    return [...adminCatalogMovies, ...safeCatalog]
   }, [adminCatalogMovies])
 
   const getFilteredClips = useCallback(() => {

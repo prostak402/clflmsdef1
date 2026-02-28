@@ -262,6 +262,17 @@ export const apiFeedAdapter = {
     }, {})
   },
 
+
+  async getCatalog() {
+    const payload = await requestJson('/clips')
+
+    if (Array.isArray(payload)) {
+      return toClipUiList(payload)
+    }
+
+    return toClipUiList(Array.isArray(payload?.items) ? payload.items : [])
+  },
+
   async getBookmarks() {
     const payload = await requestJson('/me/bookmarks')
 
