@@ -113,6 +113,19 @@ async function createClipMetadata(metadata) {
   return payload?.clip || null
 }
 
+
+function toClipContractPayload(metadata = {}) {
+  return {
+    title: metadata.title,
+    description: metadata.description,
+    genreId: metadata.genreId,
+    durationSec: Number(metadata.durationSec) || 0,
+    videoUrl: metadata.videoUrl,
+    thumbnailUrl: metadata.thumbnailUrl,
+    status: metadata.status || 'draft',
+  }
+}
+
 function isRetryableError(error) {
   return RETRYABLE_STATUS_CODES.has(Number(error?.status))
 }
@@ -134,7 +147,7 @@ export async function uploadClipWithMetadata({ file, metadata, maxAttempts = 3 }
       })
 
       const clip = await createClipMetadata({
-        ...metadata,
+        ...toClipContractPayload(metadata),
         objectKey: uploadUrlPayload.objectKey,
       })
 

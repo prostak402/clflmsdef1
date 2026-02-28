@@ -42,7 +42,14 @@ describe('admin-upload-service', () => {
 
     const result = await uploadClipWithMetadata({
       file: { name: 'clip.mp4', type: 'video/mp4', size: 1024 },
-      metadata: { title: 'Movie', description: 'd', clipDescription: 'cd', watchUrl: 'https://x' },
+      metadata: {
+        title: 'Movie',
+        description: 'd',
+        genreId: 'drama',
+        durationSec: 60,
+        videoUrl: 'https://cdn/video.mp4',
+        thumbnailUrl: 'https://cdn/thumb.jpg',
+      },
       maxAttempts: 3,
     })
 
