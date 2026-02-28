@@ -1,64 +1,21 @@
 import { MOCK_CLIPS, MOCK_COMMENTS } from '../data/mock'
-import { normalizeComment, normalizeCommentsMap } from './comment-normalizer'
+import { toClipUiList } from './mappers/clip-mapper'
+import { flattenCommentsForModeration, toCommentUiModel, toCommentsMapUiModel } from './mappers/comment-mapper'
 
-export const initialComments = normalizeCommentsMap(MOCK_COMMENTS)
+export const initialComments = toCommentsMapUiModel(MOCK_COMMENTS)
 
 function simulateNetwork() {
   return Promise.resolve()
-}
-
-function flattenCommentsForModeration({ commentsMap, clips = [], blockedUsers = {} }) {
-  const clipNameById = clips.reduce((acc, clip) => {
-    if (clip?.id) {
-      acc[clip.id] = clip.title || 'Unknown clip'
-    }
-
-    return acc
-  }, {})
-
-  let order = 0
-
-  return Object.entries(commentsMap || {})
-    .flatMap(([clipId, clipComments]) => {
-      if (!Array.isArray(clipComments)) {
-        return []
-      }
-
-      return clipComments.map((comment) => ({
-        ...comment,
-        clipId: comment?.clipId || clipId,
-        clipTitle: clipNameById[comment?.clipId || clipId] || 'Unknown clip',
-        isBlockedAuthor: Boolean(blockedUsers[comment?.authorId || '']),
-        __order: order++,
-      }))
-    })
-    .sort((a, b) => {
-      const aTime = Date.parse(a?.createdAt || '')
-      const bTime = Date.parse(b?.createdAt || '')
-      const aTs = Number.isNaN(aTime) ? -Infinity : aTime
-      const bTs = Number.isNaN(bTime) ? -Infinity : bTime
-
-      if (bTs !== aTs) {
-        return bTs - aTs
-      }
-
-      return a.__order - b.__order
-    })
-    .map((comment) => {
-      const normalizedComment = { ...comment }
-      delete normalizedComment.__order
-      return normalizedComment
-    })
 }
 
 /** @type {import('./feed-adapter').FeedAdapter} */
 export const mockFeedAdapter = {
   getFeed({ selectedGenres = [] } = {}) {
     if (selectedGenres.length === 0) {
-      return MOCK_CLIPS
+      return toClipUiList(MOCK_CLIPS)
     }
 
-    return MOCK_CLIPS.filter((clip) => clip.genres.some((genre) => selectedGenres.includes(genre)))
+    return toClipUiList(MOCK_CLIPS.filter((clip) => clip.genres.some((genre) => selectedGenres.includes(genre))))
   },
 
   toggleLike({ clipId, likes }) {
@@ -83,11 +40,7 @@ export const mockFeedAdapter = {
   },
 
   getAllCommentsForModeration({ comments = {}, clips = MOCK_CLIPS, blockedUsers = {} } = {}) {
-    return flattenCommentsForModeration({
-      commentsMap: comments,
-      clips,
-      blockedUsers,
-    })
+    return flattenCommentsForModeration(comments, { clips, blockedUsers })
   },
 
   blockUserComments({ authorId, blockedUsers }) {
@@ -118,7 +71,7 @@ export const mockFeedAdapter = {
   createComment({ clipId, text, comments, userName, authorId }) {
     const nowIso = new Date().toISOString()
 
-    const newComment = normalizeComment(
+    const newComment = toCommentUiModel(
       {
         id: `cm_${Date.now()}`,
         clipId,
@@ -140,7 +93,7 @@ export const mockFeedAdapter = {
   },
 
   getBookmarks({ bookmarks }) {
-    return MOCK_CLIPS.filter((clip) => bookmarks.includes(clip.id))
+    return toClipUiList(MOCK_CLIPS.filter((clip) => bookmarks.includes(clip.id)))
   },
 
   getProfile({ user, bookmarks, likes }) {

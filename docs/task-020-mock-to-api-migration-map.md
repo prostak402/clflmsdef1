@@ -264,3 +264,54 @@
 | `CatalogPage` | `movie.year` | remove | `movie.subtitle` (`durationLabel`) |
 | `CatalogPage` | `movie.rating` | remove | `movie.genreName` |
 | `CatalogPage` | `movie.genres[]` | transform | `movie.genreId` + lookup через жанры |
+
+## 8) Единый UI-контракт маппинга (`src/services/mappers/*`)
+
+### 6.1 Обязательные поля `Clip` в UI-модели
+
+`toClipUiModel(...)` всегда возвращает объект с полями:
+`id`, `title`, `description`, `thumbnailUrl`, `videoUrl`, `externalUrl`, `durationSec`, `durationLabel`, `genreId`, `genreName`, `likesCount`, `commentsCount`, `sharesCount`, `bookmarksCount`.
+
+Правила обработки пропусков:
+- `id`: пустая строка, если не удалось извлечь.
+- `title`: `"Untitled clip"`.
+- `description`: `""`.
+- `thumbnailUrl`: `https://placehold.co/400x600?text=No+Preview`.
+- `videoUrl`: `""`.
+- `externalUrl`: `"#"`.
+- `durationSec`: число, по умолчанию `0`; поддерживается парсинг legacy `duration` (`"2h 5m"`).
+- `durationLabel`: вычисляется из `durationSec`, при `0` — `"—"`.
+- `genreId`: `genreId` API или первый элемент `genres`, иначе `"unknown"`.
+- `genreName`: из lookup, иначе `"Unknown"`.
+- счетчики (`likesCount/commentsCount/sharesCount/bookmarksCount`): числа, default `0`.
+
+### 6.2 Обязательные поля `Comment` в UI-модели
+
+`toCommentUiModel(...)` всегда возвращает:
+`id`, `clipId`, `authorId`, `authorName`, `avatar`, `text`, `likes`, `createdAt`, `timeLabel`.
+
+Правила обработки пропусков:
+- `id`: генерируемый `cm_*`.
+- `clipId`: входной `comment.clipId` или clipId из контекста.
+- `authorId`: `"anonymous"`.
+- `authorName`: `authorName` → `user` → `"Anonymous"`.
+- `avatar`: `"👤"`.
+- `text`: `""`.
+- `likes`: `0`.
+- `createdAt`: текущее время, если входное невалидно.
+- `timeLabel`: человекочитаемый relative time или fallback `"Just now"`.
+
+### 6.3 Обязательные поля `Genre` lookup
+
+`createGenreLookup(...)` возвращает lookup по slug/id, где каждый жанр содержит:
+`id`, `name`, `icon`, `color`.
+
+Правила обработки пропусков:
+- `id`: берется из `id || slug`, пустые значения пропускаются.
+- `name`: `"Unknown"`.
+- `icon/color`: из `src/constants/genre-ui-meta.js`, либо из входного объекта жанра, если явно заданы.
+
+### 6.4 Применение в адаптерах
+
+- `api-feed-adapter` и `mock-feed-adapter` обязаны возвращать одинаковую UI-форму через shared mapper-функции.
+- Компоненты UI не должны дублировать fallback-логику для этих полей; fallback централизован в `src/services/mappers/*`.
