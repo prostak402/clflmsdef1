@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useApp } from '../context/useApp'
 import { Link, useNavigate } from 'react-router-dom'
 import {
@@ -10,7 +10,6 @@ import {
   Save,
   AlertTriangle,
   Check,
-  Link as LinkIcon,
   Pencil,
 } from 'lucide-react'
 import { contentService } from '../services/content-service'
@@ -32,13 +31,9 @@ export default function AdminPage() {
   const emptyForm = {
     title: '',
     description: '',
-    clipDescription: '',
     genres: [],
-    year: '',
-    director: '',
     duration: '',
     kinopoiskId: '',
-    watchUrl: '',
     poster: '',
     clipFile: null,
     posterFile: null,
@@ -47,17 +42,29 @@ export default function AdminPage() {
   const [form, setForm] = useState({
     title: '',
     description: '',
-    clipDescription: '',
     genres: [],
-    year: '',
-    director: '',
     duration: '',
     kinopoiskId: '',
-    watchUrl: '',
     poster: '',
     clipFile: null,
     posterFile: null,
   })
+
+  const normalizedFormPayload = useMemo(() => {
+    const durationMatch = String(form.duration || '').match(/\d+/)
+    const durationSec = Number(durationMatch?.[0]) > 0 ? Number(durationMatch[0]) * 60 : 0
+
+    return {
+      title: form.title,
+      description: form.description,
+      genreId: form.genres[0] || '',
+      durationSec,
+      videoUrl: '',
+      thumbnailUrl: form.poster || '',
+      externalUrl: '#',
+      status: 'draft',
+    }
+  }, [form.description, form.duration, form.genres, form.poster, form.title])
 
   if (!user?.isAdmin) {
     return (
@@ -95,13 +102,9 @@ export default function AdminPage() {
     setForm({
       title: upload.title || '',
       description: upload.description || '',
-      clipDescription: upload.clipDescription || '',
-      genres: upload.genres || [],
-      year: upload.year || '',
-      director: upload.director || '',
+      genres: upload.genreId ? [upload.genreId] : [],
       duration: upload.duration || '',
       kinopoiskId: upload.kinopoiskId || '',
-      watchUrl: upload.watchUrl || '',
       poster: upload.poster || '',
       clipFile: null,
       posterFile: null,
@@ -113,6 +116,11 @@ export default function AdminPage() {
     setIsSubmitting(true)
 
     try {
+      if (!payload.genreId) {
+        setSubmitError('Please select at least one genre.')
+        return
+      }
+
       if (isEditMode) {
         const updated = updateAdminClip(editingClipId, payload)
         if (!updated) {
@@ -131,14 +139,13 @@ export default function AdminPage() {
           file: payload.clipFile,
           metadata: {
             title: payload.title,
-            year: payload.year,
             description: payload.description,
-            clipDescription: payload.clipDescription,
-            genres: payload.genres,
-            director: payload.director,
-            duration: payload.duration,
-            kinopoiskId: payload.kinopoiskId,
-            watchUrl: payload.watchUrl,
+            genreId: payload.genreId,
+            durationSec: payload.durationSec,
+            videoUrl: payload.videoUrl,
+            thumbnailUrl: payload.thumbnailUrl,
+            status: payload.status,
+            externalUrl: payload.externalUrl,
           },
         })
 
@@ -166,7 +173,7 @@ export default function AdminPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    await submitForm(form)
+    await submitForm({ ...form, ...normalizedFormPayload })
   }
 
   return (
@@ -213,17 +220,6 @@ export default function AdminPage() {
             </div>
 
             <div className="admin-field">
-              <label>Year</label>
-              <input
-                type="number"
-                placeholder="2024"
-                value={form.year}
-                onChange={(e) => setForm({ ...form, year: e.target.value })}
-                required
-              />
-            </div>
-
-            <div className="admin-field">
               <label>Duration</label>
               <input
                 type="text"
@@ -234,32 +230,12 @@ export default function AdminPage() {
             </div>
 
             <div className="admin-field full">
-              <label>Director</label>
-              <input
-                type="text"
-                placeholder="Director name"
-                value={form.director}
-                onChange={(e) => setForm({ ...form, director: e.target.value })}
-              />
-            </div>
-
-            <div className="admin-field full">
               <label>Movie Description</label>
               <textarea
                 placeholder="Full movie description..."
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
                 rows={3}
-              />
-            </div>
-
-            <div className="admin-field full">
-              <label>Clip Description</label>
-              <textarea
-                placeholder="What happens in this clip..."
-                value={form.clipDescription}
-                onChange={(e) => setForm({ ...form, clipDescription: e.target.value })}
-                rows={2}
               />
             </div>
 
@@ -276,20 +252,6 @@ export default function AdminPage() {
                   Update
                 </button>
               </div>
-            </div>
-
-            <div className="admin-field full">
-              <label>
-                <LinkIcon size={14} />
-                Watch URL (your cinema site)
-              </label>
-              <input
-                type="url"
-                placeholder="https://your-cinema-site.com/watch/movie"
-                value={form.watchUrl}
-                onChange={(e) => setForm({ ...form, watchUrl: e.target.value })}
-                required
-              />
             </div>
 
             <div className="admin-field full">

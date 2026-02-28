@@ -72,6 +72,7 @@ export function toClipUiModel(entity, genreLookup = {}) {
     commentsCount: safeNumber(entity?.commentsCount, safeNumber(entity?.comments)),
     sharesCount: safeNumber(entity?.sharesCount, safeNumber(entity?.shares)),
     bookmarksCount: safeNumber(entity?.bookmarksCount, safeNumber(entity?.bookmarks)),
+    status: safeString(entity?.status, 'draft'),
   }
 }
 

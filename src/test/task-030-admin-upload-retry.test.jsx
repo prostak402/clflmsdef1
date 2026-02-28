@@ -48,10 +48,7 @@ describe('TASK-030: admin upload retry UX', () => {
     fireEvent.change(screen.getByPlaceholderText('Enter movie title'), {
       target: { value: 'Movie' },
     })
-    fireEvent.change(screen.getByPlaceholderText('2024'), { target: { value: '2024' } })
-    fireEvent.change(screen.getByPlaceholderText('https://your-cinema-site.com/watch/movie'), {
-      target: { value: 'https://example.com/watch' },
-    })
+    fireEvent.click(screen.getByRole('button', { name: 'Drama' }))
 
     const videoUploadZone = screen.getByText('Choose video file').closest('.admin-upload-zone')
     const videoInput = videoUploadZone?.querySelector('input[type="file"]')

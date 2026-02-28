@@ -228,13 +228,11 @@ describe('TASK-012: AppContext state transitions', () => {
       getCurrent().addAdminClip({
         title: 'Linked Movie',
         description: 'desc',
-        clipDescription: 'clip',
-        genres: ['drama'],
-        year: '2020',
-        director: 'Director',
+        genreId: 'drama',
+        durationSec: 120,
         duration: '120',
         kinopoiskId: '123',
-        watchUrl: 'https://example.com/movie',
+        externalUrl: 'https://example.com/movie',
         posterFile: null,
         clipFile: null,
       })
@@ -256,7 +254,7 @@ describe('TASK-012: AppContext state transitions', () => {
     await expect(getCurrent().getCatalog()).resolves.not.toContainEqual(expect.objectContaining({ id: createdUpload.movieId }))
   })
 
-  it('supports legacy fallback by title/year and keeps getCatalog consistent after edit/delete', async () => {
+  it('supports legacy fallback by title/genreId and keeps getCatalog consistent after edit/delete', async () => {
     const legacyUploadId = 'upload_legacy_1'
     const legacyMovieId = 'admin_legacy_1'
     window.localStorage.setItem(
@@ -279,7 +277,6 @@ describe('TASK-012: AppContext state transitions', () => {
             {
               id: legacyUploadId,
               title: 'Legacy Movie',
-              year: 1999,
               status: 'ready',
               createdAt: 'legacy',
             },
@@ -288,7 +285,6 @@ describe('TASK-012: AppContext state transitions', () => {
             {
               id: legacyMovieId,
               title: 'Legacy Movie',
-              year: 1999,
               rating: 0,
               genres: [],
               poster: '',

@@ -10,14 +10,10 @@ const INITIAL_UPLOAD = {
   id: 'upload_1',
   movieId: 'admin_upload_1',
   title: 'Original title',
-  year: '2024',
   description: 'Original movie description',
-  clipDescription: 'Original clip description',
-  genres: ['drama'],
-  director: 'Original director',
+  genreId: 'drama',
   duration: '120m',
   kinopoiskId: '101',
-  watchUrl: 'https://example.com/original',
   status: 'ready',
   createdAt: 'now',
   poster: '',
@@ -90,9 +86,6 @@ describe('TASK-028: admin clip editing UI', () => {
     expect(screen.getByRole('heading', { name: 'Edit Clip' })).toBeInTheDocument()
     expect(screen.getByPlaceholderText('Enter movie title')).toHaveValue('Original title')
     expect(screen.getByPlaceholderText('Full movie description...')).toHaveValue('Original movie description')
-    expect(screen.getByPlaceholderText('https://your-cinema-site.com/watch/movie')).toHaveValue(
-      'https://example.com/original'
-    )
   })
 
   it('saves edit through updateAdminClip and refreshes upload list', async () => {

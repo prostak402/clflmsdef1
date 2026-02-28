@@ -65,14 +65,9 @@ function createBaseState() {
         id: 'upload_1',
         movieId: 'admin_upload_1',
         title: 'Movie One',
-        year: '2021',
         description: 'desc 1',
-        clipDescription: 'clip 1',
-        genres: ['drama'],
-        director: 'Dir 1',
         duration: '100m',
         kinopoiskId: '11',
-        watchUrl: 'https://example.com/one',
         status: 'ready',
         createdAt: 't1',
         poster: '',
@@ -81,14 +76,9 @@ function createBaseState() {
         id: 'upload_2',
         movieId: 'admin_upload_2',
         title: 'Movie Two',
-        year: '2022',
         description: 'desc 2',
-        clipDescription: 'clip 2',
-        genres: ['action'],
-        director: 'Dir 2',
         duration: '90m',
         kinopoiskId: '22',
-        watchUrl: 'https://example.com/two',
         status: 'ready',
         createdAt: 't2',
         poster: '',
@@ -98,30 +88,22 @@ function createBaseState() {
       {
         id: 'admin_upload_1',
         title: 'Movie One',
-        year: 2021,
         rating: 0,
-        genres: ['drama'],
+        genreId: 'drama',
         poster: '',
-        watchUrl: 'https://example.com/one',
         description: 'desc 1',
-        clipDescription: 'clip 1',
         duration: '100m',
-        director: 'Dir 1',
         kinopoiskId: '11',
         createdAt: 't1',
       },
       {
         id: 'admin_upload_2',
         title: 'Movie Two',
-        year: 2022,
         rating: 0,
-        genres: ['action'],
+        genreId: 'action',
         poster: '',
-        watchUrl: 'https://example.com/two',
         description: 'desc 2',
-        clipDescription: 'clip 2',
         duration: '90m',
-        director: 'Dir 2',
         kinopoiskId: '22',
         createdAt: 't2',
       },
@@ -130,6 +112,54 @@ function createBaseState() {
 }
 
 describe('TASK-029: AppContext admin clip state logic', () => {
+
+  it('creates and edits admin clip using api-contract fields only', async () => {
+    const { getCurrent } = await renderAppContextWithState(createBaseState())
+
+    await act(async () => {
+      getCurrent().addAdminClip({
+        title: 'Contract Clip',
+        description: 'contract description',
+        genreId: 'comedy',
+        durationSec: 90,
+        duration: '1m',
+        videoUrl: 'https://cdn.example.com/clip.mp4',
+        thumbnailUrl: 'https://cdn.example.com/thumb.jpg',
+        externalUrl: 'https://cinema.example.com/watch/contract',
+      })
+    })
+
+    const createdUpload = getCurrent().adminUploads.find((upload) => upload.title === 'Contract Clip')
+    expect(createdUpload).toBeTruthy()
+    expect(createdUpload).toEqual(
+      expect.objectContaining({
+        genreId: 'comedy',
+        durationSec: 90,
+      })
+    )
+    expect(createdUpload).not.toHaveProperty('year')
+    expect(createdUpload).not.toHaveProperty('director')
+    expect(createdUpload).not.toHaveProperty('watchUrl')
+    expect(createdUpload).not.toHaveProperty('clipDescription')
+
+    await act(async () => {
+      const updated = getCurrent().updateAdminClip(createdUpload.movieId, {
+        title: 'Contract Clip Updated',
+        genreId: 'drama',
+        durationSec: 120,
+      })
+      expect(updated).toBe(true)
+    })
+
+    const editedUpload = getCurrent().adminUploads.find((upload) => upload.id === createdUpload.id)
+    expect(editedUpload).toEqual(
+      expect.objectContaining({
+        title: 'Contract Clip Updated',
+        genreId: 'drama',
+        durationSec: 120,
+      })
+    )
+  })
   it('updateAdminClip updates only target clip', async () => {
     const { getCurrent } = await renderAppContextWithState(createBaseState())
 

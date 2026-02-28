@@ -157,10 +157,10 @@ function normalizeMovieTitle(value) {
   return typeof value === 'string' ? value.trim().toLowerCase() : ''
 }
 
-function areSameMovieByTitleAndYear(left, right) {
+function areSameMovieByTitleAndGenre(left, right) {
   return (
     normalizeMovieTitle(left?.title) === normalizeMovieTitle(right?.title) &&
-    Number(left?.year) === Number(right?.year)
+    String(left?.genreId || '').trim() === String(right?.genreId || '').trim()
   )
 }
 
@@ -527,14 +527,14 @@ export function AppProvider({ children }) {
       id: uploadId,
       movieId: catalogMovieId,
       title: form.title,
-      year: form.year,
       description: form.description,
-      clipDescription: form.clipDescription,
-      genres: form.genres,
-      director: form.director,
+      genreId: form.genreId,
+      durationSec: form.durationSec,
       duration: form.duration,
       kinopoiskId: form.kinopoiskId,
-      watchUrl: form.watchUrl,
+      thumbnailUrl: form.thumbnailUrl,
+      videoUrl: form.videoUrl,
+      externalUrl: form.externalUrl || '#',
       status: 'processing',
       createdAt,
       poster,
@@ -545,21 +545,21 @@ export function AppProvider({ children }) {
     const catalogMovie = {
       id: catalogMovieId,
       title: form.title,
-      year: Number(form.year) || new Date().getFullYear(),
       rating: 0,
-      genres: form.genres,
+      genreId: form.genreId || 'unknown',
       poster,
-      watchUrl: form.watchUrl || '#',
+      externalUrl: form.externalUrl || '#',
       description: form.description,
-      clipDescription: form.clipDescription,
+      durationSec: Number(form.durationSec) || 0,
       duration: form.duration,
-      director: form.director,
       kinopoiskId: form.kinopoiskId,
+      thumbnailUrl: form.thumbnailUrl || poster,
+      videoUrl: form.videoUrl || '',
       createdAt,
     }
 
     setAdminCatalogMovies((prev) => {
-      const existingIndex = prev.findIndex((movie) => areSameMovieByTitleAndYear(movie, catalogMovie))
+      const existingIndex = prev.findIndex((movie) => areSameMovieByTitleAndGenre(movie, catalogMovie))
 
       if (existingIndex === -1) {
         return [catalogMovie, ...prev]
@@ -623,26 +623,21 @@ export function AppProvider({ children }) {
 
         const catalogPatch = {
           ...(Object.hasOwn(normalizedPatch, 'title') ? { title: normalizedPatch.title } : {}),
-          ...(Object.hasOwn(normalizedPatch, 'genres') ? { genres: normalizedPatch.genres } : {}),
-          ...(Object.hasOwn(normalizedPatch, 'watchUrl') ? { watchUrl: normalizedPatch.watchUrl } : {}),
+          ...(Object.hasOwn(normalizedPatch, 'genreId') ? { genreId: normalizedPatch.genreId } : {}),
+          ...(Object.hasOwn(normalizedPatch, 'externalUrl')
+            ? { externalUrl: normalizedPatch.externalUrl }
+            : {}),
           ...(Object.hasOwn(normalizedPatch, 'description')
             ? { description: normalizedPatch.description }
             : {}),
-          ...(Object.hasOwn(normalizedPatch, 'clipDescription')
-            ? { clipDescription: normalizedPatch.clipDescription }
-            : {}),
           ...(Object.hasOwn(normalizedPatch, 'duration') ? { duration: normalizedPatch.duration } : {}),
-          ...(Object.hasOwn(normalizedPatch, 'director') ? { director: normalizedPatch.director } : {}),
+          ...(Object.hasOwn(normalizedPatch, 'durationSec')
+            ? { durationSec: Number(normalizedPatch.durationSec) || 0 }
+            : {}),
           ...(Object.hasOwn(normalizedPatch, 'kinopoiskId')
             ? { kinopoiskId: normalizedPatch.kinopoiskId }
             : {}),
           ...(Object.hasOwn(normalizedPatch, 'status') ? { status: normalizedPatch.status } : {}),
-          ...(Object.hasOwn(normalizedPatch, 'year')
-            ? {
-                year:
-                  Number(normalizedPatch.year) || Number(prevItem.year) || new Date().getFullYear(),
-              }
-            : {}),
           ...(hasPosterFile || Object.hasOwn(normalizedPatch, 'poster') ? { poster: nextPoster } : {}),
           ...(shouldRefreshCreatedAt ? { createdAt: nextCreatedAt } : {}),
         }
@@ -659,7 +654,7 @@ export function AppProvider({ children }) {
             upload.movieId === resolvedCatalogId ||
             (!upload.movieId &&
               normalizedClipId.startsWith('admin_') &&
-              areSameMovieByTitleAndYear(upload, existingCatalogMovie))
+              areSameMovieByTitleAndGenre(upload, existingCatalogMovie))
 
           if (!shouldUpdateUpload) {
             return upload
@@ -667,20 +662,20 @@ export function AppProvider({ children }) {
 
           const uploadPatch = {
             ...(Object.hasOwn(normalizedPatch, 'title') ? { title: normalizedPatch.title } : {}),
-            ...(Object.hasOwn(normalizedPatch, 'year') ? { year: normalizedPatch.year } : {}),
             ...(Object.hasOwn(normalizedPatch, 'description')
               ? { description: normalizedPatch.description }
               : {}),
-            ...(Object.hasOwn(normalizedPatch, 'clipDescription')
-              ? { clipDescription: normalizedPatch.clipDescription }
-              : {}),
-            ...(Object.hasOwn(normalizedPatch, 'genres') ? { genres: normalizedPatch.genres } : {}),
-            ...(Object.hasOwn(normalizedPatch, 'director') ? { director: normalizedPatch.director } : {}),
+            ...(Object.hasOwn(normalizedPatch, 'genreId') ? { genreId: normalizedPatch.genreId } : {}),
             ...(Object.hasOwn(normalizedPatch, 'duration') ? { duration: normalizedPatch.duration } : {}),
+            ...(Object.hasOwn(normalizedPatch, 'durationSec')
+              ? { durationSec: Number(normalizedPatch.durationSec) || 0 }
+              : {}),
             ...(Object.hasOwn(normalizedPatch, 'kinopoiskId')
               ? { kinopoiskId: normalizedPatch.kinopoiskId }
               : {}),
-            ...(Object.hasOwn(normalizedPatch, 'watchUrl') ? { watchUrl: normalizedPatch.watchUrl } : {}),
+            ...(Object.hasOwn(normalizedPatch, 'externalUrl')
+              ? { externalUrl: normalizedPatch.externalUrl }
+              : {}),
             ...(Object.hasOwn(normalizedPatch, 'status')
               ? { status: normalizedPatch.status }
               : shouldRefreshCreatedAt
@@ -731,7 +726,7 @@ export function AppProvider({ children }) {
           return prevCatalogMovies.filter((movie) => movie.id !== resolvedMovieId)
         }
 
-        return prevCatalogMovies.filter((movie) => !areSameMovieByTitleAndYear(movie, removedUpload))
+        return prevCatalogMovies.filter((movie) => !areSameMovieByTitleAndGenre(movie, removedUpload))
       })
 
       return true
