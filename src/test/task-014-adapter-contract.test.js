@@ -1,50 +1,49 @@
 import { describe, expect, it } from 'vitest'
 
 import { feedService } from '../services/feed-service'
+import { contentService } from '../services/content-service'
+import { createGenreLookup, toClipViewModel } from '../services/clip-view-model'
 
-const REQUIRED_CLIP_FIELDS = [
+const REQUIRED_CLIP_VM_FIELDS = [
   'id',
-  'movieId',
   'title',
   'description',
-  'clipDescription',
-  'genres',
-  'year',
-  'rating',
-  'director',
-  'duration',
-  'poster',
-  'clipUrl',
-  'watchUrl',
-  'likes',
-  'comments',
-  'shares',
-  'bookmarks',
+  'thumbnailUrl',
+  'videoUrl',
+  'externalUrl',
+  'durationSec',
+  'durationLabel',
+  'genreId',
+  'genreName',
+  'likesCount',
+  'commentsCount',
+  'sharesCount',
+  'bookmarksCount',
 ]
 
 const REQUIRED_PROFILE_FIELDS = ['name', 'email', 'avatar', 'bookmarkCount', 'likeCount']
+const GENRE_LOOKUP = createGenreLookup(contentService.getGenres())
 
 describe('TASK-014: feed adapter response contract', () => {
-  it('returns feed items with required clip fields and stable primitive shapes', () => {
+  it('maps feed items to clip view-model with stable API-compatible fields', () => {
     const feed = feedService.getFeed()
 
     expect(Array.isArray(feed)).toBe(true)
     expect(feed.length).toBeGreaterThan(0)
 
-    const firstClip = feed[0]
+    const firstClipVm = toClipViewModel(feed[0], GENRE_LOOKUP)
 
-    expect(firstClip).toEqual(
+    expect(firstClipVm).toEqual(
       expect.objectContaining(
-        Object.fromEntries(REQUIRED_CLIP_FIELDS.map((field) => [field, expect.anything()]))
+        Object.fromEntries(REQUIRED_CLIP_VM_FIELDS.map((field) => [field, expect.anything()]))
       )
     )
-    expect(Array.isArray(firstClip.genres)).toBe(true)
-    expect(typeof firstClip.id).toBe('string')
-    expect(typeof firstClip.title).toBe('string')
-    expect(typeof firstClip.year).toBe('number')
-    expect(typeof firstClip.rating).toBe('number')
-    expect(typeof firstClip.likes).toBe('number')
-    expect(typeof firstClip.comments).toBe('number')
+    expect(typeof firstClipVm.id).toBe('string')
+    expect(typeof firstClipVm.title).toBe('string')
+    expect(typeof firstClipVm.durationSec).toBe('number')
+    expect(typeof firstClipVm.likesCount).toBe('number')
+    expect(typeof firstClipVm.commentsCount).toBe('number')
+    expect(typeof firstClipVm.bookmarksCount).toBe('number')
   })
 
   it('returns profile with required fields and numeric counters', () => {

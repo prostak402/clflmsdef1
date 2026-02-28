@@ -59,14 +59,14 @@ export default function ClipCard({
   const isLiked = likes[clip.id]
   const isBookmarked = bookmarks.includes(clip.id)
 
-  const clipVideoUrl = clip.videoUrl || clip.clipUrl || ''
-  const clipThumbnailUrl = clip.thumbnailUrl || clip.poster || ''
-  const clipWatchUrl = clip.externalUrl || clip.watchUrl || clipVideoUrl
-  const clipDescription = clip.description || clip.clipDescription || ''
-  const clipLikesCount = Number.isFinite(Number(clip.likesCount)) ? Number(clip.likesCount) : Number(clip.likes || 0)
-  const clipCommentsCount = Number.isFinite(Number(clip.commentsCount)) ? Number(clip.commentsCount) : Number(clip.comments || 0)
-  const clipSharesCount = Number.isFinite(Number(clip.sharesCount)) ? Number(clip.sharesCount) : Number(clip.shares || 0)
-  const clipBookmarksCount = Number.isFinite(Number(clip.bookmarksCount)) ? Number(clip.bookmarksCount) : Number(clip.bookmarks || 0)
+  const clipVideoUrl = clip.videoUrl || ''
+  const clipThumbnailUrl = clip.thumbnailUrl || ''
+  const clipWatchUrl = clip.externalUrl || clipVideoUrl
+  const clipDescription = clip.description || ''
+  const clipLikesCount = Number(clip.likesCount || 0)
+  const clipCommentsCount = Number(clip.commentsCount || 0)
+  const clipSharesCount = Number(clip.sharesCount || 0)
+  const clipBookmarksCount = Number(clip.bookmarksCount || 0)
 
   const trackEvent = useCallback((event, payload) => {
     if (!feedRequestId || !impressionId) {
@@ -300,7 +300,7 @@ export default function ClipCard({
       <div className="clip-top-bar">
         <div className="clip-badge glass">
           <Star size={12} fill="#f59e0b" color="#f59e0b" />
-          <span>{clip.rating}</span>
+          <span>{clip.durationLabel}</span>
         </div>
         <button
           className="clip-mute-btn glass"
@@ -369,11 +369,9 @@ export default function ClipCard({
         <h2 className="clip-movie-title">{clip.title}</h2>
         <p className="clip-movie-desc">{clipDescription}</p>
         <div className="clip-meta">
-          <span className="clip-year">{clip.year}</span>
+          <span className="clip-year">{clip.genreName}</span>
           <span className="clip-separator">•</span>
-          <span className="clip-director">{clip.director}</span>
-          <span className="clip-separator">•</span>
-          <span className="clip-duration">{clip.duration}</span>
+          <span className="clip-duration">{clip.durationLabel}</span>
         </div>
 
         <button className="clip-watch-btn" onClick={handleWatch}>
@@ -391,15 +389,10 @@ export default function ClipCard({
               <div className="clip-detail-info">
                 <h3>{clip.title}</h3>
                 <p className="clip-detail-meta">
-                  {clip.year} • {clip.duration} • {clip.rating}/10
+                  {clip.genreName} • {clip.durationLabel}
                 </p>
-                <p className="clip-detail-director">Directed by {clip.director}</p>
                 <div className="clip-detail-genres">
-                  {clip.genres.map((g) => (
-                    <span key={g} className="clip-detail-genre">
-                      {g}
-                    </span>
-                  ))}
+                  <span className="clip-detail-genre">{clip.genreName}</span>
                 </div>
               </div>
             </div>

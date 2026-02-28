@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useApp } from '../context/useApp'
 import { feedService } from '../services/feed-service'
+import { contentService } from '../services/content-service'
+import { createGenreLookup, toClipViewModel } from '../services/clip-view-model'
 import { EVENT_NAMES, EVENT_SOURCE, EVENT_SURFACE } from '../services/analytics/events'
 import ClipCard from '../components/ClipCard'
 import CommentsPanel from '../components/CommentsPanel'
@@ -17,6 +19,7 @@ function createTrackingId(prefix) {
 }
 
 const MAX_ACTIVE_CLIP_ASPECT_RATIO = 1.5777777777777777
+const GENRE_LOOKUP = createGenreLookup(contentService.getGenres())
 
 export default function FeedPage() {
   const { getFilteredClips, selectedGenres } = useApp()
@@ -36,7 +39,7 @@ export default function FeedPage() {
 
     try {
       await feedService.wait(350)
-      const nextClips = getFilteredClips()
+      const nextClips = getFilteredClips().map((clip) => toClipViewModel(clip, GENRE_LOOKUP))
       const nextFeedRequestId = createTrackingId('feed')
       const nextImpressionMap = nextClips.reduce((acc, clip) => {
         acc[clip.id] = createTrackingId('impr')

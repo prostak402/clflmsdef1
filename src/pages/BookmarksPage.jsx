@@ -1,10 +1,14 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useApp } from '../context/useApp'
 import { useNavigate } from 'react-router-dom'
-import { Bookmark, ExternalLink, Trash2, Share2, Star } from 'lucide-react'
+import { Bookmark, ExternalLink, Trash2, Share2 } from 'lucide-react'
 import { feedService } from '../services/feed-service'
+import { contentService } from '../services/content-service'
+import { createGenreLookup, toClipViewModel } from '../services/clip-view-model'
 import DataState from '../components/DataState'
 import './BookmarksPage.css'
+
+const GENRE_LOOKUP = createGenreLookup(contentService.getGenres())
 
 export default function BookmarksPage() {
   const { getBookmarkedClips, toggleBookmark } = useApp()
@@ -17,7 +21,7 @@ export default function BookmarksPage() {
 
     try {
       await feedService.wait(250)
-      setClips(getBookmarkedClips())
+      setClips(getBookmarkedClips().map((clip) => toClipViewModel(clip, GENRE_LOOKUP)))
       setLoadState({ status: 'ready', error: '' })
     } catch {
       setLoadState({ status: 'error', error: 'Failed to load bookmarks.' })
@@ -35,9 +39,9 @@ export default function BookmarksPage() {
   const handleShare = async (clip) => {
     try {
       if (navigator.share) {
-        await navigator.share({ title: clip.title, url: clip.watchUrl })
+        await navigator.share({ title: clip.title, url: clip.externalUrl })
       } else {
-        await navigator.clipboard.writeText(clip.watchUrl)
+        await navigator.clipboard.writeText(clip.externalUrl)
       }
     } catch {
       // user cancelled share
@@ -46,7 +50,7 @@ export default function BookmarksPage() {
 
   const handleRemoveBookmark = async (clipId) => {
     await toggleBookmark(clipId)
-    setClips(getBookmarkedClips())
+    setClips(getBookmarkedClips().map((clip) => toClipViewModel(clip, GENRE_LOOKUP)))
   }
 
   return (
@@ -101,12 +105,9 @@ export default function BookmarksPage() {
               style={{ '--card-delay': `${index * 80}ms` }}
             >
               <div className="bookmark-poster">
-                <img src={clip.poster} alt={clip.title} />
+                <img src={clip.thumbnailUrl} alt={clip.title} />
                 <div className="bookmark-poster-overlay">
-                  <button
-                    className="bookmark-play"
-                    onClick={() => window.open(clip.watchUrl, '_blank')}
-                  >
+                  <button className="bookmark-play" onClick={() => window.open(clip.externalUrl, '_blank')}>
                     <ExternalLink size={20} />
                   </button>
                 </div>
@@ -114,24 +115,17 @@ export default function BookmarksPage() {
               <div className="bookmark-info">
                 <h3 className="bookmark-title">{clip.title}</h3>
                 <div className="bookmark-meta">
-                  <span className="bookmark-year">{clip.year}</span>
-                  <span className="bookmark-rating">
-                    <Star size={12} fill="#f59e0b" color="#f59e0b" />
-                    {clip.rating}
-                  </span>
+                  <span className="bookmark-year">{clip.genreName}</span>
+                  <span className="bookmark-rating">{clip.durationLabel}</span>
                 </div>
                 <p className="bookmark-desc">{clip.description}</p>
                 <div className="bookmark-genres">
-                  {clip.genres.slice(0, 3).map((g) => (
-                    <span key={g} className="bookmark-genre">
-                      {g}
-                    </span>
-                  ))}
+                  <span className="bookmark-genre">{clip.genreName}</span>
                 </div>
                 <div className="bookmark-actions">
                   <button
                     className="bookmark-action-btn watch"
-                    onClick={() => window.open(clip.watchUrl, '_blank')}
+                    onClick={() => window.open(clip.externalUrl, '_blank')}
                   >
                     <ExternalLink size={14} />
                     Watch

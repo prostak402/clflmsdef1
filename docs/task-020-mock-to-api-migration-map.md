@@ -234,3 +234,33 @@
 - При переключении на backend заменяется внутренняя реализация adapter-а, без изменения вызовов из компонентов.
 - Возвращаемые формы данных в `feedService` должны оставаться эквивалентными mock-форме, либо нормализоваться в service-слое до UI-совместимого вида.
 
+
+## 7) Фактическое потребление UI-полей (ClipCard, BookmarksPage, CatalogPage)
+
+| Экран / компонент | Поле в UI до миграции | Статус (`keep/rename/remove/transform`) | Новое потребление в view-model |
+| --- | --- | --- | --- |
+| `ClipCard` | `clip.id` | keep | `clip.id` |
+| `ClipCard` | `clip.title` | keep | `clip.title` |
+| `ClipCard` | `clip.description` + `clip.clipDescription` | rename/transform | `clip.description` |
+| `ClipCard` | `clip.clipUrl` | rename | `clip.videoUrl` |
+| `ClipCard` | `clip.poster` | rename | `clip.thumbnailUrl` |
+| `ClipCard` | `clip.watchUrl` | rename | `clip.externalUrl` |
+| `ClipCard` | `clip.duration` | rename/transform | `clip.durationSec` + `clip.durationLabel` |
+| `ClipCard` | `clip.genres[]` | transform | `clip.genreId` + `clip.genreName` lookup |
+| `ClipCard` | `clip.likes` / `clip.likesCount` | transform | `clip.likesCount` |
+| `ClipCard` | `clip.comments` / `clip.commentsCount` | transform | `clip.commentsCount` |
+| `ClipCard` | `clip.bookmarks` / `clip.bookmarksCount` | transform | `clip.bookmarksCount` |
+| `ClipCard` | `clip.shares` / `clip.sharesCount` | remove (shares), keep (`sharesCount`) | `clip.sharesCount` (fallback `0`) |
+| `ClipCard` | `clip.year` | remove | не используется |
+| `ClipCard` | `clip.rating` | remove | не используется |
+| `ClipCard` | `clip.director` | remove | не используется |
+| `BookmarksPage` | `clip.poster` | rename | `clip.thumbnailUrl` |
+| `BookmarksPage` | `clip.watchUrl` | rename | `clip.externalUrl` |
+| `BookmarksPage` | `clip.year` | remove | `clip.genreName` |
+| `BookmarksPage` | `clip.rating` | remove | `clip.durationLabel` |
+| `BookmarksPage` | `clip.genres[]` | transform | `clip.genreId` + `clip.genreName` lookup |
+| `CatalogPage` | `movie.poster` | rename | `movie.thumbnailUrl` |
+| `CatalogPage` | `movie.watchUrl` | rename | `movie.externalUrl` |
+| `CatalogPage` | `movie.year` | remove | `movie.subtitle` (`durationLabel`) |
+| `CatalogPage` | `movie.rating` | remove | `movie.genreName` |
+| `CatalogPage` | `movie.genres[]` | transform | `movie.genreId` + lookup через жанры |

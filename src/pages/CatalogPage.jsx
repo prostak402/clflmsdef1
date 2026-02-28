@@ -1,8 +1,12 @@
 import { useState, useMemo } from 'react'
 import { contentService } from '../services/content-service'
+import { createGenreLookup, toCatalogItemViewModel } from '../services/clip-view-model'
 import { useApp } from '../context/useApp'
-import { Search, Star, ExternalLink, Filter, X } from 'lucide-react'
+import { Search, ExternalLink, Filter, X } from 'lucide-react'
 import './CatalogPage.css'
+
+const GENRES = contentService.getGenres()
+const GENRE_LOOKUP = createGenreLookup(GENRES)
 
 export default function CatalogPage() {
   const { getCatalog } = useApp()
@@ -11,11 +15,13 @@ export default function CatalogPage() {
   const [showFilter, setShowFilter] = useState(false)
 
   const filtered = useMemo(() => {
-    return getCatalog().filter((movie) => {
-      const matchesSearch = movie.title.toLowerCase().includes(search.toLowerCase())
-      const matchesGenre = activeGenre === 'all' || movie.genres.includes(activeGenre)
-      return matchesSearch && matchesGenre
-    })
+    return getCatalog()
+      .map((movie) => toCatalogItemViewModel(movie, GENRE_LOOKUP))
+      .filter((movie) => {
+        const matchesSearch = movie.title.toLowerCase().includes(search.toLowerCase())
+        const matchesGenre = activeGenre === 'all' || movie.genreId === activeGenre
+        return matchesSearch && matchesGenre
+      })
   }, [search, activeGenre, getCatalog])
 
   return (
@@ -55,7 +61,7 @@ export default function CatalogPage() {
           >
             All
           </button>
-          {contentService.getGenres().map((genre) => (
+          {GENRES.map((genre) => (
             <button
               key={genre.id}
               className={`catalog-genre-btn ${activeGenre === genre.id ? 'active' : ''}`}
@@ -76,24 +82,21 @@ export default function CatalogPage() {
             style={{ '--card-delay': `${index * 60}ms` }}
           >
             <div className="catalog-poster">
-              <img src={movie.poster} alt={movie.title} loading="lazy" />
+              <img src={movie.thumbnailUrl} alt={movie.title} loading="lazy" />
               <div className="catalog-poster-overlay">
                 <button
                   className="catalog-watch-btn"
-                  onClick={() => window.open(movie.watchUrl, '_blank')}
+                  onClick={() => window.open(movie.externalUrl, '_blank')}
                 >
                   <ExternalLink size={18} />
                   Watch
                 </button>
               </div>
-              <div className="catalog-rating-badge">
-                <Star size={10} fill="#f59e0b" color="#f59e0b" />
-                {movie.rating}
-              </div>
+              <div className="catalog-rating-badge">{movie.genreName}</div>
             </div>
             <div className="catalog-card-info">
               <h3 className="catalog-card-title">{movie.title}</h3>
-              <span className="catalog-card-year">{movie.year}</span>
+              <span className="catalog-card-year">{movie.subtitle}</span>
             </div>
           </div>
         ))}
