@@ -1,4 +1,5 @@
-import { normalizeComment, normalizeCommentsMap } from './comment-normalizer'
+import { toClipUiList } from './mappers/clip-mapper'
+import { toCommentUiModel, toCommentsMapUiModel, toModerationCommentUiList } from './mappers/comment-mapper'
 import { normalizeWritePayload } from './payload-normalizer'
 import { authService } from './auth-service'
 
@@ -111,7 +112,7 @@ function toggleArrayEntry(list, value) {
 
 function groupCommentsByClip(comments = []) {
   return comments.reduce((acc, comment) => {
-    const normalized = normalizeComment(comment, comment?.clipId)
+    const normalized = toCommentUiModel(comment, comment?.clipId)
     const clipId = normalized.clipId
 
     if (!Array.isArray(acc[clipId])) {
@@ -131,10 +132,10 @@ export const apiFeedAdapter = {
     })
 
     if (Array.isArray(payload)) {
-      return payload
+      return toClipUiList(payload)
     }
 
-    return Array.isArray(payload?.items) ? payload.items : []
+    return toClipUiList(Array.isArray(payload?.items) ? payload.items : [])
   },
 
   async toggleLike(params) {
@@ -200,7 +201,7 @@ export const apiFeedAdapter = {
     })
 
     const commentData = response?.comment || response
-    const normalizedComment = normalizeComment(commentData, payload.clipId)
+    const normalizedComment = toCommentUiModel(commentData, payload.clipId)
 
     return {
       ...payload.comments,
@@ -212,24 +213,7 @@ export const apiFeedAdapter = {
     const payload = await requestJson('/moderation/comments')
     const rows = Array.isArray(payload?.items) ? payload.items : Array.isArray(payload) ? payload : []
 
-    const clipNameById = clips.reduce((acc, clip) => {
-      if (clip?.id) {
-        acc[clip.id] = clip.title || 'Unknown clip'
-      }
-
-      return acc
-    }, {})
-
-    return rows.map((row) => {
-      const normalizedComment = normalizeComment(row, row?.clipId)
-
-      return {
-        ...normalizedComment,
-        clipId: normalizedComment.clipId,
-        clipTitle: row?.clipTitle || clipNameById[normalizedComment.clipId] || 'Unknown clip',
-        isBlockedAuthor: Boolean(blockedUsers[normalizedComment.authorId] || row?.isBlockedAuthor),
-      }
-    })
+    return toModerationCommentUiList(rows, { clips, blockedUsers })
   },
 
   async blockUserComments(params) {
@@ -256,7 +240,7 @@ export const apiFeedAdapter = {
     return {
       ...payload.comments,
       [payload.clipId]: (payload.comments[payload.clipId] || []).map((comment) =>
-        normalizeComment(comment, payload.clipId)
+        toCommentUiModel(comment, payload.clipId)
       ).filter((comment) => comment.id !== payload.commentId),
     }
   },
@@ -270,7 +254,7 @@ export const apiFeedAdapter = {
 
     return Object.entries(payload.comments).reduce((acc, [clipId, clipComments]) => {
       const normalizedComments = Array.isArray(clipComments)
-        ? clipComments.map((comment) => normalizeComment(comment, clipId))
+        ? clipComments.map((comment) => toCommentUiModel(comment, clipId))
         : []
 
       acc[clipId] = normalizedComments.filter((comment) => comment.authorId !== payload.authorId)
@@ -282,10 +266,10 @@ export const apiFeedAdapter = {
     const payload = await requestJson('/me/bookmarks')
 
     if (Array.isArray(payload)) {
-      return payload
+      return toClipUiList(payload)
     }
 
-    return Array.isArray(payload?.items) ? payload.items : []
+    return toClipUiList(Array.isArray(payload?.items) ? payload.items : [])
   },
 
   async getProfile({ user, bookmarks = [], likes = {} } = {}) {
@@ -304,10 +288,10 @@ export const apiFeedAdapter = {
     const payload = await requestJson('/comments')
 
     if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
-      return normalizeCommentsMap(payload)
+      return toCommentsMapUiModel(payload)
     }
 
     const rows = Array.isArray(payload?.items) ? payload.items : Array.isArray(payload) ? payload : []
-    return normalizeCommentsMap(groupCommentsByClip(rows))
+    return toCommentsMapUiModel(groupCommentsByClip(rows))
   },
 }

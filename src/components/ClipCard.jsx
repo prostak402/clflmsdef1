@@ -59,14 +59,14 @@ export default function ClipCard({
   const isLiked = likes[clip.id]
   const isBookmarked = bookmarks.includes(clip.id)
 
-  const clipVideoUrl = clip.videoUrl || ''
-  const clipThumbnailUrl = clip.thumbnailUrl || ''
-  const clipWatchUrl = clip.externalUrl || clipVideoUrl
-  const clipDescription = clip.description || ''
-  const clipLikesCount = Number(clip.likesCount || 0)
-  const clipCommentsCount = Number(clip.commentsCount || 0)
-  const clipSharesCount = Number(clip.sharesCount || 0)
-  const clipBookmarksCount = Number(clip.bookmarksCount || 0)
+  const clipVideoUrl = clip.videoUrl
+  const clipThumbnailUrl = clip.thumbnailUrl
+  const clipWatchUrl = clip.externalUrl
+  const clipDescription = clip.description
+  const clipLikesCount = clip.likesCount
+  const clipCommentsCount = clip.commentsCount
+  const clipSharesCount = clip.sharesCount
+  const clipBookmarksCount = clip.bookmarksCount
 
   const trackEvent = useCallback((event, payload) => {
     if (!feedRequestId || !impressionId) {
