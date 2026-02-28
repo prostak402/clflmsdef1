@@ -357,6 +357,14 @@ Response `200`:
 
 Query: `page`, `limit`, `sortBy=createdAt`, `sortOrder`.
 
+Response `200` (frontend-compatible envelope):
+
+```json
+{
+  "items": []
+}
+```
+
 ---
 
 ## 4.2 Genres
@@ -410,6 +418,8 @@ Query:
 - `limit` (default 20)
 - `genreId` (optional)
 
+Frontend compatibility note: текущий адаптер также может отправлять `genre` как repeatable query-param (`?genre=sci-fi&genre=drama`). Backend должен поддерживать оба варианта (`genreId` и `genre`) до завершения миграции.
+
 Response `200`:
 
 ```json
@@ -452,6 +462,10 @@ Soft-delete клипа.
 Комментарии клипа (offset-пагинация).
 
 Query: `page`, `limit`, `sortBy=createdAt`, `sortOrder`.
+
+MVP compatibility endpoint для текущего adapter bootstrapping:
+
+- `GET /comments` → `{ "items": Comment[] }` (агрегированный список публичных комментариев по всем клипам).
 
 ### `POST /clips/:id/comments`
 
@@ -512,6 +526,43 @@ Body (MVP):
 ## 4.8 Upload media
 
 Для `videoUrl` и `thumbnailUrl` используется flow через signed URL.
+
+---
+
+## 4.9 Moderation (MVP extension for admin UI)
+
+### `GET /moderation/comments` (admin)
+
+Возвращает список комментариев для таблицы модерации.
+
+Response `200`:
+
+```json
+{
+  "items": []
+}
+```
+
+### `POST /moderation/comments/block-user` (admin)
+
+Блокирует/разблокирует автора комментариев.
+
+Request:
+
+```json
+{
+  "authorId": "string",
+  "isBlocked": true
+}
+```
+
+### `DELETE /moderation/comments/:commentId` (admin)
+
+Удаляет один комментарий.
+
+### `DELETE /moderation/comments/by-user/:authorId` (admin)
+
+Массово удаляет комментарии конкретного автора.
 
 ### `POST /uploads`
 
