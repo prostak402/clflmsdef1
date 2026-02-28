@@ -253,7 +253,7 @@ describe('TASK-012: AppContext state transitions', () => {
 
     expect(getCurrent().adminUploads.find((upload) => upload.id === createdUpload.id)).toBeFalsy()
     expect(getCurrent().adminCatalogMovies.find((movie) => movie.id === createdUpload.movieId)).toBeFalsy()
-    expect(getCurrent().getCatalog().find((movie) => movie.id === createdUpload.movieId)).toBeFalsy()
+    await expect(getCurrent().getCatalog()).resolves.not.toContainEqual(expect.objectContaining({ id: createdUpload.movieId }))
   })
 
   it('supports legacy fallback by title/year and keeps getCatalog consistent after edit/delete', async () => {
@@ -314,9 +314,7 @@ describe('TASK-012: AppContext state transitions', () => {
       expect(updated).toBe(true)
     })
 
-    expect(getCurrent().getCatalog().find((movie) => movie.id === legacyMovieId)?.title).toBe(
-      'Legacy Movie Edited'
-    )
+    await expect(getCurrent().getCatalog()).resolves.toContainEqual(expect.objectContaining({ id: legacyMovieId, title: 'Legacy Movie Edited' }))
 
     await act(async () => {
       const removed = getCurrent().removeAdminUpload(legacyUploadId)
@@ -324,7 +322,7 @@ describe('TASK-012: AppContext state transitions', () => {
     })
 
     expect(getCurrent().adminCatalogMovies.find((movie) => movie.id === legacyMovieId)).toBeFalsy()
-    expect(getCurrent().getCatalog().find((movie) => movie.id === legacyMovieId)).toBeFalsy()
+    await expect(getCurrent().getCatalog()).resolves.not.toContainEqual(expect.objectContaining({ id: legacyMovieId }))
   })
 
 })

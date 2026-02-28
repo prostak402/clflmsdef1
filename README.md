@@ -178,7 +178,7 @@ Env-матрица для backend-ready сценариев:
 | Likes / Bookmarks | ✅ Готово | 🟡 Частично | Toggle-флоу подключены (`/clips/:clipId/like`, `/clips/:clipId/bookmark`, `GET /me/bookmarks`), но end-to-end устойчивость зависит от backend-консистентности счётчиков и user-state. |
 | Moderation | ✅ Готово | 🟡 Частично | Методы модерации подключены (`/moderation/comments*`), но блокеры по политике статусов/фильтрам и массовым операциям остаются открытыми. |
 | Profile | ✅ Готово | 🟡 Частично | `GET /me` интегрирован, однако часть UI-метрик (counts) пока собирается локально из клиентского state. |
-| Catalog | ✅ Готово | ❌ Не готово | Каталог и поиск пока остаются mock-first, backend read-path для каталога не включён в adapter layer. |
+| Catalog | ✅ Готово | 🟡 Частично | Каталог переведён на adapter/service read-path с поддержкой `VITE_DATA_SOURCE` и `GET /clips`; для production-ready остаются вопросы пагинации и расширенной фильтрации. |
 
 ### Источник истины по endpoint-ам и правило синхронизации
 

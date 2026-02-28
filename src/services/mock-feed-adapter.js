@@ -1,4 +1,4 @@
-import { MOCK_CLIPS, MOCK_COMMENTS } from '../data/mock'
+import { MOCK_CATALOG, MOCK_CLIPS, MOCK_COMMENTS } from '../data/mock'
 import { toClipUiList } from './mappers/clip-mapper'
 import { flattenCommentsForModeration, toCommentUiModel, toCommentsMapUiModel } from './mappers/comment-mapper'
 
@@ -94,6 +94,10 @@ export const mockFeedAdapter = {
 
   getBookmarks({ bookmarks }) {
     return toClipUiList(MOCK_CLIPS.filter((clip) => bookmarks.includes(clip.id)))
+  },
+
+  getCatalog() {
+    return MOCK_CATALOG
   },
 
   getProfile({ user, bookmarks, likes }) {

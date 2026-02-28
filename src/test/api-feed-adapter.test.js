@@ -23,6 +23,64 @@ describe('apiFeedAdapter write contract', () => {
     )
   })
 
+
+  it('loads catalog from GET /clips in api mode', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          items: [
+            {
+              id: 'clip-1',
+              title: 'Catalog Item',
+              genreId: 'drama',
+              durationSec: 5400,
+            },
+          ],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      )
+    )
+
+    const catalog = await apiFeedAdapter.getCatalog()
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/v1/clips',
+      expect.objectContaining({ method: 'GET' })
+    )
+    expect(catalog).toEqual([
+      expect.objectContaining({
+        id: 'clip-1',
+        title: 'Catalog Item',
+      }),
+    ])
+  })
+
+  it('returns empty list when api catalog response has no items', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify({ items: [] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    )
+
+    await expect(apiFeedAdapter.getCatalog()).resolves.toEqual([])
+  })
+
+  it('throws normalized error when catalog request fails', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          error: {
+            message: 'Catalog unavailable',
+          },
+        }),
+        { status: 503, headers: { 'Content-Type': 'application/json' } }
+      )
+    )
+
+    await expect(apiFeedAdapter.getCatalog()).rejects.toThrowError('Catalog unavailable (503)')
+  })
+
   it('uses POST /like when clip is currently unliked', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response('{}', { status: 200 }))
 

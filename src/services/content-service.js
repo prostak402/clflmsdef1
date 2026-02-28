@@ -1,10 +1,17 @@
-import { GENRES, MOCK_CATALOG } from '../data/mock'
+import { GENRES } from '../data/mock'
+import { createFeedAdapter } from './create-feed-adapter'
 
 export const contentService = {
   getGenres() {
     return GENRES
   },
-  getCatalog() {
-    return MOCK_CATALOG
+  async getCatalog() {
+    const adapter = createFeedAdapter()
+
+    if (typeof adapter.getCatalog !== 'function') {
+      return []
+    }
+
+    return adapter.getCatalog()
   },
 }
