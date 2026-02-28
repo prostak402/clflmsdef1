@@ -7,6 +7,22 @@ describe('apiFeedAdapter write contract', () => {
     vi.restoreAllMocks()
   })
 
+  it('uses canonical GET /feed/clips endpoint for feed request', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify({ items: [] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    )
+
+    await apiFeedAdapter.getFeed()
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/v1/feed/clips',
+      expect.objectContaining({ method: 'GET' })
+    )
+  })
+
   it('uses POST /like when clip is currently unliked', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response('{}', { status: 200 }))
 

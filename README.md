@@ -261,7 +261,7 @@ npm run db:seed
 npm run smoke:stage-api
 ```
 
-Smoke-check stage API (`/api/v1/genres`, `/api/v1/clips/feed`) при наличии `STAGE_API_BASE_URL`.
+Smoke-check stage API (`/api/v1/genres`, `/api/v1/feed/clips`) при наличии `STAGE_API_BASE_URL`.
 
 ## Процесс разработки (рекомендуемый)
 

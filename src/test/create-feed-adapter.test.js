@@ -27,7 +27,7 @@ describe('createFeedAdapter', () => {
 
     const adapter = createFeedAdapter('api')
 
-    await expect(adapter.getFeed()).rejects.toThrowError('Network request failed for GET /feed')
+    await expect(adapter.getFeed()).rejects.toThrowError('Network request failed for GET /feed/clips')
   })
 
   it('falls back to mock for unknown data source', () => {
