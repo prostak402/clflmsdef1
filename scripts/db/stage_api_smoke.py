@@ -25,7 +25,7 @@ def get(path: str):
 
 checks = [
     ('/genres?limit=1&page=1', lambda body: isinstance(body, dict)),
-    ('/clips/feed?limit=1', lambda body: isinstance(body, dict)),
+    ('/feed/clips?limit=1', lambda body: isinstance(body, dict)),
 ]
 
 for path, validator in checks:

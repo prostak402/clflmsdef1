@@ -355,7 +355,7 @@ export const feedService = {
   },
   getFeed(params) {
     return runWithApiErrorLogging({
-      endpoint: 'GET /feed',
+      endpoint: 'GET /feed/clips',
       payload: params,
       operation: () => feedAdapter.getFeed(params),
       eventName: 'feed.load.requested',

@@ -126,7 +126,7 @@ function groupCommentsByClip(comments = []) {
 /** @type {import('./feed-adapter').FeedAdapter} */
 export const apiFeedAdapter = {
   async getFeed({ selectedGenres = [] } = {}) {
-    const payload = await requestJson('/feed', {
+    const payload = await requestJson('/feed/clips', {
       query: selectedGenres.length > 0 ? { genre: selectedGenres } : undefined,
     })
 

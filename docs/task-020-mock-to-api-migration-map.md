@@ -131,6 +131,11 @@
 
 ---
 
+## 3.3 Canonical feed endpoint
+
+- Единый канонический endpoint ленты: `GET /feed/clips` (см. `docs/api-contract.md`).
+- Альтернативные варианты (`GET /feed`, `GET /clips/feed`) не используются во frontend adapter/service и smoke-проверках.
+
 ## 4) Seed-данные для локальной разработки
 
 Минимальный набор для воспроизводимости ключевых сценариев.

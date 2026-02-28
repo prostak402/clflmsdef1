@@ -25,7 +25,7 @@ describe('TASK-018: request metrics and key events', () => {
     expect(eventLog).toBeTruthy()
 
     const metricLog = logger.mock.calls.find(
-      ([prefix, event]) => prefix === '[api-metric]' && event?.endpoint === 'GET /feed'
+      ([prefix, event]) => prefix === '[api-metric]' && event?.endpoint === 'GET /feed/clips'
     )
 
     expect(metricLog).toBeTruthy()
