@@ -96,9 +96,9 @@ describe('TASK-031: UI safety with API-contract clip view-model', () => {
     })
   })
 
-  it('filters CatalogPage by genreId lookup', () => {
+  it('filters CatalogPage by genreId lookup', async () => {
     mockUseApp.mockReturnValue({
-      getCatalog: () => [
+      getCatalog: async () => [
         {
           id: 'cat-1',
           title: 'Catalog API Clip',
@@ -116,7 +116,7 @@ describe('TASK-031: UI safety with API-contract clip view-model', () => {
 
     render(<CatalogPage />)
 
-    expect(screen.getByText('Catalog API Clip')).toBeInTheDocument()
+    expect(await screen.findByText('Catalog API Clip')).toBeInTheDocument()
     expect(screen.getAllByText('2m').length).toBeGreaterThan(0)
   })
 })
