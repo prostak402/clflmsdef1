@@ -121,7 +121,7 @@
 3. **Сделать обратный mapper для операций записи**
    - `createComment`, toggles like/bookmark, фильтры по жанрам.
 4. **Переключить read-path по флагу**
-   - Фича-флаг `USE_REAL_API`; mock оставить fallback.
+   - Фича-флаг `VITE_DATA_SOURCE` (`mock` / `api`); mock оставить fallback.
 5. **Переключить write-path**
    - Лайки/закладки/комментарии через реальные endpoints + optimistic update.
 6. **Удалить mock-only поля из UI-потребления**
@@ -135,6 +135,12 @@
 
 - Единый канонический endpoint ленты: `GET /feed/clips` (см. `docs/api-contract.md`).
 - Альтернативные варианты (`GET /feed`, `GET /clips/feed`) не используются во frontend adapter/service и smoke-проверках.
+
+## 3.4 Source of truth для endpoint-ов
+
+- Канонический источник endpoint-ов и DTO: `docs/api-contract.md`.
+- Любое изменение endpoint-ов/параметров/ответов сначала вносится в `docs/api-contract.md`, затем в adapter/service реализацию.
+- В том же PR обязательно обновляются связанные документы миграции (`README.md`, этот файл), чтобы исключить расхождения между roadmap и фактическим контрактом.
 
 ## 4) Seed-данные для локальной разработки
 
@@ -182,11 +188,28 @@
 
 ## 5) Критерии готовности миграции (DoD check-list)
 
-- [ ] Каждое поле из `mock.js` имеет статус: `keep`, `rename`, `remove`, `transform`.
+- [x] Каждое поле из `mock.js` имеет статус: `keep`, `rename`, `remove`, `transform`.
 - [ ] Нет UI-экранов, завязанных на mock-only поля без replacement.
-- [ ] Подготовлены seed-данные, покрывающие: ленту, комментарии, лайки, закладки, онбординг, роли.
+- [x] Подготовлены seed-данные, покрывающие: ленту, комментарии, лайки, закладки, онбординг, роли.
 - [ ] Read/write флоу работают от API через единый adapter layer.
 - [ ] `mock.js` можно отключить флагом без деградации основных сценариев.
+
+### 5.1 Текущий прогресс по DoD
+
+| Пункт DoD | Статус | Основание |
+| --- | --- | --- |
+| Поля `mock.js` размечены по статусам | ✅ Done | Разделы 1.1–1.4 фиксируют `keep/rename/remove/transform` для ключевых сущностей. |
+| UI не зависит от mock-only полей | 🟡 In progress | В продуктовых экранах остаются legacy-поля в admin/edit-потоке (`year`, `director`, `watchUrl`, `clipDescription`), требуется финальная замена на API-backed view-model. |
+| Seed покрывает ключевые сценарии | ✅ Done | В `scripts/db/seed.py` добавлены роли, жанры, published/draft/archived клипы, комментарии, лайки, закладки и версия seed. |
+| Read/write флоу через единый adapter layer | 🟡 In progress | `api-feed-adapter` покрывает feed/comments/likes/bookmarks/moderation/profile, но часть сценариев остаётся частичной (см. блокеры ниже). |
+| Mock отключаем без деградации | ❌ Blocked | Каталог и ряд legacy-полей всё ещё завязаны на mock-first сценарий, полный cutover невозможен. |
+
+### 5.2 Открытые блокеры
+
+1. **Catalog read-path не перенесён на API**: отсутствует завершённый backend/UI-контур каталога, поэтому `VITE_DATA_SOURCE=api` не даёт полнофункциональный режим для `/catalog`.
+2. **Legacy-поля в админском потоке**: в `AppContext` и admin-формах ещё используются mock-only поля (`year`, `director`, `watchUrl`, `clipDescription`) без полного API replacement.
+3. **Комментарии (authorship в MVP-переходе)**: в API-контракте автор определяется из токена, а текущий клиентский create-flow всё ещё допускает передачу `authorId/userName` для совместимости.
+4. **Неполный parity по profile-метрикам**: часть счётчиков профиля формируется локально, а не из единого backend-источника, что создаёт риск рассинхронизации в API-режиме.
 
 
 ---
