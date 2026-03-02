@@ -134,6 +134,26 @@ function groupCommentsByClip(comments = []) {
   }, {})
 }
 
+function toSafeProfileCount(value) {
+  const normalized = Number(value)
+
+  if (!Number.isFinite(normalized) || normalized < 0) {
+    return 0
+  }
+
+  return Math.trunc(normalized)
+}
+
+function resolveProfileCount(payload, keys = []) {
+  for (const key of keys) {
+    if (payload && Object.hasOwn(payload, key)) {
+      return toSafeProfileCount(payload[key])
+    }
+  }
+
+  return 0
+}
+
 /** @type {import('./feed-adapter').FeedAdapter} */
 export const apiFeedAdapter = {
   async getFeed({ selectedGenres = [] } = {}) {
@@ -298,15 +318,25 @@ export const apiFeedAdapter = {
     return toClipUiList(Array.isArray(payload?.items) ? payload.items : [])
   },
 
-  async getProfile({ user, bookmarks = [], likes = {} } = {}) {
+  async getProfile({ user } = {}) {
     const payload = await requestJson('/me')
+
+    const counts = payload?.counts && typeof payload.counts === 'object' ? payload.counts : {}
+    const watched = payload?.activity && typeof payload.activity === 'object'
+      ? payload.activity
+      : {}
 
     return {
       name: payload?.displayName || payload?.name || user?.name || 'Movie Explorer',
       email: payload?.email || user?.email || 'hello@movieexplorer.app',
       avatar: payload?.avatarUrl || payload?.avatar || user?.avatar || '🎬',
-      bookmarkCount: Array.isArray(bookmarks) ? bookmarks.length : 0,
-      likeCount: Object.values(likes || {}).filter(Boolean).length,
+      bookmarkCount: resolveProfileCount(payload, ['bookmarkCount', 'bookmarksCount'])
+        || resolveProfileCount(counts, ['bookmarks', 'bookmarkCount']),
+      likeCount: resolveProfileCount(payload, ['likeCount', 'likesCount'])
+        || resolveProfileCount(counts, ['likes', 'likeCount']),
+      watchedCount: resolveProfileCount(payload, ['watchedCount'])
+        || resolveProfileCount(counts, ['watched', 'watchedCount'])
+        || resolveProfileCount(watched, ['watched', 'clips']),
     }
   },
 

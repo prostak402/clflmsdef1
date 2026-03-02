@@ -208,6 +208,59 @@ describe('apiFeedAdapter write contract', () => {
     )
   })
 
+
+  it('maps profile counts from backend payload and ignores local likes/bookmarks state', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          displayName: 'API User',
+          email: 'api@example.com',
+          counts: {
+            bookmarks: 11,
+            likes: 7,
+            watched: 5,
+          },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      )
+    )
+
+    const profile = await apiFeedAdapter.getProfile({
+      user: { name: 'Local User', email: 'local@example.com' },
+      bookmarks: ['clip-1'],
+      likes: { 'clip-1': true, 'clip-2': true },
+    })
+
+    expect(profile).toEqual({
+      name: 'API User',
+      email: 'api@example.com',
+      avatar: '🎬',
+      bookmarkCount: 11,
+      likeCount: 7,
+      watchedCount: 5,
+    })
+  })
+
+  it('returns safe profile defaults when backend payload is partial', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify({ email: null, counts: { likes: -4 } }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    )
+
+    const profile = await apiFeedAdapter.getProfile({ user: null })
+
+    expect(profile).toEqual({
+      name: 'Movie Explorer',
+      email: 'hello@movieexplorer.app',
+      avatar: '🎬',
+      bookmarkCount: 0,
+      likeCount: 0,
+      watchedCount: 0,
+    })
+  })
+
   it('throws normalized api error when server returns non-ok response', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(

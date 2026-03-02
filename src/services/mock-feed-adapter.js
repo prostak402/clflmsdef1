@@ -100,7 +100,7 @@ export const mockFeedAdapter = {
     return MOCK_CATALOG
   },
 
-  getProfile({ user, bookmarks, likes }) {
+  getProfile({ user, bookmarks = [], likes = {} } = {}) {
     return {
       name: user?.name || 'Movie Explorer',
       email: user?.email || 'hello@movieexplorer.app',
