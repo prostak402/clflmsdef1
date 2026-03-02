@@ -192,21 +192,21 @@
 - [x] Нет UI-экранов, завязанных на mock-only поля без replacement.
 - [x] Подготовлены seed-данные, покрывающие: ленту, комментарии, лайки, закладки, онбординг, роли.
 - [x] Read/write флоу работают от API через единый adapter layer.
-- [ ] `mock.js` можно отключить флагом без деградации основных сценариев (критерий зафиксирован, ждёт финальный smoke в stage).
+- [x] `mock.js` можно отключить флагом без деградации основных сценариев (cutover подтверждён в API-режиме + закреплён регрессионным smoke).
 
 ### 5.1 Текущий прогресс по DoD
 
-| Пункт DoD                                  | Статус           | Подтверждение (файлы/модули)                                                                                                                                                           |
-| ------------------------------------------ | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Поля `mock.js` размечены по статусам       | ✅ Done          | Разделы 1.1–1.4 этого документа фиксируют `keep/rename/remove/transform` для жанров, клипов, комментариев и профиля.                                                                   |
-| UI не зависит от mock-only полей           | ✅ Done          | Каталог и профиль читаются через сервисы (`src/services/content-service.js`, `src/services/feed-service.js`), UI использует нормализованные поля (`genreName`, `durationLabel`).       |
-| Seed покрывает ключевые сценарии           | ✅ Done          | Seed и smoke-проверки backend фиксируют сценарии feed/comments/bookmarks/profile/moderation (`scripts/db/seed.py`, `src/test/backend-api-smoke.test.js`).                              |
-| Read/write флоу через единый adapter layer | ✅ Done          | Единый API adapter закрывает feed/comments/likes/bookmarks/moderation/profile (`src/services/api-feed-adapter.js`, `src/services/feed-service.js`), catalog — через `content-service`. |
-| Mock отключаем без деградации              | 🟡 Pending smoke | Критерий и условия проверки зафиксированы в п. 5.3; код переключения источника данных уже централизован в `create-feed-adapter` и env `VITE_DATA_SOURCE`.                              |
+| Пункт DoD                                  | Статус  | Подтверждение (файлы/модули)                                                                                                                                                                             |
+| ------------------------------------------ | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Поля `mock.js` размечены по статусам       | ✅ Done | Разделы 1.1–1.4 этого документа фиксируют `keep/rename/remove/transform` для жанров, клипов, комментариев и профиля.                                                                                     |
+| UI не зависит от mock-only полей           | ✅ Done | Каталог и профиль читаются через сервисы (`src/services/content-service.js`, `src/services/feed-service.js`), UI использует нормализованные поля (`genreName`, `durationLabel`).                         |
+| Seed покрывает ключевые сценарии           | ✅ Done | Seed и smoke-проверки backend фиксируют сценарии feed/comments/bookmarks/profile/moderation (`scripts/db/seed.py`, `src/test/backend-api-smoke.test.js`).                                                |
+| Read/write флоу через единый adapter layer | ✅ Done | Единый API adapter закрывает feed/comments/likes/bookmarks/moderation/profile (`src/services/api-feed-adapter.js`, `src/services/feed-service.js`), catalog — через `content-service`.                   |
+| Mock отключаем без деградации              | ✅ Done | Cutover-check пройден в API-режиме (`VITE_DATA_SOURCE=api`): подтверждены критические сценарии auth/onboarding/feed/likes-bookmarks/comments/admin moderation и добавлен регрессионный smoke `task-034`. |
 
 ### 5.2 Открытые блокеры
 
-1. **Финальная stage-валидация cutover (`mock.js` off)**: требуется прогон smoke в окружении со включённым `VITE_DATA_SOURCE=api` и доступным backend-контуром, затем фиксация результата в release-checklist.
+На текущем этапе блокеры по cutover `mock.js` отсутствуют; дальнейшие риски относятся к post-cutover задачам (реальная auth-модель и media pipeline).
 
 ### 5.3 Критерий "`mock.js` отключается без деградации" и условия проверки
 

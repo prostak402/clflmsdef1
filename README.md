@@ -193,7 +193,7 @@ Env-матрица для backend-ready сценариев:
 3. ✅ Добавить мапперы API ↔ UI-моделей (клипы, комментарии, профиль, жанры).
 4. ✅ Включить read-path через API под feature flag и оставить mock как fallback.
 5. ✅ Перевести write-path (лайки, закладки, комментарии, модерация) на реальные endpoint-ы.
-6. 🟡 Провести финальный stage cutover-check: `mock.js` выключается (`VITE_DATA_SOURCE=api`) без деградации ключевых сценариев.
+6. ✅ Провести финальный stage cutover-check: `mock.js` выключается (`VITE_DATA_SOURCE=api`) без деградации ключевых сценариев (auth, onboarding, feed, likes/bookmarks, comments, admin moderation).
 7. ⏳ Подключить реальную auth-модель (token/session refresh, logout, guards по роли).
 8. ⏳ Внедрить upload/media pipeline (presigned URL/object storage + валидация).
 9. ⏳ Удалить mock-only зависимости после успешного cutover и закрепить smoke/regression на API-режиме.
