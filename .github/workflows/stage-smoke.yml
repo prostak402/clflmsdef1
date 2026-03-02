@@ -47,3 +47,5 @@ jobs:
         env:
           STAGE_API_BASE_URL: ${{ vars.STAGE_API_BASE_URL }}
           STAGE_API_TOKEN: ${{ secrets.STAGE_API_TOKEN }}
+          STAGE_SMOKE_SAFE_MODE: ${{ vars.STAGE_SMOKE_SAFE_MODE || 'true' }}
+          STAGE_SMOKE_CLIP_ID: ${{ vars.STAGE_SMOKE_CLIP_ID }}
