@@ -19,7 +19,7 @@ function ContextProbe({ onUpdate }) {
 async function renderAppContext() {
   let current
 
-  render(
+  const view = render(
     <AppProvider>
       <ContextProbe
         onUpdate={(value) => {
@@ -35,6 +35,7 @@ async function renderAppContext() {
 
   return {
     getCurrent: () => current,
+    unmount: view.unmount,
   }
 }
 
@@ -200,6 +201,45 @@ describe('TASK-012: AppContext state transitions', () => {
         (comment) => comment.authorId !== 'blocked@example.com'
       )
     ).toBe(true)
+  })
+
+
+  it('keeps profile metrics consistent between repeated reads and provider remount', async () => {
+    const getProfileSpy = vi.spyOn(feedService, 'getProfile').mockReturnValue({
+      name: 'Backend Profile',
+      email: 'backend@example.com',
+      avatar: '🎬',
+      bookmarkCount: 12,
+      likeCount: 8,
+      watchedCount: 3,
+    })
+
+    const firstRender = await renderAppContext()
+
+    await act(async () => {
+      firstRender.getCurrent().login({ name: 'Local User', email: 'local@example.com' })
+      await firstRender.getCurrent().toggleBookmark('1')
+      await firstRender.getCurrent().toggleLike('1')
+    })
+
+    expect(firstRender.getCurrent().getProfile()).toMatchObject({
+      bookmarkCount: 12,
+      likeCount: 8,
+      watchedCount: 3,
+    })
+
+    firstRender.unmount()
+
+    const secondRender = await renderAppContext()
+
+    expect(secondRender.getCurrent().getProfile()).toMatchObject({
+      bookmarkCount: 12,
+      likeCount: 8,
+      watchedCount: 3,
+    })
+
+    getProfileSpy.mockRestore()
+    secondRender.unmount()
   })
 
   it('toggles genres and keeps state stable on repeated toggle and limit overflow', async () => {

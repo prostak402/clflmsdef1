@@ -761,8 +761,8 @@ export function AppProvider({ children }) {
   }, [bookmarks])
 
   const getProfile = useCallback(() => {
-    return feedService.getProfile({ user, bookmarks, likes })
-  }, [bookmarks, likes, user])
+    return feedService.getProfile({ user })
+  }, [user])
 
   const value = {
     user,

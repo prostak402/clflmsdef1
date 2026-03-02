@@ -14,12 +14,13 @@
  * @property {(params: { authorId: string, comments: Record<string, Array<Object>> }) => Record<string, Array<Object>>} deleteCommentsByUser
  * @property {(params: { bookmarks: string[] }) => Array<Object>} getBookmarks
  * @property {() => Array<Object>} getCatalog
- * @property {(params: { user: Object | null, bookmarks: string[], likes: Record<string, boolean> }) => {
+ * @property {(params?: { user?: Object | null, bookmarks?: string[], likes?: Record<string, boolean> }) => {
  *   name: string,
  *   email: string,
  *   avatar: string,
  *   bookmarkCount: number,
  *   likeCount: number,
+ *   watchedCount?: number,
  * }} getProfile
  * @property {() => Record<string, Array<Object>>} getInitialComments
  */

@@ -106,8 +106,8 @@ export default function ProfilePage() {
                 <User size={32} />
               </div>
               <div className="profile-user-info">
-                <h2 className="profile-name">{user?.name || 'User'}</h2>
-                <p className="profile-email">{user?.email || ''}</p>
+                <h2 className="profile-name">{profile.name || user?.name || 'User'}</h2>
+                <p className="profile-email">{profile.email || user?.email || ''}</p>
                 {user?.isAdmin && (
                   <span className="profile-admin-badge">
                     <Shield size={12} />
@@ -129,7 +129,7 @@ export default function ProfilePage() {
               </div>
               <div className="profile-stat-divider" />
               <div className="profile-stat">
-                <span className="profile-stat-value">0</span>
+                <span className="profile-stat-value">{profile.watchedCount ?? 0}</span>
                 <span className="profile-stat-label">Watched</span>
               </div>
             </div>
