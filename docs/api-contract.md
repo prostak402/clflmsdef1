@@ -471,6 +471,10 @@ MVP compatibility endpoint для текущего adapter bootstrapping:
 
 Создать комментарий к клипу.
 
+- Клиент отправляет только `{ "body": string }`.
+- Идентификатор и имя автора берутся backend-ом из авторизованной сессии/токена и возвращаются в `CommentResponse`.
+- Временный backward-compatible режим с передачей `authorId/userName` допускается только при явном клиентском флаге `VITE_API_CREATE_COMMENT_LEGACY_AUTHOR_PAYLOAD=true` и должен быть удалён после полного cutover.
+
 ### `PATCH /comments/:id`
 
 Обновить комментарий.

@@ -19,6 +19,7 @@ const DEFAULT_DRAFT_PREFERENCES = {
 
 const AUTH_REQUIRED_ERROR = 'auth_required'
 const COMMENT_BLOCKED_ERROR = 'comment_blocked'
+const COMMENT_UNAUTHORIZED_ERROR = 'comment_unauthorized'
 
 const DEFAULT_STATE = {
   user: null,
@@ -471,7 +472,7 @@ export function AppProvider({ children }) {
   )
 
   const addComment = useCallback(
-    (clipId, text) => {
+    async (clipId, text) => {
       if (!user) {
         return {
           ok: false,
@@ -495,22 +496,32 @@ export function AppProvider({ children }) {
         }
       }
 
-      setComments((prev) =>
-        feedService.createComment({
+      try {
+        const nextComments = await feedService.createComment({
           clipId,
           text: validation.normalizedText,
-          comments: prev,
+          comments,
           userName: user?.name,
           authorId: currentAuthorId,
         })
-      )
 
-      return {
-        ok: true,
-        error: '',
+        setComments(nextComments)
+
+        return {
+          ok: true,
+          error: '',
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : ''
+        const isUnauthorizedError = /\(401\)|\(403\)/.test(message)
+
+        return {
+          ok: false,
+          error: isUnauthorizedError ? COMMENT_UNAUTHORIZED_ERROR : message || 'comment_submit_failed',
+        }
       }
     },
-    [isUserCommentBlocked, user]
+    [comments, isUserCommentBlocked, user]
   )
 
   const updateDraftPreferences = useCallback((patch) => {

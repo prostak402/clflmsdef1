@@ -15,6 +15,16 @@ function getApiBaseUrl() {
   return raw.trim().replace(/\/$/, '')
 }
 
+function shouldSendLegacyCreateCommentAuthorFields() {
+  const rawFlag = import.meta.env?.VITE_API_CREATE_COMMENT_LEGACY_AUTHOR_PAYLOAD
+
+  if (typeof rawFlag !== 'string') {
+    return false
+  }
+
+  return ['1', 'true', 'yes', 'on'].includes(rawFlag.trim().toLowerCase())
+}
+
 function buildUrl(path, query = undefined) {
   const baseUrl = getApiBaseUrl()
   const url = new URL(`${baseUrl}${path}`, window.location.origin)
@@ -191,13 +201,18 @@ export const apiFeedAdapter = {
   async createComment(params) {
     const payload = normalizeWritePayload('createComment', params)
 
+    const requestBody = {
+      body: payload.text,
+    }
+
+    if (shouldSendLegacyCreateCommentAuthorFields()) {
+      requestBody.userName = payload.userName
+      requestBody.authorId = payload.authorId
+    }
+
     const response = await requestJson(`/clips/${payload.clipId}/comments`, {
       method: 'POST',
-      body: {
-        body: payload.text,
-        userName: payload.userName,
-        authorId: payload.authorId,
-      },
+      body: requestBody,
     })
 
     const commentData = response?.comment || response
