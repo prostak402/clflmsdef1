@@ -167,18 +167,18 @@ Env-матрица для backend-ready сценариев:
 - **Demo auth:** авторизация демонстрационная, без реальной identity-проверки и backend-сессий.
 - **Локальные данные:** состояние и пользовательские действия хранятся в `localStorage`.
 - **Без реального upload:** админская форма не загружает файлы в хранилище и не создаёт persistent media-объекты.
-- **API-адаптер реализован частично:** режим `VITE_DATA_SOURCE=api` работает не для всех продуктовых потоков (детали в матрице ниже).
+- **API-режим покрывает ключевые продуктовые потоки:** feed/comments/likes/bookmarks/moderation/profile/catalog работают через adapter/service слой; в работе остаётся финальный stage cutover-check для отключения `mock.js`.
 
 ### Статус потоков API-адаптера (mock vs api)
 
-| Сценарий          | `mock`    | `api`       | Статус/комментарий                                                                                                                                                                    |
-| ----------------- | --------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Feed              | ✅ Готово | 🟡 Частично | Чтение ленты подключено через `GET /feed/clips`, но покрытие зависит от готовности backend-фильтрации/пагинации и полного payload по контракту.                                       |
-| Comments          | ✅ Готово | 🟡 Частично | Есть чтение (`GET /comments`) и создание (`POST /clips/:clipId/comments`), но остаются контрактные расхождения по авторству комментария в MVP-переходном формате.                     |
-| Likes / Bookmarks | ✅ Готово | 🟡 Частично | Toggle-флоу подключены (`/clips/:clipId/like`, `/clips/:clipId/bookmark`, `GET /me/bookmarks`), но end-to-end устойчивость зависит от backend-консистентности счётчиков и user-state. |
-| Moderation        | ✅ Готово | 🟡 Частично | Методы модерации подключены (`/moderation/comments*`), но блокеры по политике статусов/фильтрам и массовым операциям остаются открытыми.                                              |
-| Profile           | ✅ Готово | 🟡 Частично | `GET /me` интегрирован; в `api`-режиме профильные метрики (likes/bookmarks/watched) берутся из backend payload с безопасными дефолтами для частичных ответов.                         |
-| Catalog           | ✅ Готово | 🟡 Частично | Каталог переведён на adapter/service read-path с поддержкой `VITE_DATA_SOURCE` и `GET /clips`; для production-ready остаются вопросы пагинации и расширенной фильтрации.              |
+| Сценарий          | `mock`    | `api`     | Статус/комментарий                                                                                                                                 |
+| ----------------- | --------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Feed              | ✅ Готово | ✅ Готово | `GET /feed/clips` подключён через `api-feed-adapter`, нормализация payload вынесена в shared mapper-слой.                                          |
+| Comments          | ✅ Готово | ✅ Готово | Чтение/запись работают через `GET /comments` и `POST /clips/:clipId/comments`, переходный legacy payload авторства ограничен feature-flag режимом. |
+| Likes / Bookmarks | ✅ Готово | ✅ Готово | Toggle и read-path закрыты endpoint-ами `/clips/:clipId/{like,bookmark}` и `GET /me/bookmarks`; UI получает единый формат через `feed-service`.    |
+| Moderation        | ✅ Готово | ✅ Готово | Админский комментарийный поток переведён на `/moderation/comments*` через adapter/service методы без зависимости UI от источника данных.           |
+| Profile           | ✅ Готово | ✅ Готово | `GET /me` является источником профильных счётчиков; при частичном payload действуют безопасные fallback-значения.                                  |
+| Catalog           | ✅ Готово | ✅ Готово | Каталог читает данные через `content-service` + `api-feed-adapter.getCatalog()` с переключением `VITE_DATA_SOURCE` без изменения UI-компонентов.   |
 
 ### Источник истины по endpoint-ам и правило синхронизации
 
@@ -188,14 +188,15 @@ Env-матрица для backend-ready сценариев:
 
 ## Roadmap next: mock → api
 
-1. Поднять backend-контур (auth, feed, comments, moderation, bookmarks/likes) по `docs/api-contract.md`.
-2. Реализовать `api-feed-adapter` с сохранением текущего интерфейса `feed-adapter.js`.
-3. Добавить мапперы API ↔ UI-моделей (клипы, комментарии, профиль, жанры).
-4. Включить read-path через API под feature flag и оставить mock как fallback.
-5. Перевести write-path (лайки, закладки, комментарии, модерация) на реальные endpoint-ы.
-6. Подключить реальную auth-модель (token/session refresh, logout, guards по роли).
-7. Внедрить upload/media pipeline (presigned URL/object storage + валидация).
-8. Удалить mock-only поля/зависимости и закрепить smoke/regression на API-режиме.
+1. ✅ Поднять backend-контур (auth, feed, comments, moderation, bookmarks/likes) по `docs/api-contract.md`.
+2. ✅ Реализовать `api-feed-adapter` с сохранением текущего интерфейса `feed-adapter.js`.
+3. ✅ Добавить мапперы API ↔ UI-моделей (клипы, комментарии, профиль, жанры).
+4. ✅ Включить read-path через API под feature flag и оставить mock как fallback.
+5. ✅ Перевести write-path (лайки, закладки, комментарии, модерация) на реальные endpoint-ы.
+6. 🟡 Провести финальный stage cutover-check: `mock.js` выключается (`VITE_DATA_SOURCE=api`) без деградации ключевых сценариев.
+7. ⏳ Подключить реальную auth-модель (token/session refresh, logout, guards по роли).
+8. ⏳ Внедрить upload/media pipeline (presigned URL/object storage + валидация).
+9. ⏳ Удалить mock-only зависимости после успешного cutover и закрепить smoke/regression на API-режиме.
 
 ## Чек-лист готовности к этапу аренды/подключения сервера
 
