@@ -278,6 +278,7 @@ npm run smoke:stage-api
 ```
 
 Smoke-check stage API при наличии `STAGE_API_BASE_URL` с проверками:
+
 - `GET /api/v1/genres`
 - `GET /api/v1/feed/clips`
 - `GET /api/v1/me`
@@ -287,6 +288,7 @@ Smoke-check stage API при наличии `STAGE_API_BASE_URL` с провер
 - один moderation endpoint без разрушительных действий: `GET /api/v1/moderation/comments`
 
 Для безопасного режима stage smoke используются переменные:
+
 - `STAGE_SMOKE_SAFE_MODE` (по умолчанию `true`)
 - `STAGE_SMOKE_CLIP_ID` (опционально, для фиксированного id клипа)
 
