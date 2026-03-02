@@ -5,6 +5,7 @@ import { apiFeedAdapter } from '../services/api-feed-adapter'
 describe('apiFeedAdapter write contract', () => {
   afterEach(() => {
     vi.restoreAllMocks()
+    vi.unstubAllEnvs()
   })
 
   it('uses canonical GET /feed/clips endpoint for feed request', async () => {
@@ -22,7 +23,6 @@ describe('apiFeedAdapter write contract', () => {
       expect.objectContaining({ method: 'GET' })
     )
   })
-
 
   it('loads catalog from GET /clips in api mode', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
@@ -123,7 +123,7 @@ describe('apiFeedAdapter write contract', () => {
     )
   })
 
-  it('sends createComment payload in API contract shape and normalizes response', async () => {
+  it('sends createComment payload without client author fields and uses backend author from response', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(
         JSON.stringify({
@@ -131,7 +131,8 @@ describe('apiFeedAdapter write contract', () => {
             id: 'cm_1',
             clipId: ' clip-1 ',
             text: 'Hello',
-            authorName: 'Legacy User',
+            authorName: 'Backend User',
+            authorId: 'author-from-backend',
             createdAt: '2026-01-01T00:00:00Z',
           },
         }),
@@ -144,6 +145,7 @@ describe('apiFeedAdapter write contract', () => {
       text: '  Hello  ',
       comments: { 'clip-1': [] },
       userName: '  John  ',
+      authorId: 'local-author',
     })
 
     expect(fetchSpy).toHaveBeenCalledWith(
@@ -152,8 +154,6 @@ describe('apiFeedAdapter write contract', () => {
         method: 'POST',
         body: JSON.stringify({
           body: 'Hello',
-          userName: 'John',
-          authorId: undefined,
         }),
       })
     )
@@ -162,6 +162,48 @@ describe('apiFeedAdapter write contract', () => {
         id: 'cm_1',
         clipId: 'clip-1',
         text: 'Hello',
+        authorName: 'Backend User',
+        authorId: 'author-from-backend',
+      })
+    )
+  })
+
+  it('supports temporary legacy createComment payload mode via explicit env flag', async () => {
+    vi.stubEnv('VITE_API_CREATE_COMMENT_LEGACY_AUTHOR_PAYLOAD', 'true')
+
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          comment: {
+            id: 'cm_legacy',
+            clipId: 'clip-1',
+            text: 'Legacy payload mode',
+            authorName: 'Backend User',
+            authorId: 'backend-author',
+            createdAt: '2026-01-01T00:00:00Z',
+          },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      )
+    )
+
+    await apiFeedAdapter.createComment({
+      clipId: 'clip-1',
+      text: 'Legacy payload mode',
+      comments: { 'clip-1': [] },
+      userName: 'Legacy User',
+      authorId: 'legacy-author-id',
+    })
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/v1/clips/clip-1/comments',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          body: 'Legacy payload mode',
+          userName: 'Legacy User',
+          authorId: 'legacy-author-id',
+        }),
       })
     )
   })

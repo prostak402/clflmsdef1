@@ -81,7 +81,7 @@ export default function CommentsPanel({ clipId, onClose, position, feedRequestId
     return () => window.removeEventListener('keydown', handleKey)
   }, [onClose])
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
 
     if (isCommentBlocked) {
@@ -97,12 +97,16 @@ export default function CommentsPanel({ clipId, onClose, position, feedRequestId
       return
     }
 
-    const result = addComment(clipId, validation.normalizedText)
+    const result = await addComment(clipId, validation.normalizedText)
     if (!result?.ok) {
       if (result?.error === 'comment_blocked') {
         setSubmitError('Вам запрещено публиковать комментарии')
+      } else if (result?.error === 'comment_unauthorized') {
+        setSubmitError('Сессия истекла. Войдите снова, чтобы оставить комментарий')
+      } else if (result?.error === 'auth_required') {
+        setSubmitError('Войдите, чтобы оставить комментарий')
       } else {
-        setSubmitError(result?.error)
+        setSubmitError(result?.error || 'Не удалось отправить комментарий')
       }
       inputRef.current?.focus()
       return

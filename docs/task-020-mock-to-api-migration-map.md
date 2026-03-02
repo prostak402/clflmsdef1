@@ -208,7 +208,7 @@
 
 1. **Catalog read-path не перенесён на API**: отсутствует завершённый backend/UI-контур каталога, поэтому `VITE_DATA_SOURCE=api` не даёт полнофункциональный режим для `/catalog`.
 2. **Legacy-поля в админском потоке**: в `AppContext` и admin-формах ещё используются mock-only поля (`year`, `director`, `watchUrl`, `clipDescription`) без полного API replacement.
-3. **Комментарии (authorship в MVP-переходе)**: в API-контракте автор определяется из токена, а текущий клиентский create-flow всё ещё допускает передачу `authorId/userName` для совместимости.
+3. **Комментарии (authorship в MVP-переходе)**: в API-контракте автор определяется из токена; клиент отправляет только `body`, а legacy-передача `authorId/userName` оставлена лишь как временный режим по явному флагу `VITE_API_CREATE_COMMENT_LEGACY_AUTHOR_PAYLOAD=true`.
 4. **Неполный parity по profile-метрикам**: часть счётчиков профиля формируется локально, а не из единого backend-источника, что создаёт риск рассинхронизации в API-режиме.
 
 

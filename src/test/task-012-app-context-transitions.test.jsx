@@ -1,8 +1,9 @@
 import { act, render, waitFor } from '@testing-library/react'
 import { useEffect } from 'react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { AppProvider } from '../context/AppContext'
+import { feedService } from '../services/feed-service'
 import { useApp } from '../context/useApp'
 
 function ContextProbe({ onUpdate }) {
@@ -47,7 +48,7 @@ describe('TASK-012: AppContext state transitions', () => {
 
     await expect(getCurrent().toggleLike('1')).resolves.toBe(false)
     await expect(getCurrent().toggleBookmark('1')).resolves.toBe(false)
-    expect(getCurrent().addComment('1', 'Комментарий без логина')).toEqual({
+    await expect(getCurrent().addComment('1', 'Комментарий без логина')).resolves.toEqual({
       ok: false,
       error: 'auth_required',
     })
@@ -94,7 +95,7 @@ describe('TASK-012: AppContext state transitions', () => {
 
     let result
     await act(async () => {
-      result = getCurrent().addComment('1', '  Great pick!  ')
+      result = await getCurrent().addComment('1', '  Great pick!  ')
     })
 
     expect(result).toEqual({ ok: true, error: '' })
@@ -106,11 +107,35 @@ describe('TASK-012: AppContext state transitions', () => {
 
     let invalidResult
     await act(async () => {
-      invalidResult = getCurrent().addComment('1', '   ')
+      invalidResult = await getCurrent().addComment('1', '   ')
     })
 
     expect(invalidResult.ok).toBe(false)
     expect(getCurrent().comments['1']).toHaveLength(beforeCommentsCount + 1)
+  })
+
+
+  it('returns unauthorized comment error when backend rejects createComment', async () => {
+    const { getCurrent } = await renderAppContext()
+
+    await act(async () => {
+      getCurrent().login({ name: 'Test User', email: 'test@example.com' })
+    })
+
+    const beforeComments = getCurrent().comments
+    const createCommentSpy = vi
+      .spyOn(feedService, 'createComment')
+      .mockRejectedValueOnce(new Error('Unauthorized (401)'))
+
+    let result
+    await act(async () => {
+      result = await getCurrent().addComment('1', 'Will fail')
+    })
+
+    expect(result).toEqual({ ok: false, error: 'comment_unauthorized' })
+    expect(getCurrent().comments).toEqual(beforeComments)
+
+    createCommentSpy.mockRestore()
   })
 
   it('blocks comments by author and supports delete operations', async () => {
@@ -128,7 +153,7 @@ describe('TASK-012: AppContext state transitions', () => {
 
     let blockedResult
     await act(async () => {
-      blockedResult = getCurrent().addComment('1', 'Should not be added')
+      blockedResult = await getCurrent().addComment('1', 'Should not be added')
     })
 
     expect(blockedResult).toEqual({ ok: false, error: 'comment_blocked' })
@@ -141,7 +166,7 @@ describe('TASK-012: AppContext state transitions', () => {
 
     let allowedResult
     await act(async () => {
-      allowedResult = getCurrent().addComment('1', 'Allowed now')
+      allowedResult = await getCurrent().addComment('1', 'Allowed now')
     })
 
     expect(allowedResult).toEqual({ ok: true, error: '' })
@@ -157,8 +182,8 @@ describe('TASK-012: AppContext state transitions', () => {
     ).toBeFalsy()
 
     await act(async () => {
-      getCurrent().addComment('1', 'First by blocked user')
-      getCurrent().addComment('2', 'Second by blocked user')
+      await getCurrent().addComment('1', 'First by blocked user')
+      await getCurrent().addComment('2', 'Second by blocked user')
     })
 
     await act(async () => {
