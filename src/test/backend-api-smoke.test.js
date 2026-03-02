@@ -71,9 +71,13 @@ describe('backend API smoke', () => {
     const commentsReadPayload = await commentsReadResponse.json()
     expect(commentsReadResponse.status).toBe(200)
     expect(Array.isArray(commentsReadPayload.items)).toBe(true)
-    expect(commentsReadPayload.items.some((comment) => comment.id === commentCreatePayload.comment.id)).toBe(true)
+    expect(
+      commentsReadPayload.items.some((comment) => comment.id === commentCreatePayload.comment.id)
+    ).toBe(true)
 
-    const bookmarkWriteResponse = await fetch(`${BASE_URL}/clips/clip_1/bookmark`, { method: 'POST' })
+    const bookmarkWriteResponse = await fetch(`${BASE_URL}/clips/clip_1/bookmark`, {
+      method: 'POST',
+    })
     const bookmarkWritePayload = await bookmarkWriteResponse.json()
     expect(bookmarkWriteResponse.status).toBe(200)
     expect(bookmarkWritePayload.bookmarks).toContain('clip_1')

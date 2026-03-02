@@ -111,7 +111,6 @@ describe('TASK-003: feed, reactions, comments and navigation', () => {
     ).toBeInTheDocument()
   }, 10000)
 
-
   it('disables comment input for blocked user and shows explicit blocked message', async () => {
     setPersistedState({
       user: { name: 'Demo User', email: 'demo@clipflow.com', isAdmin: false },

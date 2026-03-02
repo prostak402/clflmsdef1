@@ -113,7 +113,6 @@ async function createClipMetadata(metadata) {
   return payload?.clip || null
 }
 
-
 function toClipContractPayload(metadata = {}) {
   return {
     title: metadata.title,

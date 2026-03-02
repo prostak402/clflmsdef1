@@ -71,7 +71,9 @@ export default function AuthPage() {
             </button>
           </div>
 
-          {sessionExpired && <p className="auth-session-expired">Session expired. Please sign in again.</p>}
+          {sessionExpired && (
+            <p className="auth-session-expired">Session expired. Please sign in again.</p>
+          )}
 
           <form className="auth-form" onSubmit={handleSubmit}>
             {!isLogin && (
@@ -147,7 +149,12 @@ export default function AuthPage() {
             <button
               className="auth-social-btn glass"
               onClick={() => {
-                login({ name: 'Demo User', email: 'demo@clipflow.com', avatar: null, isAdmin: false })
+                login({
+                  name: 'Demo User',
+                  email: 'demo@clipflow.com',
+                  avatar: null,
+                  isAdmin: false,
+                })
                 navigate('/genres')
               }}
             >

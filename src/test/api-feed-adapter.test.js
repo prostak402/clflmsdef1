@@ -82,7 +82,9 @@ describe('apiFeedAdapter write contract', () => {
   })
 
   it('uses POST /like when clip is currently unliked', async () => {
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response('{}', { status: 200 }))
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response('{}', { status: 200 }))
 
     await apiFeedAdapter.toggleLike({ clipId: 'clip-1', likes: { 'clip-1': false } })
 
@@ -93,7 +95,9 @@ describe('apiFeedAdapter write contract', () => {
   })
 
   it('uses DELETE /like when clip is currently liked', async () => {
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response('{}', { status: 200 }))
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response('{}', { status: 200 }))
 
     await apiFeedAdapter.toggleLike({ clipId: 'clip-1', likes: { 'clip-1': true } })
 
@@ -104,7 +108,8 @@ describe('apiFeedAdapter write contract', () => {
   })
 
   it('uses POST/DELETE for bookmark toggle based on current local state', async () => {
-    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(new Response('{}', { status: 200 }))
       .mockResolvedValueOnce(new Response('{}', { status: 200 }))
 
@@ -207,7 +212,6 @@ describe('apiFeedAdapter write contract', () => {
       })
     )
   })
-
 
   it('maps profile counts from backend payload and ignores local likes/bookmarks state', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(

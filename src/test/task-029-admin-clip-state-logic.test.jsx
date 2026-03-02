@@ -112,7 +112,6 @@ function createBaseState() {
 }
 
 describe('TASK-029: AppContext admin clip state logic', () => {
-
   it('creates and edits admin clip using api-contract fields only', async () => {
     const { getCurrent } = await renderAppContextWithState(createBaseState())
 
@@ -129,7 +128,9 @@ describe('TASK-029: AppContext admin clip state logic', () => {
       })
     })
 
-    const createdUpload = getCurrent().adminUploads.find((upload) => upload.title === 'Contract Clip')
+    const createdUpload = getCurrent().adminUploads.find(
+      (upload) => upload.title === 'Contract Clip'
+    )
     expect(createdUpload).toBeTruthy()
     expect(createdUpload).toEqual(
       expect.objectContaining({
@@ -192,7 +193,9 @@ describe('TASK-029: AppContext admin clip state logic', () => {
     })
 
     expect(getCurrent().adminUploads.find((upload) => upload.id === 'upload_1')).toBeFalsy()
-    expect(getCurrent().adminCatalogMovies.find((movie) => movie.id === 'admin_upload_1')).toBeFalsy()
+    expect(
+      getCurrent().adminCatalogMovies.find((movie) => movie.id === 'admin_upload_1')
+    ).toBeFalsy()
   })
 
   it('rejects invalid id, empty patch edge case, and edit for missing clip', async () => {

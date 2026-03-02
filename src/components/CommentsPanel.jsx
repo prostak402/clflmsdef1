@@ -61,16 +61,13 @@ export default function CommentsPanel({ clipId, onClose, position, feedRequestId
   const isCommentBlocked = isUserCommentBlocked(currentAuthorId)
   const isSubmitAllowed = validateCommentText(text).valid && !isCommentBlocked
 
-
   useEffect(() => {
     if (isCommentBlocked) {
       setSubmitError('Вам запрещено публиковать комментарии')
       return
     }
 
-    setSubmitError((prev) =>
-      prev === 'Вам запрещено публиковать комментарии' ? '' : prev
-    )
+    setSubmitError((prev) => (prev === 'Вам запрещено публиковать комментарии' ? '' : prev))
   }, [isCommentBlocked])
 
   useEffect(() => {

@@ -107,7 +107,10 @@ export default function BookmarksPage() {
               <div className="bookmark-poster">
                 <img src={clip.thumbnailUrl} alt={clip.title} />
                 <div className="bookmark-poster-overlay">
-                  <button className="bookmark-play" onClick={() => window.open(clip.externalUrl, '_blank')}>
+                  <button
+                    className="bookmark-play"
+                    onClick={() => window.open(clip.externalUrl, '_blank')}
+                  >
                     <ExternalLink size={20} />
                   </button>
                 </div>

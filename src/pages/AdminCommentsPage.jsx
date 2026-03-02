@@ -18,13 +18,23 @@ function formatDate(value) {
 }
 
 export default function AdminCommentsPage() {
-  const { user, comments, blockedCommentUsers, blockUserComments, deleteComment, deleteCommentsByUser } =
-    useApp()
+  const {
+    user,
+    comments,
+    blockedCommentUsers,
+    blockUserComments,
+    deleteComment,
+    deleteCommentsByUser,
+  } = useApp()
   const navigate = useNavigate()
   const [operationState, setOperationState] = useState({ status: 'idle', message: '' })
   const [busyCommentId, setBusyCommentId] = useState('')
   const [rowStatusById, setRowStatusById] = useState({})
-  const [moderationState, setModerationState] = useState({ status: 'loading', rows: [], message: '' })
+  const [moderationState, setModerationState] = useState({
+    status: 'loading',
+    rows: [],
+    message: '',
+  })
 
   const loadModerationList = useCallback(async () => {
     setModerationState({ status: 'loading', rows: [], message: '' })
@@ -210,16 +220,30 @@ export default function AdminCommentsPage() {
                     <td>{formatDate(row.createdAt)}</td>
                     <td>
                       <div className="admin-comments-actions">
-                        <button type="button" onClick={() => handleDeleteComment(row)} disabled={isBusy}>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteComment(row)}
+                          disabled={isBusy}
+                        >
                           Delete
                         </button>
-                        <button type="button" onClick={() => handleBlockAuthor(row)} disabled={isBusy || isBlocked}>
+                        <button
+                          type="button"
+                          onClick={() => handleBlockAuthor(row)}
+                          disabled={isBusy || isBlocked}
+                        >
                           Block author
                         </button>
-                        <button type="button" onClick={() => handleDeleteAuthorComments(row)} disabled={isBusy}>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteAuthorComments(row)}
+                          disabled={isBusy}
+                        >
                           Delete all
                         </button>
-                        {rowStatusLabel && <small className="admin-comments-row-status">{rowStatusLabel}</small>}
+                        {rowStatusLabel && (
+                          <small className="admin-comments-row-status">{rowStatusLabel}</small>
+                        )}
                       </div>
                     </td>
                   </tr>

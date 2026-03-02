@@ -85,7 +85,9 @@ describe('TASK-028: admin clip editing UI', () => {
 
     expect(screen.getByRole('heading', { name: 'Edit Clip' })).toBeInTheDocument()
     expect(screen.getByPlaceholderText('Enter movie title')).toHaveValue('Original title')
-    expect(screen.getByPlaceholderText('Full movie description...')).toHaveValue('Original movie description')
+    expect(screen.getByPlaceholderText('Full movie description...')).toHaveValue(
+      'Original movie description'
+    )
   })
 
   it('saves edit through updateAdminClip and refreshes upload list', async () => {

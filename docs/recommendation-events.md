@@ -23,16 +23,16 @@
 
 ### Traceability matrix (spec → implementation → tests)
 
-| Spec item | UI emission point | Implementation | Tests |
-|---|---|---|---|
-| `feed_opened` | `FeedPage.loadFeed()` после успешной инициализации клипов | `src/pages/FeedPage.jsx`, `src/services/feed-service.js` | `src/test/task-024-feed-service-track-event.test.js`, `src/test/task-025-track-event-event-schema.test.js` |
-| `clip_impression` | `FeedPage` effect при смене активного клипа/первой загрузке | `src/pages/FeedPage.jsx`, `src/services/feed-service.js` (dedupe по `impressionId`) | `src/test/task-024-feed-service-track-event.test.js`, `src/test/task-025-track-event-event-schema.test.js` |
-| `clip_play_started` | `ClipCard` callback `video.onPlay` | `src/components/ClipCard.jsx`, `src/services/feed-service.js` | `src/test/task-024-feed-service-track-event.test.js`, `src/test/task-025-track-event-event-schema.test.js` |
-| `clip_view_threshold` | `ClipCard.handleTimeUpdate` при пересечении порогов | `src/components/ClipCard.jsx`, `src/services/feed-service.js` (dedupe по `impressionId+threshold`) | `src/test/task-024-feed-service-track-event.test.js`, `src/test/task-025-track-event-event-schema.test.js`, `src/test/recommendation-events.contract.test.js` |
-| `clip_view_ended` | `ClipCard.emitViewEnded` при уходе со слайда/размонтировании | `src/components/ClipCard.jsx`, `src/services/feed-service.js` | `src/test/task-024-feed-service-track-event.test.js`, `src/test/task-025-track-event-event-schema.test.js`, `src/test/recommendation-events.contract.test.js` |
-| `like_set` | `ClipCard.handleToggleLike` после optimistic локального toggle | `src/components/ClipCard.jsx`, `src/services/analytics/events.js` | `src/test/task-025-track-event-event-schema.test.js` |
-| `bookmark_set` | `ClipCard.handleToggleBookmark` после optimistic локального toggle | `src/components/ClipCard.jsx`, `src/services/analytics/events.js` | `src/test/task-025-track-event-event-schema.test.js` |
-| `comment_created` | `CommentsPanel.handleSubmit` после успешного `addComment` | `src/components/CommentsPanel.jsx`, `src/services/analytics/events.js` | `src/test/task-025-track-event-event-schema.test.js` |
+| Spec item             | UI emission point                                                  | Implementation                                                                                     | Tests                                                                                                                                                         |
+| --------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `feed_opened`         | `FeedPage.loadFeed()` после успешной инициализации клипов          | `src/pages/FeedPage.jsx`, `src/services/feed-service.js`                                           | `src/test/task-024-feed-service-track-event.test.js`, `src/test/task-025-track-event-event-schema.test.js`                                                    |
+| `clip_impression`     | `FeedPage` effect при смене активного клипа/первой загрузке        | `src/pages/FeedPage.jsx`, `src/services/feed-service.js` (dedupe по `impressionId`)                | `src/test/task-024-feed-service-track-event.test.js`, `src/test/task-025-track-event-event-schema.test.js`                                                    |
+| `clip_play_started`   | `ClipCard` callback `video.onPlay`                                 | `src/components/ClipCard.jsx`, `src/services/feed-service.js`                                      | `src/test/task-024-feed-service-track-event.test.js`, `src/test/task-025-track-event-event-schema.test.js`                                                    |
+| `clip_view_threshold` | `ClipCard.handleTimeUpdate` при пересечении порогов                | `src/components/ClipCard.jsx`, `src/services/feed-service.js` (dedupe по `impressionId+threshold`) | `src/test/task-024-feed-service-track-event.test.js`, `src/test/task-025-track-event-event-schema.test.js`, `src/test/recommendation-events.contract.test.js` |
+| `clip_view_ended`     | `ClipCard.emitViewEnded` при уходе со слайда/размонтировании       | `src/components/ClipCard.jsx`, `src/services/feed-service.js`                                      | `src/test/task-024-feed-service-track-event.test.js`, `src/test/task-025-track-event-event-schema.test.js`, `src/test/recommendation-events.contract.test.js` |
+| `like_set`            | `ClipCard.handleToggleLike` после optimistic локального toggle     | `src/components/ClipCard.jsx`, `src/services/analytics/events.js`                                  | `src/test/task-025-track-event-event-schema.test.js`                                                                                                          |
+| `bookmark_set`        | `ClipCard.handleToggleBookmark` после optimistic локального toggle | `src/components/ClipCard.jsx`, `src/services/analytics/events.js`                                  | `src/test/task-025-track-event-event-schema.test.js`                                                                                                          |
+| `comment_created`     | `CommentsPanel.handleSubmit` после успешного `addComment`          | `src/components/CommentsPanel.jsx`, `src/services/analytics/events.js`                             | `src/test/task-025-track-event-event-schema.test.js`                                                                                                          |
 
 ---
 
@@ -40,16 +40,16 @@
 
 Каждое событие **обязано** содержать общий envelope:
 
-| Поле | Тип | Обязательность | Описание |
-|---|---|---|---|
-| `eventId` | `string` (UUID v4) | required | Уникальный идентификатор конкретного события. Используется для idempotency на ingestion. |
-| `schemaVersion` | `string` | required | Версия схемы события. Для этого документа: `1.0.0`. |
-| `sessionId` | `string` | required | Идентификатор клиентской сессии (ротация по restart/timeout). |
-| `userId` | `string \| null` | required | Идентификатор пользователя. `null` для анонимного трафика. |
-| `ts` | `string` (ISO-8601 UTC) | required | Момент возникновения события на клиенте. |
-| `source` | `enum` | required | Источник отправки: `client`, `server`. |
-| `surface` | `enum` | required | Продуктовая поверхность: `feed`, `bookmarks`, `profile`. |
-| `event` | `enum` | required | Имя события (см. раздел 3). |
+| Поле            | Тип                     | Обязательность | Описание                                                                                 |
+| --------------- | ----------------------- | -------------- | ---------------------------------------------------------------------------------------- |
+| `eventId`       | `string` (UUID v4)      | required       | Уникальный идентификатор конкретного события. Используется для idempotency на ingestion. |
+| `schemaVersion` | `string`                | required       | Версия схемы события. Для этого документа: `1.0.0`.                                      |
+| `sessionId`     | `string`                | required       | Идентификатор клиентской сессии (ротация по restart/timeout).                            |
+| `userId`        | `string \| null`        | required       | Идентификатор пользователя. `null` для анонимного трафика.                               |
+| `ts`            | `string` (ISO-8601 UTC) | required       | Момент возникновения события на клиенте.                                                 |
+| `source`        | `enum`                  | required       | Источник отправки: `client`, `server`.                                                   |
+| `surface`       | `enum`                  | required       | Продуктовая поверхность: `feed`, `bookmarks`, `profile`.                                 |
+| `event`         | `enum`                  | required       | Имя события (см. раздел 3).                                                              |
 
 ### Общие правила валидации
 
@@ -70,16 +70,16 @@
 
 Эти поля используются в релевантных событиях feed/clip.
 
-| Поле | Тип | Обязательность | Описание |
-|---|---|---|---|
-| `clipId` | `string` | required для clip-* и action событий | Идентификатор клипа. |
-| `impressionId` | `string` (UUID) | required для clip_impression и производных clip событий | ID показа конкретной карточки/клипа в конкретной выдаче. |
-| `feedRequestId` | `string` (UUID) | required | ID ответа ранжирования/выдачи, из которого пришёл клип. |
-| `position` | `integer` (`>=0`) | required | Позиция клипа в выдаче (0-based). |
-| `contextGenreId` | `string \| null` | optional | Жанровый контекст выдачи. |
-| `clipDurationMs` | `integer` (`>0`) | required для playback событий | Длительность клипа в миллисекундах. |
-| `watchMs` | `integer` (`>=0`) | optional/conditional | Накопленное время просмотра к моменту события. |
-| `completionRate` | `number` (`0..1`) | optional/conditional | Доля просмотра: `watchMs / clipDurationMs` (clamped to 1). |
+| Поле             | Тип               | Обязательность                                          | Описание                                                   |
+| ---------------- | ----------------- | ------------------------------------------------------- | ---------------------------------------------------------- |
+| `clipId`         | `string`          | required для clip-\* и action событий                   | Идентификатор клипа.                                       |
+| `impressionId`   | `string` (UUID)   | required для clip_impression и производных clip событий | ID показа конкретной карточки/клипа в конкретной выдаче.   |
+| `feedRequestId`  | `string` (UUID)   | required                                                | ID ответа ранжирования/выдачи, из которого пришёл клип.    |
+| `position`       | `integer` (`>=0`) | required                                                | Позиция клипа в выдаче (0-based).                          |
+| `contextGenreId` | `string \| null`  | optional                                                | Жанровый контекст выдачи.                                  |
+| `clipDurationMs` | `integer` (`>0`)  | required для playback событий                           | Длительность клипа в миллисекундах.                        |
+| `watchMs`        | `integer` (`>=0`) | optional/conditional                                    | Накопленное время просмотра к моменту события.             |
+| `completionRate` | `number` (`0..1`) | optional/conditional                                    | Доля просмотра: `watchMs / clipDurationMs` (clamped to 1). |
 
 ### Правила консистентности context
 
@@ -98,23 +98,28 @@
 **Назначение:** пользователь открыл feed-поверхность.
 
 **Обязательные поля:**
+
 - Общие поля (раздел 1).
 - `event = "feed_opened"`.
 - `feedRequestId`.
 
 **Опциональные поля:**
+
 - `contextGenreId`.
 - `entryPoint` (`string`, например `tab_home`, `push`, `deeplink`).
 
 **Enum-поля и значения:**
+
 - `source`: `client | server`.
 - `surface`: `feed | bookmarks | profile`.
 
 **Точка отправки в UI:**
+
 - Экран feed: первый mount/foreground feed-экрана после успешной инициализации данных.
 - Хук: `useFeedScreenTelemetry` в эффекте `onScreenVisible`.
 
 **Дедупликация/идемпотентность:**
+
 - Hard dedupe: по `eventId`.
 - Session dedupe: не более одного `feed_opened` на `(sessionId, surface, feedRequestId)` в окне 30 секунд.
 
@@ -125,22 +130,27 @@
 **Назначение:** карточка клипа стала видимой согласно порогу impression.
 
 **Обязательные поля:**
+
 - Общие поля.
 - `event = "clip_impression"`.
 - `clipId`, `impressionId`, `feedRequestId`, `position`.
 
 **Опциональные поля:**
+
 - `contextGenreId`.
 - `visiblePct` (`number`, `0..1`).
 
 **Enum-поля и значения:**
+
 - `impressionType`: `first_viewable | reflow_viewable` (optional, default `first_viewable`).
 
 **Точка отправки в UI:**
+
 - Feed/list item observer (IntersectionObserver / visibility callback).
 - Условие: карточка видима минимум 50% не менее 300ms.
 
 **Дедупликация/идемпотентность:**
+
 - Hard dedupe: по `eventId`.
 - Business dedupe: единственный `clip_impression` для `(sessionId, impressionId)`.
 
@@ -151,21 +161,26 @@
 **Назначение:** старт воспроизведения клипа.
 
 **Обязательные поля:**
+
 - Общие поля.
 - `event = "clip_play_started"`.
 - `clipId`, `impressionId`, `feedRequestId`, `position`, `clipDurationMs`.
 
 **Опциональные поля:**
+
 - `contextGenreId`.
 - `autoplay` (`boolean`, default `true`).
 
 **Enum-поля и значения:**
+
 - `playInitiator`: `autoplay | user_tap | replay`.
 
 **Точка отправки в UI:**
+
 - Video player callback `onPlay` при переходе в состояние playing.
 
 **Дедупликация/идемпотентность:**
+
 - Hard dedupe: по `eventId`.
 - Business dedupe: один `clip_play_started` на `(sessionId, impressionId, playSequence)`; `playSequence` инкрементируется при replay.
 
@@ -176,21 +191,26 @@
 **Назначение:** просмотр пересёк контрольный порог.
 
 **Обязательные поля:**
+
 - Общие поля.
 - `event = "clip_view_threshold"`.
 - `clipId`, `impressionId`, `feedRequestId`, `position`, `clipDurationMs`, `watchMs`, `completionRate`.
 - `threshold`.
 
 **Опциональные поля:**
+
 - `contextGenreId`.
 
 **Enum-поля и значения:**
+
 - `threshold`: `p25 | p50 | p75 | p95`.
 
 **Точка отправки в UI:**
+
 - Таймкод-трекер плеера, когда накопленный `watchMs` впервые пересекает порог.
 
 **Дедупликация/идемпотентность:**
+
 - Hard dedupe: по `eventId`.
 - Business dedupe: не более одного события на `(sessionId, impressionId, threshold)`.
 
@@ -201,21 +221,26 @@
 **Назначение:** завершение сессии просмотра клипа (скролл дальше, pause+timeout, close).
 
 **Обязательные поля:**
+
 - Общие поля.
 - `event = "clip_view_ended"`.
 - `clipId`, `impressionId`, `feedRequestId`, `position`, `clipDurationMs`, `watchMs`, `completionRate`.
 - `endReason`.
 
 **Опциональные поля:**
+
 - `contextGenreId`.
 
 **Enum-поля и значения:**
+
 - `endReason`: `completed | scrolled_away | swiped_away | paused_timeout | app_backgrounded | error`.
 
 **Точка отправки в UI:**
+
 - Player/session teardown hook (`onStop`, `onVisibilityLost`, app lifecycle).
 
 **Дедупликация/идемпотентность:**
+
 - Hard dedupe: по `eventId`.
 - Business dedupe: последний `clip_view_ended` на `(sessionId, impressionId, playSequence)` является источником истины, предыдущие помечаются superseded.
 
@@ -226,21 +251,26 @@
 **Назначение:** пользователь изменил состояние лайка.
 
 **Обязательные поля:**
+
 - Общие поля.
 - `event = "like_set"`.
 - `clipId`, `impressionId`, `feedRequestId`, `position`.
 - `value` (`boolean`): `true` = liked, `false` = unliked.
 
 **Опциональные поля:**
+
 - `contextGenreId`.
 
 **Enum-поля и значения:**
+
 - В текущей реализации используется булевый флаг `value` вместо enum-поля состояния.
 
 **Точка отправки в UI:**
+
 - Tap на кнопке Like после локального state update (optimistic), с последующим reconcile.
 
 **Дедупликация/идемпотентность:**
+
 - Hard dedupe: по `eventId`.
 - State dedupe: события с одинаковым `value` для `(sessionId, clipId)` в окне 1 секунды схлопываются.
 
@@ -251,21 +281,26 @@
 **Назначение:** пользователь изменил состояние закладки.
 
 **Обязательные поля:**
+
 - Общие поля.
 - `event = "bookmark_set"`.
 - `clipId`, `impressionId`, `feedRequestId`, `position`.
 - `value` (`boolean`): `true` = bookmarked, `false` = unbookmarked.
 
 **Опциональные поля:**
+
 - `contextGenreId`.
 
 **Enum-поля и значения:**
+
 - В текущей реализации используется булевый флаг `value` вместо enum-поля состояния.
 
 **Точка отправки в UI:**
+
 - Tap на кнопке Bookmark после локального state update.
 
 **Дедупликация/идемпотентность:**
+
 - Hard dedupe: по `eventId`.
 - State dedupe: события с одинаковым `value` для `(sessionId, clipId)` в окне 1 секунды схлопываются.
 
@@ -276,23 +311,28 @@
 **Назначение:** пользователь создал комментарий к клипу.
 
 **Обязательные поля:**
+
 - Общие поля.
 - `event = "comment_created"`.
 - `clipId`, `impressionId`, `feedRequestId`, `position`.
 - `commentId`.
 
 **Опциональные поля:**
+
 - `contextGenreId`.
 - `replyToCommentId`.
 - `textLength` (`integer`, `>0`).
 
 **Enum-поля и значения:**
+
 - `creationSurface`: `inline_sheet | full_comments_screen`.
 
 **Точка отправки в UI:**
+
 - После успешного подтверждения создания комментария от API (`201 Created`).
 
 **Дедупликация/идемпотентность:**
+
 - Hard dedupe: по `eventId`.
 - Business dedupe: уникальность `commentId`; повторные `comment_created` с тем же `commentId` игнорируются.
 
@@ -305,6 +345,7 @@
 ### 4.1 `feed_opened`
 
 **Happy path**
+
 ```json
 {
   "eventId": "6e9c5c3e-f347-4b0f-8db0-cc5e84f0d2df",
@@ -321,6 +362,7 @@
 ```
 
 **Validation error example** (`source` invalid)
+
 ```json
 {
   "eventId": "e0fd333a-f006-4e5b-9f05-8a16115b1677",
@@ -338,6 +380,7 @@
 ### 4.2 `clip_impression`
 
 **Happy path**
+
 ```json
 {
   "eventId": "8ac78f36-7a8b-43f8-a78b-6322ec0add79",
@@ -358,6 +401,7 @@
 ```
 
 **Validation error example** (`position` negative)
+
 ```json
 {
   "eventId": "6ef83a34-c9c8-4f2d-a123-527d49fccf75",
@@ -378,6 +422,7 @@
 ### 4.3 `clip_play_started`
 
 **Happy path**
+
 ```json
 {
   "eventId": "4d8e0af6-2ec2-4a3c-a69f-b13ff71ec4a8",
@@ -398,6 +443,7 @@
 ```
 
 **Validation error example** (`clipDurationMs` missing)
+
 ```json
 {
   "eventId": "8da7e558-b046-4d49-9ee2-f32985dbe6f9",
@@ -419,6 +465,7 @@
 ### 4.4 `clip_view_threshold`
 
 **Happy path**
+
 ```json
 {
   "eventId": "63037ef7-0e4d-4def-a25b-c7038920d7b1",
@@ -441,6 +488,7 @@
 ```
 
 **Validation error example** (`threshold` invalid)
+
 ```json
 {
   "eventId": "e7909c0d-347d-4136-8cdf-2d5bb9cba8db",
@@ -465,6 +513,7 @@
 ### 4.5 `clip_view_ended`
 
 **Happy path**
+
 ```json
 {
   "eventId": "4f9d5bb5-bf4e-4f7b-aeb7-3d2be13a6458",
@@ -487,6 +536,7 @@
 ```
 
 **Validation error example** (`completionRate` out of range)
+
 ```json
 {
   "eventId": "c662ec7f-b863-466a-a7d9-5d7866550233",
@@ -511,6 +561,7 @@
 ### 4.6 `like_set`
 
 **Happy path**
+
 ```json
 {
   "eventId": "73138eda-c930-4f7d-a10d-0ad0374db00a",
@@ -530,6 +581,7 @@
 ```
 
 **Validation error example** (`value` invalid type)
+
 ```json
 {
   "eventId": "b30104dd-aaf1-4f8f-ac38-2ccaa6309e7b",
@@ -551,6 +603,7 @@
 ### 4.7 `bookmark_set`
 
 **Happy path**
+
 ```json
 {
   "eventId": "a0ca1730-f887-4ec9-8225-9db4fbe7ae8c",
@@ -570,6 +623,7 @@
 ```
 
 **Validation error example** (`value` missing)
+
 ```json
 {
   "eventId": "dbf5757b-24cc-4044-bddd-2104cfdb8275",
@@ -590,6 +644,7 @@
 ### 4.8 `comment_created`
 
 **Happy path**
+
 ```json
 {
   "eventId": "0dd297f5-dd84-4f7d-a3f2-12306ffea2cb",
@@ -611,6 +666,7 @@
 ```
 
 **Validation error example** (`commentId` empty)
+
 ```json
 {
   "eventId": "d8f0108b-2ea2-4197-b95a-19c8027fd531",

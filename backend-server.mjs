@@ -394,7 +394,9 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
-    const createCommentMatch = url.pathname.match(new RegExp(`^${API_PREFIX}/clips/([^/]+)/comments$`))
+    const createCommentMatch = url.pathname.match(
+      new RegExp(`^${API_PREFIX}/clips/([^/]+)/comments$`)
+    )
     if (req.method === 'POST' && createCommentMatch) {
       const clipId = createCommentMatch[1]
       const body = await readBody(req)
@@ -410,7 +412,9 @@ const server = http.createServer(async (req, res) => {
         clipId,
         authorId: user.id,
         authorName:
-          typeof body?.userName === 'string' && body.userName.trim() ? body.userName.trim() : user.displayName,
+          typeof body?.userName === 'string' && body.userName.trim()
+            ? body.userName.trim()
+            : user.displayName,
         avatar: '👤',
         text,
         likes: 0,

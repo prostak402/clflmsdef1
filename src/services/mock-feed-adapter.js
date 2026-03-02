@@ -1,6 +1,10 @@
 import { MOCK_CATALOG, MOCK_CLIPS, MOCK_COMMENTS } from '../data/mock'
 import { toClipUiList } from './mappers/clip-mapper'
-import { flattenCommentsForModeration, toCommentUiModel, toCommentsMapUiModel } from './mappers/comment-mapper'
+import {
+  flattenCommentsForModeration,
+  toCommentUiModel,
+  toCommentsMapUiModel,
+} from './mappers/comment-mapper'
 
 export const initialComments = toCommentsMapUiModel(MOCK_COMMENTS)
 
@@ -15,7 +19,9 @@ export const mockFeedAdapter = {
       return toClipUiList(MOCK_CLIPS)
     }
 
-    return toClipUiList(MOCK_CLIPS.filter((clip) => clip.genres.some((genre) => selectedGenres.includes(genre))))
+    return toClipUiList(
+      MOCK_CLIPS.filter((clip) => clip.genres.some((genre) => selectedGenres.includes(genre)))
+    )
   },
 
   toggleLike({ clipId, likes }) {

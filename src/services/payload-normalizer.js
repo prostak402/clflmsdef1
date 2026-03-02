@@ -76,7 +76,6 @@ function normalizeUserName(value) {
   return userName.slice(0, maxLength)
 }
 
-
 function normalizeCommentId(value) {
   const commentId = normalizeString(value)
   const { minLength, maxLength, required } = BACKEND_CONSTRAINTS.commentId
@@ -155,7 +154,9 @@ export function normalizeWritePayload(operation, payload = {}) {
       return {
         authorId,
         blockedUsers:
-          payload.blockedUsers && typeof payload.blockedUsers === 'object' ? payload.blockedUsers : {},
+          payload.blockedUsers && typeof payload.blockedUsers === 'object'
+            ? payload.blockedUsers
+            : {},
       }
     }
 

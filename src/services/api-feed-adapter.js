@@ -1,5 +1,9 @@
 import { toClipUiList } from './mappers/clip-mapper'
-import { toCommentUiModel, toCommentsMapUiModel, toModerationCommentUiList } from './mappers/comment-mapper'
+import {
+  toCommentUiModel,
+  toCommentsMapUiModel,
+  toModerationCommentUiList,
+} from './mappers/comment-mapper'
 import { normalizeWritePayload } from './payload-normalizer'
 import { authService } from './auth-service'
 
@@ -115,9 +119,7 @@ function shouldCreateToggleEntity(currentValue) {
 function toggleArrayEntry(list, value) {
   const safeList = Array.isArray(list) ? list : []
 
-  return safeList.includes(value)
-    ? safeList.filter((item) => item !== value)
-    : [...safeList, value]
+  return safeList.includes(value) ? safeList.filter((item) => item !== value) : [...safeList, value]
 }
 
 function groupCommentsByClip(comments = []) {
@@ -246,7 +248,11 @@ export const apiFeedAdapter = {
 
   async getAllCommentsForModeration({ clips = [], blockedUsers = {} } = {}) {
     const payload = await requestJson('/moderation/comments')
-    const rows = Array.isArray(payload?.items) ? payload.items : Array.isArray(payload) ? payload : []
+    const rows = Array.isArray(payload?.items)
+      ? payload.items
+      : Array.isArray(payload)
+        ? payload
+        : []
 
     return toModerationCommentUiList(rows, { clips, blockedUsers })
   },
@@ -274,9 +280,9 @@ export const apiFeedAdapter = {
 
     return {
       ...payload.comments,
-      [payload.clipId]: (payload.comments[payload.clipId] || []).map((comment) =>
-        toCommentUiModel(comment, payload.clipId)
-      ).filter((comment) => comment.id !== payload.commentId),
+      [payload.clipId]: (payload.comments[payload.clipId] || [])
+        .map((comment) => toCommentUiModel(comment, payload.clipId))
+        .filter((comment) => comment.id !== payload.commentId),
     }
   },
 
@@ -296,7 +302,6 @@ export const apiFeedAdapter = {
       return acc
     }, {})
   },
-
 
   async getCatalog() {
     const payload = await requestJson('/clips')
@@ -322,21 +327,23 @@ export const apiFeedAdapter = {
     const payload = await requestJson('/me')
 
     const counts = payload?.counts && typeof payload.counts === 'object' ? payload.counts : {}
-    const watched = payload?.activity && typeof payload.activity === 'object'
-      ? payload.activity
-      : {}
+    const watched =
+      payload?.activity && typeof payload.activity === 'object' ? payload.activity : {}
 
     return {
       name: payload?.displayName || payload?.name || user?.name || 'Movie Explorer',
       email: payload?.email || user?.email || 'hello@movieexplorer.app',
       avatar: payload?.avatarUrl || payload?.avatar || user?.avatar || '🎬',
-      bookmarkCount: resolveProfileCount(payload, ['bookmarkCount', 'bookmarksCount'])
-        || resolveProfileCount(counts, ['bookmarks', 'bookmarkCount']),
-      likeCount: resolveProfileCount(payload, ['likeCount', 'likesCount'])
-        || resolveProfileCount(counts, ['likes', 'likeCount']),
-      watchedCount: resolveProfileCount(payload, ['watchedCount'])
-        || resolveProfileCount(counts, ['watched', 'watchedCount'])
-        || resolveProfileCount(watched, ['watched', 'clips']),
+      bookmarkCount:
+        resolveProfileCount(payload, ['bookmarkCount', 'bookmarksCount']) ||
+        resolveProfileCount(counts, ['bookmarks', 'bookmarkCount']),
+      likeCount:
+        resolveProfileCount(payload, ['likeCount', 'likesCount']) ||
+        resolveProfileCount(counts, ['likes', 'likeCount']),
+      watchedCount:
+        resolveProfileCount(payload, ['watchedCount']) ||
+        resolveProfileCount(counts, ['watched', 'watchedCount']) ||
+        resolveProfileCount(watched, ['watched', 'clips']),
     }
   },
 
@@ -347,7 +354,11 @@ export const apiFeedAdapter = {
       return toCommentsMapUiModel(payload)
     }
 
-    const rows = Array.isArray(payload?.items) ? payload.items : Array.isArray(payload) ? payload : []
+    const rows = Array.isArray(payload?.items)
+      ? payload.items
+      : Array.isArray(payload)
+        ? payload
+        : []
     return toCommentsMapUiModel(groupCommentsByClip(rows))
   },
 }

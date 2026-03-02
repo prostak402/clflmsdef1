@@ -57,7 +57,6 @@ describe('TASK-016: route guard behavior', () => {
     expect(window.location.pathname).toBe('/feed')
   })
 
-
   it('redirects admin user without onboarding from /admin to /genres', async () => {
     setPersistedState({
       user: { name: 'Admin User', email: 'admin@clipflow.com', isAdmin: true },

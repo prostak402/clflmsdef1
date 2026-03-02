@@ -1,17 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useApp } from '../context/useApp'
 import { Link, useNavigate } from 'react-router-dom'
-import {
-  Upload,
-  Film,
-  Plus,
-  Trash2,
-  X,
-  Save,
-  AlertTriangle,
-  Check,
-  Pencil,
-} from 'lucide-react'
+import { Upload, Film, Plus, Trash2, X, Save, AlertTriangle, Check, Pencil } from 'lucide-react'
 import { contentService } from '../services/content-service'
 import { uploadClipWithMetadata, validateClipFile } from '../services/admin-upload-service'
 import './AdminPage.css'

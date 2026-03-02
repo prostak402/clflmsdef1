@@ -172,9 +172,7 @@ export function AppProvider({ children }) {
   const persistedOnboarding = persistedState.hasCompletedOnboarding
 
   const [user, setUser] = useState(persistedUser)
-  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(
-    persistedOnboarding
-  )
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(persistedOnboarding)
   const [selectedGenres, setSelectedGenres] = useState(persistedState.selectedGenres)
   const [bookmarks, setBookmarks] = useState(persistedState.bookmarks)
   const [likes, setLikes] = useState(persistedState.likes)
@@ -265,7 +263,11 @@ export function AppProvider({ children }) {
   ])
 
   const login = useCallback(async (credentials = {}) => {
-    if (credentials && (credentials.name || credentials.isAdmin !== undefined) && !credentials.mode) {
+    if (
+      credentials &&
+      (credentials.name || credentials.isAdmin !== undefined) &&
+      !credentials.mode
+    ) {
       const legacyRole = credentials.role || (credentials.isAdmin ? 'admin' : 'user')
       const legacyUser = {
         ...credentials,
@@ -277,9 +279,10 @@ export function AppProvider({ children }) {
       return legacyUser
     }
 
-    const session = credentials?.mode === 'signup'
-      ? await authService.signUp(credentials)
-      : await authService.signIn(credentials)
+    const session =
+      credentials?.mode === 'signup'
+        ? await authService.signUp(credentials)
+        : await authService.signIn(credentials)
 
     const sessionUser = session?.user || {}
     const normalizedUser = {
@@ -317,7 +320,10 @@ export function AppProvider({ children }) {
     let didUpdate = false
 
     setBlockedCommentUsers((prev) => {
-      const next = feedService.blockUserComments({ authorId: normalizedAuthorId, blockedUsers: prev })
+      const next = feedService.blockUserComments({
+        authorId: normalizedAuthorId,
+        blockedUsers: prev,
+      })
       didUpdate = Boolean(next?.[normalizedAuthorId])
       return next
     })
@@ -364,7 +370,11 @@ export function AppProvider({ children }) {
     let didDelete = false
 
     setComments((prev) => {
-      const next = feedService.deleteComment({ clipId, commentId: normalizedCommentId, comments: prev })
+      const next = feedService.deleteComment({
+        clipId,
+        commentId: normalizedCommentId,
+        comments: prev,
+      })
       const prevLength = Array.isArray(prev?.[clipId]) ? prev[clipId].length : 0
       const nextLength = Array.isArray(next?.[clipId]) ? next[clipId].length : 0
       didDelete = nextLength < prevLength
@@ -383,9 +393,18 @@ export function AppProvider({ children }) {
     let didDelete = false
 
     setComments((prev) => {
-      const next = feedService.deleteCommentsByUser({ authorId: normalizedAuthorId, comments: prev })
-      const prevCount = Object.values(prev).reduce((acc, clipComments) => acc + (clipComments?.length || 0), 0)
-      const nextCount = Object.values(next).reduce((acc, clipComments) => acc + (clipComments?.length || 0), 0)
+      const next = feedService.deleteCommentsByUser({
+        authorId: normalizedAuthorId,
+        comments: prev,
+      })
+      const prevCount = Object.values(prev).reduce(
+        (acc, clipComments) => acc + (clipComments?.length || 0),
+        0
+      )
+      const nextCount = Object.values(next).reduce(
+        (acc, clipComments) => acc + (clipComments?.length || 0),
+        0
+      )
       didDelete = nextCount < prevCount
       return didDelete ? next : prev
     })
@@ -517,7 +536,9 @@ export function AppProvider({ children }) {
 
         return {
           ok: false,
-          error: isUnauthorizedError ? COMMENT_UNAUTHORIZED_ERROR : message || 'comment_submit_failed',
+          error: isUnauthorizedError
+            ? COMMENT_UNAUTHORIZED_ERROR
+            : message || 'comment_submit_failed',
         }
       }
     },
@@ -570,7 +591,9 @@ export function AppProvider({ children }) {
     }
 
     setAdminCatalogMovies((prev) => {
-      const existingIndex = prev.findIndex((movie) => areSameMovieByTitleAndGenre(movie, catalogMovie))
+      const existingIndex = prev.findIndex((movie) =>
+        areSameMovieByTitleAndGenre(movie, catalogMovie)
+      )
 
       if (existingIndex === -1) {
         return [catalogMovie, ...prev]
@@ -602,7 +625,9 @@ export function AppProvider({ children }) {
       const resolvedCatalogId = normalizedClipId.startsWith('admin_')
         ? normalizedClipId
         : `admin_${normalizedClipId}`
-      const existingCatalogMovie = adminCatalogMovies.find((movie) => movie.id === resolvedCatalogId)
+      const existingCatalogMovie = adminCatalogMovies.find(
+        (movie) => movie.id === resolvedCatalogId
+      )
       if (!existingCatalogMovie) {
         return false
       }
@@ -634,14 +659,18 @@ export function AppProvider({ children }) {
 
         const catalogPatch = {
           ...(Object.hasOwn(normalizedPatch, 'title') ? { title: normalizedPatch.title } : {}),
-          ...(Object.hasOwn(normalizedPatch, 'genreId') ? { genreId: normalizedPatch.genreId } : {}),
+          ...(Object.hasOwn(normalizedPatch, 'genreId')
+            ? { genreId: normalizedPatch.genreId }
+            : {}),
           ...(Object.hasOwn(normalizedPatch, 'externalUrl')
             ? { externalUrl: normalizedPatch.externalUrl }
             : {}),
           ...(Object.hasOwn(normalizedPatch, 'description')
             ? { description: normalizedPatch.description }
             : {}),
-          ...(Object.hasOwn(normalizedPatch, 'duration') ? { duration: normalizedPatch.duration } : {}),
+          ...(Object.hasOwn(normalizedPatch, 'duration')
+            ? { duration: normalizedPatch.duration }
+            : {}),
           ...(Object.hasOwn(normalizedPatch, 'durationSec')
             ? { durationSec: Number(normalizedPatch.durationSec) || 0 }
             : {}),
@@ -649,7 +678,9 @@ export function AppProvider({ children }) {
             ? { kinopoiskId: normalizedPatch.kinopoiskId }
             : {}),
           ...(Object.hasOwn(normalizedPatch, 'status') ? { status: normalizedPatch.status } : {}),
-          ...(hasPosterFile || Object.hasOwn(normalizedPatch, 'poster') ? { poster: nextPoster } : {}),
+          ...(hasPosterFile || Object.hasOwn(normalizedPatch, 'poster')
+            ? { poster: nextPoster }
+            : {}),
           ...(shouldRefreshCreatedAt ? { createdAt: nextCreatedAt } : {}),
         }
 
@@ -676,8 +707,12 @@ export function AppProvider({ children }) {
             ...(Object.hasOwn(normalizedPatch, 'description')
               ? { description: normalizedPatch.description }
               : {}),
-            ...(Object.hasOwn(normalizedPatch, 'genreId') ? { genreId: normalizedPatch.genreId } : {}),
-            ...(Object.hasOwn(normalizedPatch, 'duration') ? { duration: normalizedPatch.duration } : {}),
+            ...(Object.hasOwn(normalizedPatch, 'genreId')
+              ? { genreId: normalizedPatch.genreId }
+              : {}),
+            ...(Object.hasOwn(normalizedPatch, 'duration')
+              ? { duration: normalizedPatch.duration }
+              : {}),
             ...(Object.hasOwn(normalizedPatch, 'durationSec')
               ? { durationSec: Number(normalizedPatch.durationSec) || 0 }
               : {}),
@@ -737,7 +772,9 @@ export function AppProvider({ children }) {
           return prevCatalogMovies.filter((movie) => movie.id !== resolvedMovieId)
         }
 
-        return prevCatalogMovies.filter((movie) => !areSameMovieByTitleAndGenre(movie, removedUpload))
+        return prevCatalogMovies.filter(
+          (movie) => !areSameMovieByTitleAndGenre(movie, removedUpload)
+        )
       })
 
       return true

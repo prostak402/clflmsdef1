@@ -91,7 +91,9 @@ describe('TASK-023: admin moderation actions states', () => {
       </MemoryRouter>
     )
 
-    expect(await screen.findByText('Could not load moderation list. Try again.')).toBeInTheDocument()
+    expect(
+      await screen.findByText('Could not load moderation list. Try again.')
+    ).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
     expect(await screen.findByText('No comments found.')).toBeInTheDocument()
   })
@@ -118,30 +120,33 @@ describe('TASK-023: admin moderation actions states', () => {
       successLabel: 'All author comments deleted.',
       action: () => mockUseAppState.deleteCommentsByUser,
     },
-  ])('shows pending and success for $scenario', async ({ button, pendingLabel, successLabel, action }) => {
-    const pending = deferred()
-    action().mockImplementationOnce(() => pending.promise)
+  ])(
+    'shows pending and success for $scenario',
+    async ({ button, pendingLabel, successLabel, action }) => {
+      const pending = deferred()
+      action().mockImplementationOnce(() => pending.promise)
 
-    render(
-      <MemoryRouter>
-        <AdminCommentsPage />
-      </MemoryRouter>
-    )
+      render(
+        <MemoryRouter>
+          <AdminCommentsPage />
+        </MemoryRouter>
+      )
 
-    const actionButton = await screen.findByRole('button', { name: button })
-    fireEvent.click(actionButton)
+      const actionButton = await screen.findByRole('button', { name: button })
+      fireEvent.click(actionButton)
 
-    expect(await screen.findByText(pendingLabel)).toBeInTheDocument()
-    expect(screen.getByText('In progress')).toBeInTheDocument()
-    expect(actionButton).toBeDisabled()
+      expect(await screen.findByText(pendingLabel)).toBeInTheDocument()
+      expect(screen.getByText('In progress')).toBeInTheDocument()
+      expect(actionButton).toBeDisabled()
 
-    pending.resolve(true)
+      pending.resolve(true)
 
-    await waitFor(() => {
-      expect(screen.getByText(successLabel)).toBeInTheDocument()
-    })
-    expect(screen.getByText('Done')).toBeInTheDocument()
-  })
+      await waitFor(() => {
+        expect(screen.getByText(successLabel)).toBeInTheDocument()
+      })
+      expect(screen.getByText('Done')).toBeInTheDocument()
+    }
+  )
 
   it.each([
     {

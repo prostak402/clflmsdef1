@@ -87,9 +87,7 @@ function shouldEmitInfoLogs() {
 }
 
 function isDevRuntime() {
-  return (
-    typeof globalThis !== 'undefined' && globalThis.process?.env?.NODE_ENV !== 'production'
-  )
+  return typeof globalThis !== 'undefined' && globalThis.process?.env?.NODE_ENV !== 'production'
 }
 
 function getMissingTrackEventFields(name, payload) {

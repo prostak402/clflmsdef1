@@ -33,7 +33,7 @@ describe('comment normalizer', () => {
 
   it('normalizes whole comments map into unified schema', () => {
     const map = normalizeCommentsMap({
-      '7': [
+      7: [
         {
           id: 'cm_new',
           clipId: '7',

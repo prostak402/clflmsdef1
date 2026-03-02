@@ -68,21 +68,24 @@ export default function ClipCard({
   const clipSharesCount = clip.sharesCount
   const clipBookmarksCount = clip.bookmarksCount
 
-  const trackEvent = useCallback((event, payload) => {
-    if (!feedRequestId || !impressionId) {
-      return
-    }
+  const trackEvent = useCallback(
+    (event, payload) => {
+      if (!feedRequestId || !impressionId) {
+        return
+      }
 
-    feedService.trackEvent(event, {
-      ...payload,
-      clipId: clip.id,
-      impressionId,
-      position,
-      feedRequestId,
-      source: EVENT_SOURCE.CLIENT,
-      surface: EVENT_SURFACE.FEED,
-    })
-  }, [clip.id, feedRequestId, impressionId, position])
+      feedService.trackEvent(event, {
+        ...payload,
+        clipId: clip.id,
+        impressionId,
+        position,
+        feedRequestId,
+        source: EVENT_SOURCE.CLIENT,
+        surface: EVENT_SURFACE.FEED,
+      })
+    },
+    [clip.id, feedRequestId, impressionId, position]
+  )
 
   const getDurationMs = useCallback(() => {
     const mediaDuration = Number(videoRef.current?.duration || duration || 0)
@@ -323,7 +326,9 @@ export default function ClipCard({
               color={isLiked ? '#ec4899' : 'white'}
             />
           </div>
-          <span className="clip-action-count">{formatCount(clipLikesCount + (isLiked ? 1 : 0))}</span>
+          <span className="clip-action-count">
+            {formatCount(clipLikesCount + (isLiked ? 1 : 0))}
+          </span>
         </button>
 
         <button

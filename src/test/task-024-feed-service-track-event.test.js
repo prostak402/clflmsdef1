@@ -48,7 +48,6 @@ describe('TASK-024: feedService.trackEvent and flush', () => {
     )
   })
 
-
   it('drops duplicate clip_impression and clip_view_threshold events', () => {
     const firstImpression = feedService.trackEvent('clip_impression', {
       clipId: 'clip-1',

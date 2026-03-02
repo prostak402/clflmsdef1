@@ -68,7 +68,9 @@ async function requestJson(path, { method = 'GET', body, accessToken } = {}) {
   const payload = parseJsonSafe(await response.text())
 
   if (!response.ok) {
-    const error = new Error(resolveErrorMessage(payload, `Auth request failed (${response.status})`))
+    const error = new Error(
+      resolveErrorMessage(payload, `Auth request failed (${response.status})`)
+    )
     error.status = response.status
     throw error
   }
@@ -190,7 +192,10 @@ async function apiRefresh(refreshToken) {
   return normalizeSessionPayload(payload)
 }
 
-const isApiDataSource = () => String(import.meta.env?.VITE_DATA_SOURCE || '').trim().toLowerCase() === 'api'
+const isApiDataSource = () =>
+  String(import.meta.env?.VITE_DATA_SOURCE || '')
+    .trim()
+    .toLowerCase() === 'api'
 
 export const authService = {
   isSessionExpired,

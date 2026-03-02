@@ -196,13 +196,13 @@
 
 ### 5.1 Текущий прогресс по DoD
 
-| Пункт DoD | Статус | Основание |
-| --- | --- | --- |
-| Поля `mock.js` размечены по статусам | ✅ Done | Разделы 1.1–1.4 фиксируют `keep/rename/remove/transform` для ключевых сущностей. |
-| UI не зависит от mock-only полей | 🟡 In progress | В продуктовых экранах остаются legacy-поля в admin/edit-потоке (`year`, `director`, `watchUrl`, `clipDescription`), требуется финальная замена на API-backed view-model. |
-| Seed покрывает ключевые сценарии | ✅ Done | В `scripts/db/seed.py` добавлены роли, жанры, published/draft/archived клипы, комментарии, лайки, закладки и версия seed. |
-| Read/write флоу через единый adapter layer | 🟡 In progress | `api-feed-adapter` покрывает feed/comments/likes/bookmarks/moderation/profile, но часть сценариев остаётся частичной (см. блокеры ниже). |
-| Mock отключаем без деградации | ❌ Blocked | Каталог и ряд legacy-полей всё ещё завязаны на mock-first сценарий, полный cutover невозможен. |
+| Пункт DoD                                  | Статус         | Основание                                                                                                                                                                |
+| ------------------------------------------ | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Поля `mock.js` размечены по статусам       | ✅ Done        | Разделы 1.1–1.4 фиксируют `keep/rename/remove/transform` для ключевых сущностей.                                                                                         |
+| UI не зависит от mock-only полей           | 🟡 In progress | В продуктовых экранах остаются legacy-поля в admin/edit-потоке (`year`, `director`, `watchUrl`, `clipDescription`), требуется финальная замена на API-backed view-model. |
+| Seed покрывает ключевые сценарии           | ✅ Done        | В `scripts/db/seed.py` добавлены роли, жанры, published/draft/archived клипы, комментарии, лайки, закладки и версия seed.                                                |
+| Read/write флоу через единый adapter layer | 🟡 In progress | `api-feed-adapter` покрывает feed/comments/likes/bookmarks/moderation/profile, но часть сценариев остаётся частичной (см. блокеры ниже).                                 |
+| Mock отключаем без деградации              | ❌ Blocked     | Каталог и ряд legacy-полей всё ещё завязаны на mock-first сценарий, полный cutover невозможен.                                                                           |
 
 ### 5.2 Открытые блокеры
 
@@ -210,7 +210,6 @@
 2. **Legacy-поля в админском потоке**: в `AppContext` и admin-формах ещё используются mock-only поля (`year`, `director`, `watchUrl`, `clipDescription`) без полного API replacement.
 3. **Комментарии (authorship в MVP-переходе)**: в API-контракте автор определяется из токена; клиент отправляет только `body`, а legacy-передача `authorId/userName` оставлена лишь как временный режим по явному флагу `VITE_API_CREATE_COMMENT_LEGACY_AUTHOR_PAYLOAD=true`.
 4. **Неполный parity по profile-метрикам**: часть счётчиков профиля формируется локально, а не из единого backend-источника, что создаёт риск рассинхронизации в API-режиме.
-
 
 ---
 
@@ -257,36 +256,35 @@
 - При переключении на backend заменяется внутренняя реализация adapter-а, без изменения вызовов из компонентов.
 - Возвращаемые формы данных в `feedService` должны оставаться эквивалентными mock-форме, либо нормализоваться в service-слое до UI-совместимого вида.
 
-
 ## 7) Фактическое потребление UI-полей (ClipCard, BookmarksPage, CatalogPage)
 
-| Экран / компонент | Поле в UI до миграции | Статус (`keep/rename/remove/transform`) | Новое потребление в view-model |
-| --- | --- | --- | --- |
-| `ClipCard` | `clip.id` | keep | `clip.id` |
-| `ClipCard` | `clip.title` | keep | `clip.title` |
-| `ClipCard` | `clip.description` + `clip.clipDescription` | rename/transform | `clip.description` |
-| `ClipCard` | `clip.clipUrl` | rename | `clip.videoUrl` |
-| `ClipCard` | `clip.poster` | rename | `clip.thumbnailUrl` |
-| `ClipCard` | `clip.watchUrl` | rename | `clip.externalUrl` |
-| `ClipCard` | `clip.duration` | rename/transform | `clip.durationSec` + `clip.durationLabel` |
-| `ClipCard` | `clip.genres[]` | transform | `clip.genreId` + `clip.genreName` lookup |
-| `ClipCard` | `clip.likes` / `clip.likesCount` | transform | `clip.likesCount` |
-| `ClipCard` | `clip.comments` / `clip.commentsCount` | transform | `clip.commentsCount` |
-| `ClipCard` | `clip.bookmarks` / `clip.bookmarksCount` | transform | `clip.bookmarksCount` |
-| `ClipCard` | `clip.shares` / `clip.sharesCount` | remove (shares), keep (`sharesCount`) | `clip.sharesCount` (fallback `0`) |
-| `ClipCard` | `clip.year` | remove | не используется |
-| `ClipCard` | `clip.rating` | remove | не используется |
-| `ClipCard` | `clip.director` | remove | не используется |
-| `BookmarksPage` | `clip.poster` | rename | `clip.thumbnailUrl` |
-| `BookmarksPage` | `clip.watchUrl` | rename | `clip.externalUrl` |
-| `BookmarksPage` | `clip.year` | remove | `clip.genreName` |
-| `BookmarksPage` | `clip.rating` | remove | `clip.durationLabel` |
-| `BookmarksPage` | `clip.genres[]` | transform | `clip.genreId` + `clip.genreName` lookup |
-| `CatalogPage` | `movie.poster` | rename | `movie.thumbnailUrl` |
-| `CatalogPage` | `movie.watchUrl` | rename | `movie.externalUrl` |
-| `CatalogPage` | `movie.year` | remove | `movie.subtitle` (`durationLabel`) |
-| `CatalogPage` | `movie.rating` | remove | `movie.genreName` |
-| `CatalogPage` | `movie.genres[]` | transform | `movie.genreId` + lookup через жанры |
+| Экран / компонент | Поле в UI до миграции                       | Статус (`keep/rename/remove/transform`) | Новое потребление в view-model            |
+| ----------------- | ------------------------------------------- | --------------------------------------- | ----------------------------------------- |
+| `ClipCard`        | `clip.id`                                   | keep                                    | `clip.id`                                 |
+| `ClipCard`        | `clip.title`                                | keep                                    | `clip.title`                              |
+| `ClipCard`        | `clip.description` + `clip.clipDescription` | rename/transform                        | `clip.description`                        |
+| `ClipCard`        | `clip.clipUrl`                              | rename                                  | `clip.videoUrl`                           |
+| `ClipCard`        | `clip.poster`                               | rename                                  | `clip.thumbnailUrl`                       |
+| `ClipCard`        | `clip.watchUrl`                             | rename                                  | `clip.externalUrl`                        |
+| `ClipCard`        | `clip.duration`                             | rename/transform                        | `clip.durationSec` + `clip.durationLabel` |
+| `ClipCard`        | `clip.genres[]`                             | transform                               | `clip.genreId` + `clip.genreName` lookup  |
+| `ClipCard`        | `clip.likes` / `clip.likesCount`            | transform                               | `clip.likesCount`                         |
+| `ClipCard`        | `clip.comments` / `clip.commentsCount`      | transform                               | `clip.commentsCount`                      |
+| `ClipCard`        | `clip.bookmarks` / `clip.bookmarksCount`    | transform                               | `clip.bookmarksCount`                     |
+| `ClipCard`        | `clip.shares` / `clip.sharesCount`          | remove (shares), keep (`sharesCount`)   | `clip.sharesCount` (fallback `0`)         |
+| `ClipCard`        | `clip.year`                                 | remove                                  | не используется                           |
+| `ClipCard`        | `clip.rating`                               | remove                                  | не используется                           |
+| `ClipCard`        | `clip.director`                             | remove                                  | не используется                           |
+| `BookmarksPage`   | `clip.poster`                               | rename                                  | `clip.thumbnailUrl`                       |
+| `BookmarksPage`   | `clip.watchUrl`                             | rename                                  | `clip.externalUrl`                        |
+| `BookmarksPage`   | `clip.year`                                 | remove                                  | `clip.genreName`                          |
+| `BookmarksPage`   | `clip.rating`                               | remove                                  | `clip.durationLabel`                      |
+| `BookmarksPage`   | `clip.genres[]`                             | transform                               | `clip.genreId` + `clip.genreName` lookup  |
+| `CatalogPage`     | `movie.poster`                              | rename                                  | `movie.thumbnailUrl`                      |
+| `CatalogPage`     | `movie.watchUrl`                            | rename                                  | `movie.externalUrl`                       |
+| `CatalogPage`     | `movie.year`                                | remove                                  | `movie.subtitle` (`durationLabel`)        |
+| `CatalogPage`     | `movie.rating`                              | remove                                  | `movie.genreName`                         |
+| `CatalogPage`     | `movie.genres[]`                            | transform                               | `movie.genreId` + lookup через жанры      |
 
 ## 8) Единый UI-контракт маппинга (`src/services/mappers/*`)
 
@@ -296,6 +294,7 @@
 `id`, `title`, `description`, `thumbnailUrl`, `videoUrl`, `externalUrl`, `durationSec`, `durationLabel`, `genreId`, `genreName`, `likesCount`, `commentsCount`, `sharesCount`, `bookmarksCount`.
 
 Правила обработки пропусков:
+
 - `id`: пустая строка, если не удалось извлечь.
 - `title`: `"Untitled clip"`.
 - `description`: `""`.
@@ -314,6 +313,7 @@
 `id`, `clipId`, `authorId`, `authorName`, `avatar`, `text`, `likes`, `createdAt`, `timeLabel`.
 
 Правила обработки пропусков:
+
 - `id`: генерируемый `cm_*`.
 - `clipId`: входной `comment.clipId` или clipId из контекста.
 - `authorId`: `"anonymous"`.
@@ -330,6 +330,7 @@
 `id`, `name`, `icon`, `color`.
 
 Правила обработки пропусков:
+
 - `id`: берется из `id || slug`, пустые значения пропускаются.
 - `name`: `"Unknown"`.
 - `icon/color`: из `src/constants/genre-ui-meta.js`, либо из входного объекта жанра, если явно заданы.
