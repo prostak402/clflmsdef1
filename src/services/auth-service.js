@@ -25,7 +25,10 @@ function parseJwtClaims(token) {
 
   try {
     const payload = token.split('.')[1]
-    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const normalized = payload
+      .replace(/-/g, '+')
+      .replace(/_/g, '/')
+      .padEnd(Math.ceil(payload.length / 4) * 4, '=')
     const decoded = atob(normalized)
     return JSON.parse(decoded)
   } catch {
@@ -50,6 +53,15 @@ function resolveErrorMessage(payload, fallback) {
   return typeof message === 'string' && message.trim() ? message.trim() : fallback
 }
 
+function createAuthError(payload, response, fallback) {
+  const error = new Error(resolveErrorMessage(payload, fallback))
+  error.status = response.status
+  error.code = payload?.error?.code || null
+  error.details = payload?.error?.details || null
+  error.requestId = payload?.error?.requestId || null
+  return error
+}
+
 async function requestJson(path, { method = 'GET', body, accessToken } = {}) {
   const headers = {
     'Content-Type': 'application/json',
@@ -68,11 +80,7 @@ async function requestJson(path, { method = 'GET', body, accessToken } = {}) {
   const payload = parseJsonSafe(await response.text())
 
   if (!response.ok) {
-    const error = new Error(
-      resolveErrorMessage(payload, `Auth request failed (${response.status})`)
-    )
-    error.status = response.status
-    throw error
+    throw createAuthError(payload, response, `Auth request failed (${response.status})`)
   }
 
   return payload
@@ -165,8 +173,8 @@ function normalizeSessionPayload(payload, fallbackUser = null) {
   }
 }
 
-async function apiSignIn(credentials) {
-  const payload = await requestJson('/auth/signin', {
+async function apiLogin(credentials) {
+  const payload = await requestJson('/auth/login', {
     method: 'POST',
     body: credentials,
   })
@@ -192,6 +200,10 @@ async function apiRefresh(refreshToken) {
   return normalizeSessionPayload(payload)
 }
 
+async function apiGetMe(accessToken) {
+  return requestJson('/me', { accessToken })
+}
+
 const isApiDataSource = () =>
   String(import.meta.env?.VITE_DATA_SOURCE || '')
     .trim()
@@ -207,7 +219,7 @@ export const authService = {
 
   async signIn({ email, password }) {
     if (isApiDataSource()) {
-      const session = await apiSignIn({ email, password })
+      const session = await apiLogin({ email, password })
       persistSession(session)
       return session
     }
@@ -247,7 +259,7 @@ export const authService = {
     try {
       if (isApiDataSource()) {
         const refreshed = await apiRefresh(stored.refreshToken)
-        const me = await requestJson('/me', { accessToken: refreshed.accessToken })
+        const me = await apiGetMe(refreshed.accessToken)
         const nextSession = normalizeSessionPayload(refreshed, me)
         persistSession(nextSession)
         return { session: nextSession, expired: false }
@@ -264,6 +276,20 @@ export const authService = {
       persistSession(null)
       return { session: null, expired: true }
     }
+  },
+
+  async ensureFreshSession() {
+    const stored = readStoredSession()
+
+    if (!stored) {
+      return { session: null, expired: false }
+    }
+
+    if (!isSessionExpired(stored.expiresAt)) {
+      return { session: stored, expired: false }
+    }
+
+    return this.restoreSession()
   },
 
   async logout() {
