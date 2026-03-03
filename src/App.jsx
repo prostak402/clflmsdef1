@@ -16,9 +16,9 @@ function getDefaultAuthorizedPath(hasCompletedOnboarding) {
 }
 
 function AuthOnlyRoute({ children }) {
-  const { user, hasCompletedOnboarding, authStatus } = useApp()
+  const { user, hasCompletedOnboarding, authStatus, sessionExpired } = useApp()
 
-  if (authStatus === 'checking' && !user) {
+  if (authStatus === 'checking' && !user && !sessionExpired) {
     return children
   }
 
@@ -35,9 +35,9 @@ function ProtectedRoute({
   requireOnboarding = false,
   requireAdmin = false,
 }) {
-  const { user, hasCompletedOnboarding, authStatus } = useApp()
+  const { user, hasCompletedOnboarding, authStatus, sessionExpired } = useApp()
 
-  if (authStatus === 'checking') {
+  if (authStatus === 'checking' && !sessionExpired) {
     return null
   }
 
