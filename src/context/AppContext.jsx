@@ -197,7 +197,7 @@ export function AppProvider({ children }) {
         setSessionExpired(Boolean(expired))
 
         if (!session?.user) {
-          if (persistedUser) {
+          if (!expired && persistedUser) {
             const persistedRole = persistedUser.role || (persistedUser.isAdmin ? 'admin' : 'user')
             setUser({ ...persistedUser, role: persistedRole })
             setHasCompletedOnboarding(Boolean(persistedOnboarding))
@@ -235,6 +235,22 @@ export function AppProvider({ children }) {
       isMounted = false
     }
   }, [persistedOnboarding, persistedUser])
+
+  useEffect(() => {
+    const unsubscribe = authService.subscribeToSessionEnded((reason) => {
+      setUser(null)
+      setAuthStatus('anonymous')
+      setHasCompletedOnboarding(false)
+      setSelectedGenres([])
+      setBookmarks([])
+      setLikes({})
+      setBlockedCommentUsers({})
+      setDraftPreferences(DEFAULT_DRAFT_PREFERENCES)
+      setSessionExpired(reason === 'expired')
+    })
+
+    return unsubscribe
+  }, [])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -303,6 +319,7 @@ export function AppProvider({ children }) {
     await authService.logout()
     setUser(null)
     setAuthStatus('anonymous')
+    setSessionExpired(false)
     setHasCompletedOnboarding(false)
     setSelectedGenres([])
     setBookmarks([])

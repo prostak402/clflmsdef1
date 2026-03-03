@@ -7,17 +7,6 @@ import {
 import { normalizeWritePayload } from './payload-normalizer'
 import { authService } from './auth-service'
 
-const DEFAULT_API_BASE_URL = '/api/v1'
-
-function getApiBaseUrl() {
-  const raw = import.meta.env?.VITE_API_BASE_URL
-
-  if (typeof raw !== 'string' || raw.trim().length === 0) {
-    return DEFAULT_API_BASE_URL
-  }
-
-  return raw.trim().replace(/\/$/, '')
-}
 
 function shouldSendLegacyCreateCommentAuthorFields() {
   const rawFlag = import.meta.env?.VITE_API_CREATE_COMMENT_LEGACY_AUTHOR_PAYLOAD
@@ -27,30 +16,6 @@ function shouldSendLegacyCreateCommentAuthorFields() {
   }
 
   return ['1', 'true', 'yes', 'on'].includes(rawFlag.trim().toLowerCase())
-}
-
-function buildUrl(path, query = undefined) {
-  const baseUrl = getApiBaseUrl()
-  const url = new URL(`${baseUrl}${path}`, window.location.origin)
-
-  if (query && typeof query === 'object') {
-    Object.entries(query).forEach(([key, value]) => {
-      if (value === undefined || value === null || value === '') {
-        return
-      }
-
-      if (Array.isArray(value)) {
-        value.forEach((item) => {
-          url.searchParams.append(key, String(item))
-        })
-        return
-      }
-
-      url.searchParams.set(key, String(value))
-    })
-  }
-
-  return `${url.pathname}${url.search}`
 }
 
 async function parseJsonSafe(response) {
@@ -78,20 +43,13 @@ function resolveApiErrorMessage(payload) {
 }
 
 async function requestJson(path, { method = 'GET', query, body } = {}) {
-  const url = buildUrl(path, query)
-
   let response
 
   try {
-    const accessToken = authService.getAccessToken()
-
-    response = await fetch(url, {
+    response = await authService.fetchWithAuth(path, {
       method,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-      },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      query,
+      body,
     })
   } catch (error) {
     throw new Error(`Network request failed for ${method} ${path}`, { cause: error })
