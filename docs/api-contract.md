@@ -263,7 +263,7 @@ Response `201`:
 }
 ```
 
-### `POST /auth/signin`
+### `POST /auth/login`
 
 Аутентификация пользователя по email/password и выдача сессии.
 
@@ -322,6 +322,38 @@ Request:
 ```
 
 Response `204` без тела.
+
+
+### 4.0.1 Auth TTL и lifecycle
+
+- `accessToken` TTL: **15 минут** (короткоживущий JWT).
+- `refreshToken` TTL: **30 дней** (revocable token, rotation on refresh).
+- Клиент обновляет сессию через `POST /auth/refresh`:
+  - proactively: когда `expiresAt <= now`;
+  - reactively: при `401` с защищенного endpoint-а.
+- `POST /auth/logout` инвалидирует активный `refreshToken`; повторное использование токена должно возвращать `401 invalid_refresh_token`.
+
+### 4.0.2 Auth error contract
+
+Базовый формат ошибок соответствует разделу `1.5`:
+
+```json
+{
+  "error": {
+    "code": "invalid_credentials",
+    "message": "Email or password is incorrect",
+    "details": []
+  },
+  "requestId": "req_123"
+}
+```
+
+Минимальный набор кодов:
+
+- `POST /auth/login`: `400 validation_error`, `401 invalid_credentials`, `429 rate_limited`.
+- `POST /auth/refresh`: `400 validation_error`, `401 invalid_refresh_token`, `409 refresh_reused`.
+- `POST /auth/logout`: `401 unauthorized` (если access token невалиден), `204` при идемпотентном успешном завершении.
+- `GET /me`: `401 unauthorized`, `403 forbidden` (если пользователь деактивирован).
 
 Ролевые claims:
 

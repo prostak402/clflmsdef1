@@ -164,7 +164,7 @@ Env-матрица для backend-ready сценариев:
 
 ## Текущие ограничения MVP
 
-- **Demo auth:** авторизация демонстрационная, без реальной identity-проверки и backend-сессий.
+- **Auth mode:** в `mock` — demo-вход; в `api` — backend-сессия с `login/refresh/logout/me`, хранением `auth_session_v1` и авто-refresh access token.
 - **Локальные данные:** состояние и пользовательские действия хранятся в `localStorage`.
 - **Без реального upload:** админская форма не загружает файлы в хранилище и не создаёт persistent media-объекты.
 - **API-режим покрывает ключевые продуктовые потоки:** feed/comments/likes/bookmarks/moderation/profile/catalog работают через adapter/service слой; в работе остаётся финальный stage cutover-check для отключения `mock.js`.
@@ -194,7 +194,7 @@ Env-матрица для backend-ready сценариев:
 4. ✅ Включить read-path через API под feature flag и оставить mock как fallback.
 5. ✅ Перевести write-path (лайки, закладки, комментарии, модерация) на реальные endpoint-ы.
 6. ✅ Провести финальный stage cutover-check: `mock.js` выключается (`VITE_DATA_SOURCE=api`) без деградации ключевых сценариев (auth, onboarding, feed, likes/bookmarks, comments, admin moderation).
-7. ⏳ Подключить реальную auth-модель (token/session refresh, logout, guards по роли).
+7. ✅ Подключить auth-модель: token/session refresh, logout и guard-поведение для user/admin.
 8. ⏳ Внедрить upload/media pipeline (presigned URL/object storage + валидация).
 9. ⏳ Удалить mock-only зависимости после успешного cutover и закрепить smoke/regression на API-режиме.
 
