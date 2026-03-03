@@ -230,21 +230,27 @@
 
 ## 4.0 Auth
 
-### `POST /auth/signup`
+### Session model (final)
 
-Регистрация пользователя и выдача сессии.
+- `accessToken` — short-lived JWT, default TTL: **15 minutes**.
+- `refreshToken` — rotation token for session renewal, default TTL: **30 days**.
+- Client stores current session payload in local storage (`auth_session_v1`) and treats `expiresAt` as source of truth for access-token validity.
+- Before protected API calls client may proactively refresh token if `expiresAt` is close (recommended skew: 30s).
+
+### `POST /auth/login`
+
+Аутентификация пользователя по email/password и выдача сессии.
 
 Request:
 
 ```json
 {
   "email": "user@example.com",
-  "password": "string (min 8)",
-  "displayName": "John"
+  "password": "string"
 }
 ```
 
-Response `201`:
+Response `200`:
 
 ```json
 {
@@ -263,20 +269,21 @@ Response `201`:
 }
 ```
 
-### `POST /auth/signin`
+### `POST /auth/signup`
 
-Аутентификация пользователя по email/password и выдача сессии.
+Регистрация пользователя и выдача сессии.
 
 Request:
 
 ```json
 {
   "email": "user@example.com",
-  "password": "string"
+  "password": "string (min 8)",
+  "displayName": "John"
 }
 ```
 
-Response `200`: такой же формат как `POST /auth/signup`.
+Response `201`: тот же payload, что и для `POST /auth/login`.
 
 ### `POST /auth/refresh`
 
@@ -309,6 +316,11 @@ Response `200`:
 }
 ```
 
+Ошибки:
+
+- `401 UNAUTHORIZED` + `INVALID_REFRESH_TOKEN` — refresh токен невалиден/отозван/просрочен.
+- `429 RATE_LIMITED` — превышен лимит вызовов refresh.
+
 ### `POST /auth/logout`
 
 Завершение текущей сессии (инвалидация refresh-токена).
@@ -322,6 +334,10 @@ Request:
 ```
 
 Response `204` без тела.
+
+Ошибки:
+
+- `401 UNAUTHORIZED` + `INVALID_REFRESH_TOKEN` — токен уже недействителен.
 
 Ролевые claims:
 

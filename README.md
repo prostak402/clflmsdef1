@@ -76,7 +76,8 @@ Frontend-приложение MVP-видеосервиса с вертикаль
 - `ProtectedRoute`:
   - редиректит неавторизованного на `/`;
   - требует прохождение онбординга для продуктовых разделов;
-  - ограничивает админские маршруты ролью `user.isAdmin`.
+  - ограничивает админские маршруты ролью `user.role === 'admin'` (с fallback на legacy `isAdmin`).
+  - при недействительной сессии в API-режиме переводит пользователя на `/` и показывает уведомление об истечении сессии.
 
 ## Архитектура данных
 
@@ -189,6 +190,7 @@ Env-матрица для backend-ready сценариев:
 ## Roadmap next: mock → api
 
 1. ✅ Поднять backend-контур (auth, feed, comments, moderation, bookmarks/likes) по `docs/api-contract.md`.
+   - auth-контракт: `/auth/login`, `/auth/signup`, `/auth/refresh`, `/auth/logout`, `/me`; TTL access=15m, refresh=30d.
 2. ✅ Реализовать `api-feed-adapter` с сохранением текущего интерфейса `feed-adapter.js`.
 3. ✅ Добавить мапперы API ↔ UI-моделей (клипы, комментарии, профиль, жанры).
 4. ✅ Включить read-path через API под feature flag и оставить mock как fallback.

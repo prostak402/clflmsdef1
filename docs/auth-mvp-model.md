@@ -2,9 +2,9 @@
 
 ## Выбранный режим релиза
 
-- Для первого релиза фиксируем режим **demo auth** (локальная псевдо-аутентификация без внешнего провайдера).
+- Для первого релиза фиксируем режим **demo auth** как fallback и **API auth** как целевой режим в `VITE_DATA_SOURCE=api`.
 - Пользователь может войти через форму `Sign In / Sign Up` либо быстрые кнопки `Demo Account` и `Admin Demo`.
-- Данные сессии хранятся в `localStorage` как часть `app_state_v1`.
+- Данные auth-сессии хранятся в `localStorage` отдельно, ключ `auth_session_v1` (access/refresh/expiresAt/user).
 
 ## Что считаем авторизацией в MVP
 
@@ -37,3 +37,22 @@
 - Состояние авторизации единообразно задаётся через `AppContext.user`.
 - Доменные действия с контентом проверяют авторизацию и не изменяют состояние без активной сессии.
 - Поведение покрыто тестами: редирект unauth со защищённых страниц и блокировка действий в контексте.
+
+## Финальный auth-контракт (MVP API mode)
+
+- `POST /auth/login` — вход и выдача session payload.
+- `POST /auth/signup` — регистрация и выдача session payload.
+- `POST /auth/refresh` — ротация access-токена по `refreshToken`.
+- `POST /auth/logout` — завершение сессии и инвалидизация refresh-токена.
+- `GET /me` — источник профиля текущего пользователя после refresh/login.
+
+TTL:
+
+- `accessToken`: 15 минут.
+- `refreshToken`: 30 дней.
+- Клиент считает сессию истёкшей по `expiresAt` и делает refresh до запроса (skew 30 секунд).
+
+Ошибки:
+
+- `401 UNAUTHORIZED` / `INVALID_REFRESH_TOKEN` для невалидного refresh/logout токена.
+- При невозможности refresh клиент очищает `auth_session_v1`, выставляет `sessionExpired=true` и редиректит на `/`.
