@@ -18,8 +18,8 @@ function getDefaultAuthorizedPath(hasCompletedOnboarding) {
 function AuthOnlyRoute({ children }) {
   const { user, hasCompletedOnboarding, authStatus } = useApp()
 
-  if (authStatus === 'checking' && !user) {
-    return children
+  if (authStatus === 'checking') {
+    return null
   }
 
   if (user) {
@@ -35,14 +35,14 @@ function ProtectedRoute({
   requireOnboarding = false,
   requireAdmin = false,
 }) {
-  const { user, hasCompletedOnboarding, authStatus } = useApp()
+  const { user, hasCompletedOnboarding, authStatus, sessionExpired } = useApp()
 
   if (authStatus === 'checking') {
     return null
   }
 
   if (!user) {
-    return <Navigate to="/" replace />
+    return <Navigate to={sessionExpired ? '/?reason=session-expired' : '/'} replace />
   }
 
   if (!hasCompletedOnboarding && requireOnboarding) {

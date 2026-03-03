@@ -4,6 +4,7 @@ import { cleanup, render, screen } from '@testing-library/react'
 import App from '../App'
 
 const STORAGE_KEY = 'app_state_v1'
+const AUTH_SESSION_STORAGE_KEY = 'auth_session_v1'
 
 function setPersistedState(state) {
   window.localStorage.setItem(
@@ -13,7 +14,21 @@ function setPersistedState(state) {
       state,
     })
   )
+  const now = Date.now()
+  if (state?.user) {
+    window.localStorage.setItem(
+      AUTH_SESSION_STORAGE_KEY,
+      JSON.stringify({
+        accessToken: 'test-access',
+        refreshToken: 'test-refresh',
+        tokenType: 'Bearer',
+        expiresAt: new Date(now + 60_000).toISOString(),
+        user: { ...state.user, hasCompletedOnboarding: Boolean(state?.hasCompletedOnboarding) },
+      })
+    )
+  }
 }
+
 
 describe('TASK-016: route guard behavior', () => {
   beforeEach(() => {

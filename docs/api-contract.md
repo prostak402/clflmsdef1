@@ -263,7 +263,7 @@ Response `201`:
 }
 ```
 
-### `POST /auth/signin`
+### `POST /auth/login`
 
 Аутентификация пользователя по email/password и выдача сессии.
 
@@ -277,6 +277,21 @@ Request:
 ```
 
 Response `200`: такой же формат как `POST /auth/signup`.
+
+Auth session TTL:
+
+- `accessToken` TTL: **15 минут** (короткоживущий токен).
+- `refreshToken` TTL: **30 дней** (rotation/invalidation server-side).
+- `expiresAt` в ответе auth endpoint-ов отражает истечение `accessToken` и используется клиентом для preemptive refresh.
+
+Auth-ошибки (дополнение к общему формату ошибок):
+
+- `401 UNAUTHORIZED` + `INVALID_CREDENTIALS` — неверный email/пароль (`/auth/login`).
+- `401 UNAUTHORIZED` + `INVALID_REFRESH_TOKEN` — refresh-токен отсутствует/просрочен/инвалидирован (`/auth/refresh`).
+- `401 UNAUTHORIZED` + `ACCESS_TOKEN_EXPIRED` — access-токен истёк для защищённых endpoint-ов.
+- `409 CONFLICT` + `EMAIL_ALREADY_EXISTS` — повторная регистрация (`/auth/signup`).
+- `429 RATE_LIMITED` + `AUTH_RATE_LIMITED` — превышен лимит auth-запросов.
+
 
 ### `POST /auth/refresh`
 

@@ -197,14 +197,6 @@ export function AppProvider({ children }) {
         setSessionExpired(Boolean(expired))
 
         if (!session?.user) {
-          if (persistedUser) {
-            const persistedRole = persistedUser.role || (persistedUser.isAdmin ? 'admin' : 'user')
-            setUser({ ...persistedUser, role: persistedRole })
-            setHasCompletedOnboarding(Boolean(persistedOnboarding))
-            setAuthStatus('authenticated')
-            return
-          }
-
           setUser(null)
           setHasCompletedOnboarding(false)
           setAuthStatus('anonymous')
@@ -234,7 +226,7 @@ export function AppProvider({ children }) {
     return () => {
       isMounted = false
     }
-  }, [persistedOnboarding, persistedUser])
+  }, [])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -309,6 +301,7 @@ export function AppProvider({ children }) {
     setLikes({})
     setBlockedCommentUsers({})
     setDraftPreferences(DEFAULT_DRAFT_PREFERENCES)
+    setSessionExpired(false)
   }, [])
 
   const blockUserComments = useCallback((authorId) => {
