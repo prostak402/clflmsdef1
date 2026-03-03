@@ -1,6 +1,9 @@
 export const AUTH_SESSION_STORAGE_KEY = 'auth_session_v1'
 const DEFAULT_API_BASE_URL = '/api/v1'
 const ACCESS_TTL_MS = 15 * 60 * 1000
+const SESSION_ENDED_EVENT = 'auth:session-ended'
+
+let refreshPromise = null
 
 function getApiBaseUrl() {
   const raw = import.meta.env?.VITE_API_BASE_URL
@@ -78,6 +81,14 @@ async function requestJson(path, { method = 'GET', body, accessToken } = {}) {
   return payload
 }
 
+function emitSessionEnded(reason = 'logged_out') {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  window.dispatchEvent(new CustomEvent(SESSION_ENDED_EVENT, { detail: { reason } }))
+}
+
 function readStoredSession() {
   if (typeof window === 'undefined') {
     return null
@@ -107,6 +118,11 @@ function persistSession(session) {
   }
 
   window.localStorage.setItem(AUTH_SESSION_STORAGE_KEY, JSON.stringify(session))
+}
+
+function getStoredSession() {
+  const session = readStoredSession()
+  return session && typeof session === 'object' ? session : null
 }
 
 function isSessionExpired(expiresAt) {
@@ -166,7 +182,7 @@ function normalizeSessionPayload(payload, fallbackUser = null) {
 }
 
 async function apiSignIn(credentials) {
-  const payload = await requestJson('/auth/signin', {
+  const payload = await requestJson('/auth/login', {
     method: 'POST',
     body: credentials,
   })
@@ -192,16 +208,83 @@ async function apiRefresh(refreshToken) {
   return normalizeSessionPayload(payload)
 }
 
+async function apiMe(accessToken) {
+  return requestJson('/me', { accessToken })
+}
+
+async function refreshSession() {
+  if (refreshPromise) {
+    return refreshPromise
+  }
+
+  const stored = getStoredSession()
+
+  if (!stored?.refreshToken) {
+    persistSession(null)
+    emitSessionEnded('expired')
+    return null
+  }
+
+  refreshPromise = (async () => {
+    try {
+      if (isApiDataSource()) {
+        const refreshed = await apiRefresh(stored.refreshToken)
+        const me = await apiMe(refreshed?.accessToken || '')
+        const nextSession = normalizeSessionPayload(refreshed, me)
+
+        if (!nextSession?.accessToken) {
+          throw new Error('Refresh payload is invalid')
+        }
+
+        persistSession(nextSession)
+        return nextSession
+      }
+
+      const renewed = {
+        ...stored,
+        accessToken: `mock_access_${Math.random().toString(36).slice(2, 10)}`,
+        expiresAt: new Date(Date.now() + ACCESS_TTL_MS).toISOString(),
+      }
+      persistSession(renewed)
+      return renewed
+    } catch {
+      persistSession(null)
+      emitSessionEnded('expired')
+      return null
+    } finally {
+      refreshPromise = null
+    }
+  })()
+
+  return refreshPromise
+}
+
 const isApiDataSource = () =>
   String(import.meta.env?.VITE_DATA_SOURCE || '')
     .trim()
     .toLowerCase() === 'api'
 
 export const authService = {
+  SESSION_ENDED_EVENT,
   isSessionExpired,
   readStoredSession,
+  getSession() {
+    return getStoredSession()
+  },
+  subscribeToSessionEnded(listener) {
+    if (typeof window === 'undefined' || typeof listener !== 'function') {
+      return () => {}
+    }
+
+    const handler = (event) => {
+      listener(event?.detail?.reason || 'expired')
+    }
+
+    window.addEventListener(SESSION_ENDED_EVENT, handler)
+    return () => window.removeEventListener(SESSION_ENDED_EVENT, handler)
+  },
   getAccessToken() {
-    const session = readStoredSession()
+    const session = getStoredSession()
     return session?.accessToken || ''
   },
 
@@ -230,7 +313,7 @@ export const authService = {
   },
 
   async restoreSession() {
-    const stored = readStoredSession()
+    const stored = getStoredSession()
     if (!stored) {
       return { session: null, expired: false }
     }
@@ -239,35 +322,67 @@ export const authService = {
       return { session: stored, expired: false }
     }
 
-    if (!stored.refreshToken) {
-      persistSession(null)
+    const refreshed = await refreshSession()
+    if (!refreshed) {
       return { session: null, expired: true }
     }
 
-    try {
-      if (isApiDataSource()) {
-        const refreshed = await apiRefresh(stored.refreshToken)
-        const me = await requestJson('/me', { accessToken: refreshed.accessToken })
-        const nextSession = normalizeSessionPayload(refreshed, me)
-        persistSession(nextSession)
-        return { session: nextSession, expired: false }
-      }
+    return { session: refreshed, expired: false }
+  },
 
-      const renewed = {
-        ...stored,
-        accessToken: `mock_access_${Math.random().toString(36).slice(2, 10)}`,
-        expiresAt: new Date(Date.now() + ACCESS_TTL_MS).toISOString(),
-      }
-      persistSession(renewed)
-      return { session: renewed, expired: false }
-    } catch {
-      persistSession(null)
-      return { session: null, expired: true }
+  async fetchWithAuth(path, options = {}) {
+    const { method = 'GET', query, headers, body } = options
+    const url = new URL(buildUrl(path), window.location.origin)
+
+    if (query && typeof query === 'object') {
+      Object.entries(query).forEach(([key, value]) => {
+        if (value === undefined || value === null || value === '') {
+          return
+        }
+
+        if (Array.isArray(value)) {
+          value.forEach((item) => {
+            url.searchParams.append(key, String(item))
+          })
+          return
+        }
+
+        url.searchParams.set(key, String(value))
+      })
     }
+
+    const safeHeaders = { 'Content-Type': 'application/json', ...(headers || {}) }
+
+    const execute = async (accessToken) =>
+      fetch(`${url.pathname}${url.search}`, {
+        method,
+        headers: {
+          ...safeHeaders,
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      })
+
+    let session = getStoredSession()
+    if (session?.expiresAt && isSessionExpired(session.expiresAt)) {
+      session = await refreshSession()
+    }
+
+    let response = await execute(session?.accessToken || '')
+
+    if (response.status === 401 && session?.refreshToken) {
+      const refreshed = await refreshSession()
+      if (!refreshed?.accessToken) {
+        return response
+      }
+      response = await execute(refreshed.accessToken)
+    }
+
+    return response
   },
 
   async logout() {
-    const session = readStoredSession()
+    const session = getStoredSession()
 
     if (isApiDataSource() && session?.refreshToken) {
       try {
@@ -282,5 +397,6 @@ export const authService = {
     }
 
     persistSession(null)
+    emitSessionEnded('logged_out')
   },
 }
