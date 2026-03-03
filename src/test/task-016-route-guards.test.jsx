@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 
 import App from '../App'
@@ -18,6 +18,8 @@ function setPersistedState(state) {
 describe('TASK-016: route guard behavior', () => {
   beforeEach(() => {
     cleanup()
+    vi.unstubAllEnvs()
+    vi.restoreAllMocks()
     window.localStorage.clear()
     window.history.replaceState({}, '', '/')
   })
@@ -125,5 +127,39 @@ describe('TASK-016: route guard behavior', () => {
 
     expect(await screen.findByRole('heading', { name: /Comment Moderation/i })).toBeInTheDocument()
     expect(window.location.pathname).toBe('/admin/comments')
+  })
+
+  it('redirects to auth when api session is expired and refresh fails', async () => {
+    vi.stubEnv('VITE_DATA_SOURCE', 'api')
+
+    window.localStorage.setItem(
+      'auth_session_v1',
+      JSON.stringify({
+        accessToken: 'expired-access',
+        refreshToken: 'expired-refresh',
+        expiresAt: new Date(Date.now() - 1000).toISOString(),
+        user: {
+          id: 'usr_1',
+          email: 'user@example.com',
+          displayName: 'User',
+          role: 'user',
+          hasCompletedOnboarding: true,
+        },
+      })
+    )
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ error: { code: 'INVALID_REFRESH_TOKEN', message: 'Invalid token' } }),
+        { status: 401 }
+      )
+    )
+
+    window.history.replaceState({}, '', '/feed')
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: /ClipFlow/i })).toBeInTheDocument()
+    expect(await screen.findByText(/Session expired\. Please sign in again\./i)).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/')
   })
 })

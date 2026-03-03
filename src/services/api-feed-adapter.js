@@ -80,21 +80,28 @@ function resolveApiErrorMessage(payload) {
 async function requestJson(path, { method = 'GET', query, body } = {}) {
   const url = buildUrl(path, query)
 
-  let response
+  async function doFetch() {
+    try {
+      const accessToken = await authService.getValidAccessToken()
 
-  try {
-    const accessToken = authService.getAccessToken()
+      return await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      })
+    } catch (error) {
+      throw new Error(`Network request failed for ${method} ${path}`, { cause: error })
+    }
+  }
 
-    response = await fetch(url, {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-      },
-      body: body === undefined ? undefined : JSON.stringify(body),
-    })
-  } catch (error) {
-    throw new Error(`Network request failed for ${method} ${path}`, { cause: error })
+  let response = await doFetch()
+
+  if (response.status === 401 && authService.isApiDataSource()) {
+    await authService.restoreSession()
+    response = await doFetch()
   }
 
   if (!response.ok) {

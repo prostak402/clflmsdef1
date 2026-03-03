@@ -35,3 +35,10 @@
   - на `/genres`, если онбординг еще не завершен;
   - на `/feed`, если онбординг уже завершен.
 - Дополнительно на `AuthPage` есть защитный `useEffect`, который выполняет такой же редирект, если сессия уже активна.
+
+## Session lifecycle (actual behavior)
+
+- При старте приложения `AppContext` вызывает `authService.restoreSession()`.
+- В API-режиме при истёкшем/почти истёкшем access-токене выполняется `POST /auth/refresh`, затем `GET /me`.
+- Если refresh проваливается, пользователь становится анонимным, показывается сообщение `Session expired. Please sign in again.` на `AuthPage`.
+- `logout` всегда очищает локальную сессию; в API-режиме дополнительно вызывает `POST /auth/logout`.

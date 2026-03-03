@@ -197,7 +197,7 @@ export function AppProvider({ children }) {
         setSessionExpired(Boolean(expired))
 
         if (!session?.user) {
-          if (persistedUser) {
+          if (persistedUser && !authService.isApiDataSource()) {
             const persistedRole = persistedUser.role || (persistedUser.isAdmin ? 'admin' : 'user')
             setUser({ ...persistedUser, role: persistedRole })
             setHasCompletedOnboarding(Boolean(persistedOnboarding))
@@ -304,6 +304,7 @@ export function AppProvider({ children }) {
     setUser(null)
     setAuthStatus('anonymous')
     setHasCompletedOnboarding(false)
+    setSessionExpired(false)
     setSelectedGenres([])
     setBookmarks([])
     setLikes({})
