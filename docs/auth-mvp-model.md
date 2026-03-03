@@ -2,9 +2,9 @@
 
 ## Выбранный режим релиза
 
-- Для первого релиза фиксируем режим **demo auth** (локальная псевдо-аутентификация без внешнего провайдера).
-- Пользователь может войти через форму `Sign In / Sign Up` либо быстрые кнопки `Demo Account` и `Admin Demo`.
-- Данные сессии хранятся в `localStorage` как часть `app_state_v1`.
+- Для релиза поддерживаются два режима: **mock auth** (`VITE_DATA_SOURCE=mock`) и **API auth** (`VITE_DATA_SOURCE=api`) с backend-сессией.
+- В API-режиме используются endpoint-ы `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `GET /me`; в mock-режиме сохраняется fallback через demo-кнопки.
+- Данные сессии хранятся в `localStorage` в `auth_session_v1`, а UI-state — в `app_state_v1`. При истечении `accessToken` сервис делает refresh; при неуспехе сессия сбрасывается.
 
 ## Что считаем авторизацией в MVP
 
@@ -34,6 +34,6 @@
 ## Единое поведение auth/unauth (Definition of Done)
 
 - Маршруты защищены единым `ProtectedRoute`.
-- Состояние авторизации единообразно задаётся через `AppContext.user`.
+- Состояние авторизации единообразно задаётся через `AppContext.user` + `authStatus` (`checking|authenticated|anonymous`).
 - Доменные действия с контентом проверяют авторизацию и не изменяют состояние без активной сессии.
-- Поведение покрыто тестами: редирект unauth со защищённых страниц и блокировка действий в контексте.
+- Поведение покрыто тестами: redirect matrix (unauth/user/admin), lifecycle истечения сессии и logout, блокировка действий в контексте.
