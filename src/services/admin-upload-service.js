@@ -1,4 +1,5 @@
-const DEFAULT_API_BASE_URL = '/api/v1'
+const API_PREFIX = '/api/v1'
+const DEFAULT_API_BASE_URL = API_PREFIX
 const RETRYABLE_STATUS_CODES = new Set([408, 425, 429, 500, 502, 503, 504])
 const DEFAULT_MAX_ATTEMPTS = 3
 
@@ -9,7 +10,13 @@ function getApiBaseUrl() {
     return DEFAULT_API_BASE_URL
   }
 
-  return raw.trim().replace(/\/$/, '')
+  const normalizedBaseUrl = raw.trim().replace(/\/$/, '')
+
+  if (normalizedBaseUrl.endsWith(API_PREFIX)) {
+    return normalizedBaseUrl
+  }
+
+  return `${normalizedBaseUrl}${API_PREFIX}`
 }
 
 function buildApiUrl(path) {
@@ -65,13 +72,15 @@ export function validateClipFile(file) {
 }
 
 async function requestUploadUrl(file) {
-  const response = await fetch(buildApiUrl('/admin/uploads/initiate'), {
+  const response = await fetch(buildApiUrl('/admin/clips/upload-url'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
       fileName: file.name,
+      mimeType: file.type,
+      sizeBytes: file.size,
       contentType: file.type,
       size: file.size,
     }),
@@ -106,50 +115,6 @@ async function uploadFile({ file, uploadUrl, requiredHeaders }) {
       status: response.status,
       stage: 'upload',
     })
-  }
-}
-
-async function confirmUpload(uploadId) {
-  const response = await fetch(buildApiUrl(`/admin/uploads/${uploadId}/complete`), {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  })
-
-  const payload = await parseJsonSafe(response)
-
-  if (!response.ok) {
-    throw createUploadError(parseErrorMessage(payload, `Failed to confirm upload (${response.status})`), {
-      status: response.status,
-      stage: 'confirm',
-    })
-  }
-
-  return payload
-}
-
-async function rollbackUpload({ uploadId, objectKey, reason }) {
-  const response = await fetch(buildApiUrl(`/admin/uploads/${uploadId}/rollback`), {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      objectKey,
-      reason,
-    }),
-  })
-
-  if (!response.ok) {
-    const payload = await parseJsonSafe(response)
-    throw createUploadError(
-      parseErrorMessage(payload, `Rollback failed (${response.status})`),
-      {
-        status: response.status,
-        stage: 'rollback',
-      }
-    )
   }
 }
 
@@ -214,21 +179,20 @@ export async function uploadClipWithMetadata({ file, metadata, maxAttempts = 3 }
         requiredHeaders: uploadUrlPayload.requiredHeaders,
       })
 
-      notifyProgress?.({ stage: 'confirming', attempt, maxAttempts: attemptLimit })
-      await confirmUpload(uploadUrlPayload.uploadId)
-
       notifyProgress?.({ stage: 'finalizing', attempt, maxAttempts: attemptLimit })
 
       const clip = await createClipMetadata({
         ...toClipContractPayload(metadata),
         objectKey: uploadUrlPayload.objectKey,
+        uploadToken: uploadUrlPayload.uploadToken,
+        uploadId: uploadUrlPayload.uploadId,
       })
 
       notifyProgress?.({ stage: 'done', attempt, maxAttempts: attemptLimit })
 
       return {
         clip,
-        uploadId: uploadUrlPayload.uploadId,
+        uploadId: uploadUrlPayload.uploadId || uploadUrlPayload.uploadToken || null,
         objectKey: uploadUrlPayload.objectKey,
         attemptsUsed: attempt,
       }
@@ -245,22 +209,6 @@ export async function uploadClipWithMetadata({ file, metadata, maxAttempts = 3 }
       if (!isRetryableError(error) || attempt >= attemptLimit) {
         break
       }
-    }
-  }
-
-  if (uploadUrlPayload?.uploadId && uploadUrlPayload?.objectKey) {
-    notifyProgress?.({ stage: 'rollback', attempt, maxAttempts: attemptLimit })
-    try {
-      await rollbackUpload({
-        uploadId: uploadUrlPayload.uploadId,
-        objectKey: uploadUrlPayload.objectKey,
-        reason: lastError?.message || 'upload_flow_failed',
-      })
-    } catch (rollbackError) {
-      throw createUploadError(`${lastError?.message || 'Upload failed'}. ${rollbackError.message}`, {
-        stage: 'rollback',
-        cause: lastError,
-      })
     }
   }
 

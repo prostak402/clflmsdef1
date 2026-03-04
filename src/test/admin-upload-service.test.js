@@ -22,7 +22,7 @@ describe('admin-upload-service', () => {
     expect(invalidSizeError).toMatch(/file is too large/i)
   })
 
-  it('retries upload for retryable errors, confirms upload and stores metadata', async () => {
+  it('retries upload for retryable errors and stores metadata', async () => {
     globalThis.fetch
       .mockResolvedValueOnce({
         ok: true,
@@ -36,7 +36,6 @@ describe('admin-upload-service', () => {
       })
       .mockResolvedValueOnce({ ok: false, status: 503 })
       .mockResolvedValueOnce({ ok: true, status: 200 })
-      .mockResolvedValueOnce({ ok: true, text: async () => JSON.stringify({ status: 'confirmed' }) })
       .mockResolvedValueOnce({
         ok: true,
         text: async () => JSON.stringify({ clip: { id: 'clip_1' } }),
@@ -60,15 +59,15 @@ describe('admin-upload-service', () => {
     expect(result.clip).toEqual({ id: 'clip_1' })
     expect(result.uploadId).toBe('upload_1')
     expect(result.attemptsUsed).toBe(2)
-    expect(globalThis.fetch).toHaveBeenCalledTimes(5)
-    expect(globalThis.fetch.mock.calls[0][0]).toMatch(/\/admin\/uploads\/initiate$/)
-    expect(globalThis.fetch.mock.calls[3][0]).toMatch(/\/admin\/uploads\/upload_1\/complete$/)
+    expect(globalThis.fetch).toHaveBeenCalledTimes(4)
+    expect(globalThis.fetch.mock.calls[0][0]).toMatch(/\/admin\/clips\/upload-url$/)
+    expect(globalThis.fetch.mock.calls[3][0]).toMatch(/\/admin\/clips$/)
     expect(onUploadProgress).toHaveBeenCalledWith(
       expect.objectContaining({ stage: 'uploading', attempt: 1 })
     )
   })
 
-  it('rolls back upload session when metadata save fails', async () => {
+  it('fails when metadata save fails', async () => {
     globalThis.fetch
       .mockResolvedValueOnce({
         ok: true,
@@ -81,13 +80,11 @@ describe('admin-upload-service', () => {
           }),
       })
       .mockResolvedValueOnce({ ok: true, status: 200 })
-      .mockResolvedValueOnce({ ok: true, text: async () => JSON.stringify({ status: 'confirmed' }) })
       .mockResolvedValueOnce({
         ok: false,
         status: 422,
         text: async () => JSON.stringify({ error: { message: 'Invalid metadata' } }),
       })
-      .mockResolvedValueOnce({ ok: true, status: 200, text: async () => '' })
 
     await expect(
       uploadClipWithMetadata({
@@ -99,7 +96,5 @@ describe('admin-upload-service', () => {
         maxAttempts: 1,
       })
     ).rejects.toThrow(/invalid metadata/i)
-
-    expect(globalThis.fetch.mock.calls[4][0]).toMatch(/\/admin\/uploads\/upload_2\/rollback$/)
   })
 })
