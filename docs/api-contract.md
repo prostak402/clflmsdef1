@@ -600,54 +600,9 @@ Request:
 
 Массово удаляет комментарии конкретного автора.
 
-### `POST /uploads`
+### `POST /admin/uploads/initiate` (admin)
 
-Запросить signed URL для загрузки.
-
-Request:
-
-```json
-{
-  "type": "clip-video",
-  "mimeType": "video/mp4",
-  "fileName": "my-clip.mp4",
-  "sizeBytes": 10485760
-}
-```
-
-Response `200`:
-
-```json
-{
-  "uploadId": "uuid",
-  "uploadUrl": "https://storage...",
-  "method": "PUT",
-  "headers": {
-    "Content-Type": "video/mp4"
-  },
-  "expiresAt": "2026-02-22T10:25:30Z"
-}
-```
-
-### `POST /uploads/:uploadId/complete`
-
-Подтвердить успешную загрузку.
-
-Response `200`:
-
-```json
-{
-  "assetUrl": "https://cdn.../clip.mp4"
-}
-```
-
-`assetUrl` затем передается в `CreateClipRequest/UpdateClipRequest` как `videoUrl`/`thumbnailUrl`.
-
----
-
-### `POST /admin/clips/upload-url` (admin)
-
-Создать presigned URL для загрузки клипа в S3-совместимое хранилище.
+Инициация upload-сессии для видео-клипа. Backend валидирует MIME/размер и возвращает presigned URL для object storage.
 
 Request:
 
@@ -663,6 +618,7 @@ Response `200`:
 
 ```json
 {
+  "uploadId": "uuid",
   "objectKey": "clips/2026-02-22/uuid.mp4",
   "uploadUrl": "https://s3-compatible-storage/presigned-put",
   "expiresIn": 900,
@@ -672,14 +628,62 @@ Response `200`:
 }
 ```
 
-Валидация на backend:
+Ошибки:
 
-- `contentType` должен входить в allow-list (например `video/mp4`, `video/webm`, `video/quicktime`);
-- `size` должен быть `> 0` и `<= MAX_CLIP_SIZE_BYTES`.
+- `422 VALIDATION_ERROR` — unsupported `contentType`, `size <= 0`, `size > MAX_CLIP_SIZE_BYTES`;
+- `409 CONFLICT` — активная upload-сессия с тем же fingerprint файла;
+- `503 INTERNAL_ERROR` — временная недоступность storage provider.
+
+### `POST /admin/uploads/:uploadId/complete` (admin)
+
+Подтверждение успешной загрузки файла в storage. Backend обязан проверить объект по `uploadId/objectKey` (например через `HeadObject`) и зафиксировать состояние сессии.
+
+Response `200`:
+
+```json
+{
+  "uploadId": "uuid",
+  "status": "confirmed",
+  "assetUrl": "https://cdn.example.com/clips/uuid.mp4"
+}
+```
+
+Ошибки:
+
+- `404 NOT_FOUND` — upload-сессия не найдена или уже протухла;
+- `409 CONFLICT` — объект не доступен в storage либо сессия уже закрыта;
+- `422 VALIDATION_ERROR` — нарушена целостность upload-сессии.
+
+### `POST /admin/uploads/:uploadId/rollback` (admin)
+
+Откат upload-сессии при фейле на шаге confirm/metadata. Backend удаляет временный объект (если создан) и закрывает сессию в состоянии `rolled_back`.
+
+Request:
+
+```json
+{
+  "objectKey": "clips/2026-02-22/uuid.mp4",
+  "reason": "Failed to save clip metadata (422)"
+}
+```
+
+Response `200`:
+
+```json
+{
+  "uploadId": "uuid",
+  "status": "rolled_back"
+}
+```
+
+Ошибки:
+
+- `404 NOT_FOUND` — upload-сессия не найдена;
+- `409 CONFLICT` — сессия уже завершена и rollback невозможен.
 
 ### `POST /admin/clips` (admin)
 
-Фиксировать metadata клипа после успешной загрузки файла по presigned URL.
+Фиксировать metadata клипа после успешных upload + complete.
 
 Request:
 
@@ -711,9 +715,11 @@ Response `201`:
 }
 ```
 
-Перед созданием записи backend обязан проверить, что `objectKey` реально существует в storage (например, через `HeadObject`).
+Ошибки:
 
----
+- `409 CONFLICT` — metadata уже создана для указанного `objectKey`;
+- `422 VALIDATION_ERROR` — ошибки полей metadata;
+- `424 BAD_REQUEST` — upload-сессия не подтверждена через `complete`.
 
 ## 5) DTO: request/response модели
 

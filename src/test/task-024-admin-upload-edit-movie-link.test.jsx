@@ -18,7 +18,7 @@ vi.mock('../context/useApp', () => ({
         genreId: 'drama',
         duration: '',
         kinopoiskId: '',
-        status: 'ready',
+        status: 'failed',
         createdAt: 'now',
       },
     ],
@@ -44,6 +44,8 @@ describe('TASK-024: admin upload edit uses movieId', () => {
 
   it('passes movieId to updateAdminClip when editing upload', () => {
     render(<AdminPage />)
+
+    expect(screen.getByText('Failed')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: /edit/i }))
     fireEvent.click(screen.getByRole('button', { name: /save changes/i }))
