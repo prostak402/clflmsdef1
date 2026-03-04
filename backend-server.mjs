@@ -11,6 +11,13 @@ const S3_REGION = process.env.S3_REGION || 'us-east-1'
 const S3_ENDPOINT = process.env.S3_ENDPOINT
 const S3_FORCE_PATH_STYLE = String(process.env.S3_FORCE_PATH_STYLE || 'true') === 'true'
 const MAX_CLIP_SIZE_BYTES = Number(process.env.MAX_CLIP_SIZE_BYTES || 250 * 1024 * 1024)
+const CORS_ALLOWED_ORIGINS = (
+  process.env.CORS_ALLOWED_ORIGINS || 'http://localhost:5173,http://127.0.0.1:5173'
+)
+  .split(',')
+  .map((value) => value.trim())
+  .filter(Boolean)
+const CORS_ALLOW_CREDENTIALS = String(process.env.CORS_ALLOW_CREDENTIALS || 'true') === 'true'
 const ALLOWED_VIDEO_TYPES = (
   process.env.ALLOWED_VIDEO_TYPES || 'video/mp4,video/webm,video/quicktime'
 )
@@ -114,6 +121,30 @@ function sendJson(res, statusCode, payload) {
     'Content-Type': 'application/json; charset=utf-8',
   })
   res.end(JSON.stringify(payload))
+}
+
+function getCorsOrigin(req) {
+  const requestOrigin = typeof req.headers.origin === 'string' ? req.headers.origin.trim() : ''
+  if (!requestOrigin) {
+    return CORS_ALLOWED_ORIGINS[0] || 'http://localhost:5173'
+  }
+
+  if (CORS_ALLOWED_ORIGINS.includes(requestOrigin)) {
+    return requestOrigin
+  }
+
+  return null
+}
+
+function applyCorsHeaders(req, res) {
+  const corsOrigin = getCorsOrigin(req)
+  if (corsOrigin) {
+    res.setHeader('Access-Control-Allow-Origin', corsOrigin)
+  }
+  res.setHeader('Vary', 'Origin')
+  if (CORS_ALLOW_CREDENTIALS) {
+    res.setHeader('Access-Control-Allow-Credentials', 'true')
+  }
 }
 
 function sendError(res, statusCode, message, code = 'BAD_REQUEST') {
@@ -324,6 +355,17 @@ function handleModerationCommentsRead(res) {
 
 const server = http.createServer(async (req, res) => {
   try {
+    applyCorsHeaders(req, res)
+
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204, {
+        'Access-Control-Allow-Methods': 'GET,POST,DELETE,PUT,OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      })
+      res.end()
+      return
+    }
+
     const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`)
     const user = getRequestUser(req)
 
