@@ -1,4 +1,4 @@
-import { GENRES } from '../data/mock'
+import { GENRES } from '../constants/genres'
 import { createFeedAdapter } from './create-feed-adapter'
 
 export const contentService = {

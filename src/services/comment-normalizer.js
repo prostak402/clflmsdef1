@@ -42,9 +42,7 @@ export function normalizeComment(comment = {}, clipId = '') {
   const authorName =
     typeof comment.authorName === 'string' && comment.authorName.trim()
       ? comment.authorName.trim()
-      : typeof comment.user === 'string' && comment.user.trim()
-        ? comment.user.trim()
-        : 'Anonymous'
+      : 'Anonymous'
 
   const normalizedClipId =
     typeof comment.clipId === 'string' && comment.clipId.trim()
@@ -54,9 +52,7 @@ export function normalizeComment(comment = {}, clipId = '') {
   const fallbackTimeLabel =
     typeof comment.timeLabel === 'string' && comment.timeLabel.trim()
       ? comment.timeLabel.trim()
-      : typeof comment.time === 'string' && comment.time.trim()
-        ? comment.time.trim()
-        : 'Just now'
+      : 'Just now'
 
   return {
     id: String(comment.id ?? `cm_${Date.now().toString(36)}`),

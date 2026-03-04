@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { feedService } from '../services/feed-service'
-import { mockFeedAdapter } from '../services/mock-feed-adapter'
+import { apiFeedAdapter } from '../services/api-feed-adapter'
 import { BACKEND_CONSTRAINTS, normalizeWritePayload } from '../services/payload-normalizer'
 
 describe('TASK-011: payload normalization for write operations', () => {
@@ -29,7 +29,7 @@ describe('TASK-011: payload normalization for write operations', () => {
   })
 
   it('normalizes toggleLike payload before adapter write', () => {
-    const spy = vi.spyOn(mockFeedAdapter, 'toggleLike')
+    const spy = vi.spyOn(apiFeedAdapter, 'toggleLike')
 
     feedService.toggleLike({
       clipId: '  42  ',
@@ -43,7 +43,7 @@ describe('TASK-011: payload normalization for write operations', () => {
   })
 
   it('normalizes persist payload for optimistic writes', async () => {
-    const persistSpy = vi.spyOn(mockFeedAdapter, 'persistLikeToggle').mockResolvedValueOnce()
+    const persistSpy = vi.spyOn(apiFeedAdapter, 'persistLikeToggle').mockResolvedValueOnce()
 
     await feedService.optimisticToggleLike({
       clipId: '  clip-9  ',

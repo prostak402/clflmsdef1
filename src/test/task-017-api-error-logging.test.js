@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { feedService } from '../services/feed-service'
-import { mockFeedAdapter } from '../services/mock-feed-adapter'
+import { apiFeedAdapter } from '../services/api-feed-adapter'
 
 describe('TASK-017: standardized API error logging', () => {
   beforeEach(() => {
@@ -47,7 +47,7 @@ describe('TASK-017: standardized API error logging', () => {
   it('logs optimistic persist failures from service layer', async () => {
     const logger = vi.spyOn(console, 'error').mockImplementation(() => {})
 
-    vi.spyOn(mockFeedAdapter, 'persistBookmarkToggle').mockRejectedValueOnce(
+    vi.spyOn(apiFeedAdapter, 'persistBookmarkToggle').mockRejectedValueOnce(
       new Error('Network down')
     )
 

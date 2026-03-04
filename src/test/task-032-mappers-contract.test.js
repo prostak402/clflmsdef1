@@ -51,25 +51,16 @@ describe('TASK-032: mappers api->ui contract', () => {
     expect(uiClip.likesCount).toBe(21)
   })
 
-  it('maps legacy/mock clip payload to the same UI clip shape', () => {
-    const uiClip = toClipUiModel({
-      id: '1',
-      clipDescription: 'Legacy shape',
-      poster: 'https://example.com/poster.jpg',
-      clipUrl: 'https://example.com/clip.mp4',
-      watchUrl: 'https://example.com/watch',
-      duration: '2h 5m',
-      genres: ['drama'],
-      likes: 7,
-      comments: 2,
-      shares: 1,
-      bookmarks: 5,
-    })
+  it('uses strict API defaults when required clip fields are missing', () => {
+    const uiClip = toClipUiModel({ id: '1' })
 
-    expect(uiClip.durationSec).toBe(7500)
-    expect(uiClip.genreId).toBe('drama')
-    expect(uiClip.likesCount).toBe(7)
-    expect(uiClip.sharesCount).toBe(1)
+    expect(uiClip.description).toBe('')
+    expect(uiClip.videoUrl).toBe('')
+    expect(uiClip.externalUrl).toBe('#')
+    expect(uiClip.durationSec).toBe(0)
+    expect(uiClip.genreId).toBe('unknown')
+    expect(uiClip.likesCount).toBe(0)
+    expect(uiClip.sharesCount).toBe(0)
   })
 
   it('maps API comment payload to stable UI comment object and moderation form', () => {

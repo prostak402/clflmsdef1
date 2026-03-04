@@ -8,12 +8,11 @@ describe('createFeedAdapter', () => {
     vi.restoreAllMocks()
   })
 
-  it('uses mock adapter by default', () => {
+  it('uses api adapter by default', () => {
     const adapter = createFeedAdapter(undefined)
 
-    expect(DEFAULT_DATA_SOURCE).toBe('mock')
-    expect(Array.isArray(adapter.getFeed())).toBe(true)
-    expect(() => adapter.getInitialComments()).not.toThrow()
+    expect(DEFAULT_DATA_SOURCE).toBe('api')
+    expect(adapter).toBe(apiFeedAdapter)
   })
 
   it('returns apiFeedAdapter when data source is api', () => {
@@ -32,9 +31,12 @@ describe('createFeedAdapter', () => {
     )
   })
 
-  it('falls back to mock for unknown data source', () => {
+  it('keeps api adapter for unknown data source and logs warning', () => {
+    const warningSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
     const adapter = createFeedAdapter('legacy')
 
-    expect(Array.isArray(adapter.getFeed())).toBe(true)
+    expect(adapter).toBe(apiFeedAdapter)
+    expect(warningSpy).toHaveBeenCalledOnce()
   })
 })

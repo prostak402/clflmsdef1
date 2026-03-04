@@ -12,10 +12,10 @@ describe('TASK-018: request metrics and key events', () => {
     delete globalThis.__ENABLE_API_INFO_LOGS__
   })
 
-  it('logs feed load event and successful request timing metric', () => {
+  it('logs feed load event and successful request timing metric', async () => {
     const logger = vi.spyOn(console, 'info').mockImplementation(() => {})
 
-    const result = feedService.getFeed({ selectedGenres: ['comedy'] })
+    const result = await feedService.getFeed({ selectedGenres: ['comedy'] })
 
     expect(Array.isArray(result)).toBe(true)
 
@@ -33,10 +33,10 @@ describe('TASK-018: request metrics and key events', () => {
     expect(typeof metricLog[1].durationMs).toBe('number')
   })
 
-  it('logs comment submit event payload', () => {
+  it('logs comment submit event payload', async () => {
     const logger = vi.spyOn(console, 'info').mockImplementation(() => {})
 
-    feedService.createComment({
+    await feedService.createComment({
       clipId: 'clip_1',
       text: 'Great!',
       comments: { clip_1: [] },

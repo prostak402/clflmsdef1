@@ -220,7 +220,7 @@ describe('TASK-012: AppContext state transitions', () => {
       await firstRender.getCurrent().toggleLike('1')
     })
 
-    expect(firstRender.getCurrent().getProfile()).toMatchObject({
+    await expect(firstRender.getCurrent().getProfile()).resolves.toMatchObject({
       bookmarkCount: 12,
       likeCount: 8,
       watchedCount: 3,
@@ -230,7 +230,7 @@ describe('TASK-012: AppContext state transitions', () => {
 
     const secondRender = await renderAppContext()
 
-    expect(secondRender.getCurrent().getProfile()).toMatchObject({
+    await expect(secondRender.getCurrent().getProfile()).resolves.toMatchObject({
       bookmarkCount: 12,
       likeCount: 8,
       watchedCount: 3,

@@ -22,15 +22,13 @@ Frontend-приложение MVP-видеосервиса с вертикаль
 - `/admin` — добавление контента (MVP UI);
 - `/admin/comments` — модерация комментариев.
 
-## Роль mock-режима
+## Источник данных
 
-В текущем MVP **mock-режим — основной источник данных**. Он нужен, чтобы:
+Текущий baseline: **API-only режим**.
 
-- независимо от backend разрабатывать и тестировать UI/UX;
-- стабильно воспроизводить сценарии для QA/демо;
-- постепенно мигрировать на API через adapter layer без массового переписывания компонентов.
-
-Переключение источника данных выполняется через `VITE_DATA_SOURCE` (`mock` \/ `api`).
+- `feedService` и `contentService` работают через `api-feed-adapter`;
+- mock dataset и mock feed adapter удалены из runtime-цепочки;
+- `VITE_DATA_SOURCE` больше не переключает источник данных (любое значение приводит к API adapter, не-`api` значения логируются как предупреждение).
 
 ## Стек
 
@@ -109,8 +107,8 @@ Frontend-приложение MVP-видеосервиса с вертикаль
 
 ### 3) Adapter layer
 
-Сейчас используется `mockFeedAdapter` (данные из `src/data/mock.js`).
-Интерфейс адаптера (`feed-adapter.js`) зафиксирован так, чтобы можно было переключиться на backend API без изменений UI-слоя.
+Runtime использует `apiFeedAdapter` как единый источник данных.
+Интерфейс адаптера (`feed-adapter.js`) остаётся стабильным для UI-слоя, но fallback на mock в runtime отключён.
 
 ### 4) Документация по API/migration
 
@@ -202,12 +200,12 @@ Env-матрица для backend-ready сценариев:
 1. ✅ Поднять backend-контур (auth, feed, comments, moderation, bookmarks/likes) по `docs/api-contract.md`.
 2. ✅ Реализовать `api-feed-adapter` с сохранением текущего интерфейса `feed-adapter.js`.
 3. ✅ Добавить мапперы API ↔ UI-моделей (клипы, комментарии, профиль, жанры).
-4. ✅ Включить read-path через API под feature flag и оставить mock как fallback.
+4. ✅ Включить read-path через API как единый baseline (без mock fallback в runtime).
 5. ✅ Перевести write-path (лайки, закладки, комментарии, модерация) на реальные endpoint-ы.
 6. ✅ Провести финальный stage cutover-check: `mock.js` выключается (`VITE_DATA_SOURCE=api`) без деградации ключевых сценариев (auth, onboarding, feed, likes/bookmarks, comments, admin moderation).
 7. ✅ Подключить auth-модель: token/session refresh, logout и guard-поведение для user/admin.
 8. ⏳ Внедрить upload/media pipeline (presigned URL/object storage + валидация).
-9. ⏳ Удалить mock-only зависимости после успешного cutover и закрепить smoke/regression на API-режиме.
+9. ✅ Удалить mock-only зависимости и закрепить API-only baseline в сервисах/мапперах/тестах.
 
 ## Чек-лист готовности к этапу аренды/подключения сервера
 
