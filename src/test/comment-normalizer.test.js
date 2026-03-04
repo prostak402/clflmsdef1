@@ -3,15 +3,15 @@ import { describe, expect, it } from 'vitest'
 import { normalizeComment, normalizeCommentsMap } from '../services/comment-normalizer'
 
 describe('comment normalizer', () => {
-  it('maps legacy shape to unified comment schema', () => {
+  it('maps API comment shape to unified comment schema', () => {
     const normalized = normalizeComment(
       {
         id: 'cm_legacy',
-        user: 'legacy_user',
+        authorName: 'Alex',
         avatar: '🎬',
-        text: 'Legacy payload',
+        text: 'API payload',
         likes: 5,
-        time: '2 hours ago',
+        createdAt: '2026-02-22T10:20:30.000Z',
       },
       '1'
     )
@@ -21,14 +21,14 @@ describe('comment normalizer', () => {
         id: 'cm_legacy',
         clipId: '1',
         authorId: 'anonymous',
-        authorName: 'legacy_user',
+        authorName: 'Alex',
         avatar: '🎬',
-        text: 'Legacy payload',
+        text: 'API payload',
         likes: 5,
-        timeLabel: '2 hours ago',
+        timeLabel: expect.any(String),
       })
     )
-    expect(normalized.createdAt).toMatch(/\d{4}-\d{2}-\d{2}T/)
+    expect(normalized.createdAt).toBe('2026-02-22T10:20:30.000Z')
   })
 
   it('normalizes whole comments map into unified schema', () => {

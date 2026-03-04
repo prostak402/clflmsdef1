@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { feedService } from '../services/feed-service'
-import { mockFeedAdapter } from '../services/mock-feed-adapter'
+import { apiFeedAdapter } from '../services/api-feed-adapter'
 
 describe('TASK-006: centralized optimistic updates', () => {
   beforeEach(() => {
@@ -12,7 +12,7 @@ describe('TASK-006: centralized optimistic updates', () => {
     const applyLocal = vi.fn()
     const rollbackLocal = vi.fn()
 
-    const persistSpy = vi.spyOn(mockFeedAdapter, 'persistLikeToggle').mockResolvedValueOnce()
+    const persistSpy = vi.spyOn(apiFeedAdapter, 'persistLikeToggle').mockResolvedValueOnce()
 
     const isSuccess = await feedService.optimisticToggleLike({
       clipId: 'clip_1',
@@ -31,7 +31,7 @@ describe('TASK-006: centralized optimistic updates', () => {
     const applyLocal = vi.fn()
     const rollbackLocal = vi.fn()
 
-    vi.spyOn(mockFeedAdapter, 'persistLikeToggle').mockRejectedValueOnce(new Error('Like error'))
+    vi.spyOn(apiFeedAdapter, 'persistLikeToggle').mockRejectedValueOnce(new Error('Like error'))
 
     const isSuccess = await feedService.optimisticToggleLike({
       clipId: 'clip_3',
@@ -49,7 +49,7 @@ describe('TASK-006: centralized optimistic updates', () => {
     const applyLocal = vi.fn()
     const rollbackLocal = vi.fn()
 
-    const persistSpy = vi.spyOn(mockFeedAdapter, 'persistBookmarkToggle').mockResolvedValueOnce()
+    const persistSpy = vi.spyOn(apiFeedAdapter, 'persistBookmarkToggle').mockResolvedValueOnce()
 
     const isSuccess = await feedService.optimisticToggleBookmark({
       clipId: 'clip_2',
@@ -68,7 +68,7 @@ describe('TASK-006: centralized optimistic updates', () => {
     const applyLocal = vi.fn()
     const rollbackLocal = vi.fn()
 
-    vi.spyOn(mockFeedAdapter, 'persistBookmarkToggle').mockRejectedValueOnce(
+    vi.spyOn(apiFeedAdapter, 'persistBookmarkToggle').mockRejectedValueOnce(
       new Error('Network error')
     )
 

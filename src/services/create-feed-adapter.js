@@ -1,8 +1,6 @@
-import { mockFeedAdapter } from './mock-feed-adapter'
 import { apiFeedAdapter } from './api-feed-adapter'
 
-const DEFAULT_DATA_SOURCE = 'mock'
-const API_ADAPTER_ERROR_MESSAGE = 'API adapter not configured'
+const DEFAULT_DATA_SOURCE = 'api'
 
 function normalizeDataSource(dataSource) {
   if (typeof dataSource !== 'string') {
@@ -16,11 +14,13 @@ function normalizeDataSource(dataSource) {
 export function createFeedAdapter(dataSource = import.meta.env?.VITE_DATA_SOURCE) {
   const normalizedDataSource = normalizeDataSource(dataSource)
 
-  if (normalizedDataSource === 'api') {
-    return apiFeedAdapter
+  if (normalizedDataSource !== 'api') {
+    console.warn('[feed-adapter] Unsupported data source, api adapter enforced', {
+      requestedDataSource: normalizedDataSource,
+    })
   }
 
-  return mockFeedAdapter
+  return apiFeedAdapter
 }
 
-export { API_ADAPTER_ERROR_MESSAGE, DEFAULT_DATA_SOURCE }
+export { DEFAULT_DATA_SOURCE }

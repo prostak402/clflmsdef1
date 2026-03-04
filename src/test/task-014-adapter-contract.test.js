@@ -25,8 +25,8 @@ const REQUIRED_PROFILE_FIELDS = ['name', 'email', 'avatar', 'bookmarkCount', 'li
 const GENRE_LOOKUP = createGenreLookup(contentService.getGenres())
 
 describe('TASK-014: feed adapter response contract', () => {
-  it('maps feed items to clip view-model with stable API-compatible fields', () => {
-    const feed = feedService.getFeed()
+  it('maps feed items to clip view-model with stable API-compatible fields', async () => {
+    const feed = await feedService.getFeed()
 
     expect(Array.isArray(feed)).toBe(true)
     expect(feed.length).toBeGreaterThan(0)
@@ -46,8 +46,8 @@ describe('TASK-014: feed adapter response contract', () => {
     expect(typeof firstClipVm.bookmarksCount).toBe('number')
   })
 
-  it('returns profile with required fields and numeric counters', () => {
-    const profile = feedService.getProfile({
+  it('returns profile with required fields and numeric counters', async () => {
+    const profile = await feedService.getProfile({
       user: null,
       bookmarks: ['clip-1', 'clip-2'],
       likes: { 'clip-1': true, 'clip-2': false },

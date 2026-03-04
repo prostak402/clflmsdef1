@@ -16,21 +16,14 @@ describe('task-034 api mode cutover without mock fallback', () => {
   it('wires createFeedAdapter(api) directly to api adapter', async () => {
     const { createFeedAdapter } = await import('../services/create-feed-adapter')
     const { apiFeedAdapter } = await import('../services/api-feed-adapter')
-    const { mockFeedAdapter } = await import('../services/mock-feed-adapter')
 
     const adapter = createFeedAdapter('api')
 
     expect(adapter).toBe(apiFeedAdapter)
-    expect(adapter).not.toBe(mockFeedAdapter)
   })
 
   it('keeps feed/comments/moderation flows on API adapter when VITE_DATA_SOURCE=api', async () => {
     vi.stubEnv('VITE_DATA_SOURCE', 'api')
-
-    const { mockFeedAdapter } = await import('../services/mock-feed-adapter')
-    const mockFeedSpy = vi.spyOn(mockFeedAdapter, 'getFeed')
-    const mockCommentsSpy = vi.spyOn(mockFeedAdapter, 'getInitialComments')
-    const mockModerationSpy = vi.spyOn(mockFeedAdapter, 'getAllCommentsForModeration')
 
     const fetchSpy = vi
       .spyOn(globalThis, 'fetch')
@@ -65,9 +58,5 @@ describe('task-034 api mode cutover without mock fallback', () => {
       '/api/v1/moderation/comments',
       expect.objectContaining({ method: 'GET' })
     )
-
-    expect(mockFeedSpy).not.toHaveBeenCalled()
-    expect(mockCommentsSpy).not.toHaveBeenCalled()
-    expect(mockModerationSpy).not.toHaveBeenCalled()
   })
 })

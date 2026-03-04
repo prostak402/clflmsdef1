@@ -352,3 +352,17 @@
 
 - `api-feed-adapter` и `mock-feed-adapter` обязаны возвращать одинаковую UI-форму через shared mapper-функции.
 - Компоненты UI не должны дублировать fallback-логику для этих полей; fallback централизован в `src/services/mappers/*`.
+
+
+## 10) Новый baseline после cutover
+
+- `src/data/mock.js` и `src/services/mock-feed-adapter.js` удалены из runtime-пути.
+- `createFeedAdapter` всегда возвращает `apiFeedAdapter`; fallback на mock больше не существует.
+- `toClipUiModel` и `normalizeComment` работают по API-контракту без legacy/mock alias-полей (`clipDescription`, `poster`, `clipUrl`, `watchUrl`, `time`, `user`).
+- Для UI-иконок/цветов жанров используется фронтовый справочник `src/constants/genre-ui-meta.js`, а список жанров в onboarding/admin/catalog — `src/constants/genres.js` (без зависимости от mock dataset).
+
+### Acceptance baseline
+
+1. Runtime-импорты `src/data/mock.js` отсутствуют.
+2. Runtime-импорты `src/services/mock-feed-adapter.js` отсутствуют.
+3. Тесты сервисов/мапперов валидируют API-only поведение и дефолты без mock payload-веток.
