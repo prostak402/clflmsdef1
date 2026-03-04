@@ -21,7 +21,8 @@ export default function BookmarksPage() {
 
     try {
       await feedService.wait(250)
-      setClips(getBookmarkedClips().map((clip) => toClipViewModel(clip, GENRE_LOOKUP)))
+      const items = await getBookmarkedClips()
+      setClips((Array.isArray(items) ? items : []).map((clip) => toClipViewModel(clip, GENRE_LOOKUP)))
       setLoadState({ status: 'ready', error: '' })
     } catch {
       setLoadState({ status: 'error', error: 'Failed to load bookmarks.' })
@@ -50,7 +51,8 @@ export default function BookmarksPage() {
 
   const handleRemoveBookmark = async (clipId) => {
     await toggleBookmark(clipId)
-    setClips(getBookmarkedClips().map((clip) => toClipViewModel(clip, GENRE_LOOKUP)))
+    const items = await getBookmarkedClips()
+    setClips((Array.isArray(items) ? items : []).map((clip) => toClipViewModel(clip, GENRE_LOOKUP)))
   }
 
   return (

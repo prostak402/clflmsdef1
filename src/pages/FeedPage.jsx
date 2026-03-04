@@ -39,7 +39,10 @@ export default function FeedPage() {
 
     try {
       await feedService.wait(350)
-      const nextClips = getFilteredClips().map((clip) => toClipViewModel(clip, GENRE_LOOKUP))
+      const rawClips = await getFilteredClips()
+      const nextClips = (Array.isArray(rawClips) ? rawClips : []).map((clip) =>
+        toClipViewModel(clip, GENRE_LOOKUP)
+      )
       const nextFeedRequestId = createTrackingId('feed')
       const nextImpressionMap = nextClips.reduce((acc, clip) => {
         acc[clip.id] = createTrackingId('impr')

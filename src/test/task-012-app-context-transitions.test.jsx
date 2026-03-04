@@ -102,8 +102,8 @@ describe('TASK-012: AppContext state transitions', () => {
     expect(result).toEqual({ ok: true, error: '' })
     expect(getCurrent().comments['1']).toHaveLength(beforeCommentsCount + 1)
     expect(getCurrent().comments['1'][0].text).toBe('Great pick!')
-    expect(getCurrent().comments['1'][0].authorName).toBe('Movie Explorer')
-    expect(getCurrent().comments['1'][0].authorId).toBe('u_test')
+    expect(getCurrent().comments['1'][0].authorName).toBe('Test User')
+    expect(getCurrent().comments['1'][0].authorId).toBe('test@example.com')
     expect(getCurrent().comments['1'][0].createdAt).toMatch(/\d{4}-\d{2}-\d{2}T/)
 
     let invalidResult
@@ -149,7 +149,7 @@ describe('TASK-012: AppContext state transitions', () => {
       getCurrent().blockUserComments('blocked@example.com')
     })
 
-    expect(getCurrent().blockedCommentUsers['blocked@example.com']).toBe(true)
+    expect(getCurrent().isUserCommentBlocked('blocked@example.com')).toBe(true)
 
     let blockedResult
     await act(async () => {
@@ -187,7 +187,7 @@ describe('TASK-012: AppContext state transitions', () => {
     })
 
     await act(async () => {
-      getCurrent().deleteCommentsByUser({ authorId: getCurrent().comments['1'][0].authorId })
+      getCurrent().deleteCommentsByUser({ authorId: 'blocked@example.com' })
     })
 
     expect(
@@ -220,7 +220,7 @@ describe('TASK-012: AppContext state transitions', () => {
       await firstRender.getCurrent().toggleLike('1')
     })
 
-    expect(firstRender.getCurrent().getProfile()).toMatchObject({
+    await expect(firstRender.getCurrent().getProfile()).resolves.toMatchObject({
       bookmarkCount: 12,
       likeCount: 8,
       watchedCount: 3,
@@ -230,7 +230,7 @@ describe('TASK-012: AppContext state transitions', () => {
 
     const secondRender = await renderAppContext()
 
-    expect(secondRender.getCurrent().getProfile()).toMatchObject({
+    await expect(secondRender.getCurrent().getProfile()).resolves.toMatchObject({
       bookmarkCount: 12,
       likeCount: 8,
       watchedCount: 3,

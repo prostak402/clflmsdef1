@@ -178,11 +178,36 @@ export function AppProvider({ children }) {
   const [likes, setLikes] = useState(persistedState.likes)
   const [blockedCommentUsers, setBlockedCommentUsers] = useState(persistedState.blockedCommentUsers)
   const [draftPreferences, setDraftPreferences] = useState(persistedState.draftPreferences)
-  const [comments, setComments] = useState(feedService.getInitialComments())
+  const [comments, setComments] = useState({})
   const [adminUploads, setAdminUploads] = useState(persistedState.adminUploads)
   const [adminCatalogMovies, setAdminCatalogMovies] = useState(persistedState.adminCatalogMovies)
   const [authStatus, setAuthStatus] = useState('checking')
   const [sessionExpired, setSessionExpired] = useState(false)
+
+
+  useEffect(() => {
+    let isMounted = true
+
+    Promise.resolve(feedService.getInitialComments())
+      .then((loadedComments) => {
+        if (!isMounted) {
+          return
+        }
+
+        setComments(loadedComments && typeof loadedComments === 'object' ? loadedComments : {})
+      })
+      .catch(() => {
+        if (!isMounted) {
+          return
+        }
+
+        setComments({})
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   useEffect(() => {
     let isMounted = true
@@ -328,25 +353,24 @@ export function AppProvider({ children }) {
     setDraftPreferences(DEFAULT_DRAFT_PREFERENCES)
   }, [])
 
-  const blockUserComments = useCallback((authorId) => {
+  const blockUserComments = useCallback(async (authorId) => {
     if (typeof authorId !== 'string' || !authorId.trim()) {
       return false
     }
 
     const normalizedAuthorId = authorId.trim()
-    let didUpdate = false
-
-    setBlockedCommentUsers((prev) => {
-      const next = feedService.blockUserComments({
-        authorId: normalizedAuthorId,
-        blockedUsers: prev,
-      })
-      didUpdate = Boolean(next?.[normalizedAuthorId])
-      return next
+    const next = await feedService.blockUserComments({
+      authorId: normalizedAuthorId,
+      blockedUsers: blockedCommentUsers,
     })
 
-    return didUpdate
-  }, [])
+    if (!next || typeof next !== 'object') {
+      return false
+    }
+
+    setBlockedCommentUsers(next)
+    return Boolean(next[normalizedAuthorId])
+  }, [blockedCommentUsers])
 
   const unblockUserComments = useCallback((authorId) => {
     if (typeof authorId !== 'string' || !authorId.trim()) {
@@ -378,56 +402,56 @@ export function AppProvider({ children }) {
     [blockedCommentUsers]
   )
 
-  const deleteComment = useCallback(({ clipId, commentId }) => {
+  const deleteComment = useCallback(async ({ clipId, commentId }) => {
     if (!isValidClipId(clipId) || typeof commentId !== 'string' || !commentId.trim()) {
       return false
     }
 
     const normalizedCommentId = commentId.trim()
-    let didDelete = false
-
-    setComments((prev) => {
-      const next = feedService.deleteComment({
-        clipId,
-        commentId: normalizedCommentId,
-        comments: prev,
-      })
-      const prevLength = Array.isArray(prev?.[clipId]) ? prev[clipId].length : 0
-      const nextLength = Array.isArray(next?.[clipId]) ? next[clipId].length : 0
-      didDelete = nextLength < prevLength
-      return didDelete ? next : prev
+    const next = await feedService.deleteComment({
+      clipId,
+      commentId: normalizedCommentId,
+      comments,
     })
 
-    return didDelete
-  }, [])
+    const prevLength = Array.isArray(comments?.[clipId]) ? comments[clipId].length : 0
+    const nextLength = Array.isArray(next?.[clipId]) ? next[clipId].length : 0
+    const didDelete = nextLength < prevLength
 
-  const deleteCommentsByUser = useCallback(({ authorId }) => {
+    if (didDelete) {
+      setComments(next)
+    }
+
+    return didDelete
+  }, [comments])
+
+  const deleteCommentsByUser = useCallback(async ({ authorId }) => {
     if (typeof authorId !== 'string' || !authorId.trim()) {
       return false
     }
 
     const normalizedAuthorId = authorId.trim()
-    let didDelete = false
-
-    setComments((prev) => {
-      const next = feedService.deleteCommentsByUser({
-        authorId: normalizedAuthorId,
-        comments: prev,
-      })
-      const prevCount = Object.values(prev).reduce(
-        (acc, clipComments) => acc + (clipComments?.length || 0),
-        0
-      )
-      const nextCount = Object.values(next).reduce(
-        (acc, clipComments) => acc + (clipComments?.length || 0),
-        0
-      )
-      didDelete = nextCount < prevCount
-      return didDelete ? next : prev
+    const next = await feedService.deleteCommentsByUser({
+      authorId: normalizedAuthorId,
+      comments,
     })
 
+    const prevCount = Object.values(comments).reduce(
+      (acc, clipComments) => acc + (clipComments?.length || 0),
+      0
+    )
+    const nextCount = Object.values(next || {}).reduce(
+      (acc, clipComments) => acc + (clipComments?.length || 0),
+      0
+    )
+    const didDelete = nextCount < prevCount
+
+    if (didDelete) {
+      setComments(next)
+    }
+
     return didDelete
-  }, [])
+  }, [comments])
 
   const toggleGenre = useCallback((genreId) => {
     setSelectedGenres((prev) => {
@@ -461,7 +485,11 @@ export function AppProvider({ children }) {
           clipId,
           shouldBookmark,
           applyLocal: () => {
-            setBookmarks((current) => feedService.toggleBookmark({ clipId, bookmarks: current }))
+            setBookmarks((current) =>
+              current.includes(clipId)
+                ? current.filter((id) => id !== clipId)
+                : [...current, clipId]
+            )
           },
           rollbackLocal: () => {
             setBookmarks(prevBookmarks)
@@ -493,7 +521,10 @@ export function AppProvider({ children }) {
           clipId,
           shouldLike,
           applyLocal: () => {
-            setLikes((current) => feedService.toggleLike({ clipId, likes: current }))
+            setLikes((current) => ({
+              ...current,
+              [clipId]: !current[clipId],
+            }))
           },
           rollbackLocal: () => {
             setLikes(prevLikes)
@@ -541,7 +572,22 @@ export function AppProvider({ children }) {
           authorId: currentAuthorId,
         })
 
-        setComments(nextComments)
+        const patchedComments = { ...nextComments }
+        const clipComments = Array.isArray(patchedComments[clipId]) ? patchedComments[clipId] : []
+
+        if (clipComments.length > 0) {
+          const [firstComment, ...rest] = clipComments
+          patchedComments[clipId] = [
+            {
+              ...firstComment,
+              authorId: currentAuthorId || firstComment.authorId,
+              authorName: user?.name || firstComment.authorName,
+            },
+            ...rest,
+          ]
+        }
+
+        setComments(patchedComments)
 
         return {
           ok: true,
@@ -806,15 +852,15 @@ export function AppProvider({ children }) {
     return [...adminCatalogMovies, ...safeCatalog]
   }, [adminCatalogMovies])
 
-  const getFilteredClips = useCallback(() => {
+  const getFilteredClips = useCallback(async () => {
     return feedService.getFeed({ selectedGenres })
   }, [selectedGenres])
 
-  const getBookmarkedClips = useCallback(() => {
+  const getBookmarkedClips = useCallback(async () => {
     return feedService.getBookmarks({ bookmarks })
   }, [bookmarks])
 
-  const getProfile = useCallback(() => {
+  const getProfile = useCallback(async () => {
     return feedService.getProfile({ user })
   }, [user])
 

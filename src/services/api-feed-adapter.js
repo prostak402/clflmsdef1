@@ -19,7 +19,13 @@ function shouldSendLegacyCreateCommentAuthorFields() {
 }
 
 async function parseJsonSafe(response) {
-  const raw = await response.text()
+  let raw = ''
+
+  try {
+    raw = await response.text()
+  } catch {
+    return null
+  }
 
   if (!raw) {
     return null

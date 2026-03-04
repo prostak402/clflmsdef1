@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 import App from '../App'
@@ -34,7 +34,9 @@ describe('TASK-013: key business flow integration', () => {
     const bookmarkButton = actionButtons[2]
 
     await user.click(likeButton)
-    expect(likeButton.className).toContain('liked')
+    await waitFor(() => {
+      expect(likeButton.className).toContain('liked')
+    })
 
     await user.click(commentsButton)
     const commentInput = await screen.findByPlaceholderText(/add a comment/i)
@@ -43,7 +45,9 @@ describe('TASK-013: key business flow integration', () => {
     expect(await screen.findByText('Интеграционный happy path комментарий')).toBeInTheDocument()
 
     await user.click(bookmarkButton)
-    expect(bookmarkButton.className).toContain('bookmarked')
+    await waitFor(() => {
+      expect(bookmarkButton.className).toContain('bookmarked')
+    })
 
     await user.click(screen.getAllByRole('button', { name: /saved/i })[0])
     expect(await screen.findByRole('heading', { name: /^Saved Movies$/i })).toBeInTheDocument()

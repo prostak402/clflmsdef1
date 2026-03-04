@@ -27,7 +27,8 @@ export default function ProfilePage() {
 
     try {
       await feedService.wait(220)
-      setProfile(getProfile())
+      const nextProfile = await getProfile()
+      setProfile(nextProfile)
       setLoadState({ status: 'ready', error: '' })
     } catch {
       setLoadState({ status: 'error', error: 'Failed to load profile.' })

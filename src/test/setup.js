@@ -1,4 +1,4 @@
-import { beforeEach, afterEach, vi } from 'vitest'
+import { beforeEach, afterEach } from 'vitest'
 import { cleanup } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 
@@ -25,75 +25,217 @@ if (!window.HTMLElement.prototype.scrollIntoView) {
 }
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' }
+const realFetch = globalThis.fetch.bind(globalThis)
 
 function jsonResponse(payload, status = 200) {
-  return Promise.resolve(new Response(JSON.stringify(payload), { status, headers: JSON_HEADERS }))
+  return new Response(JSON.stringify(payload), { status, headers: JSON_HEADERS })
+}
+
+function parseBody(body) {
+  if (!body) {
+    return {}
+  }
+
+  if (typeof body === 'string') {
+    try {
+      return JSON.parse(body)
+    } catch {
+      return {}
+    }
+  }
+
+  return body
 }
 
 function createApiTestFetch() {
+  const state = {
+    sessionUser: {
+      id: 'usr_local_demo',
+      email: 'demo@example.com',
+      displayName: 'Demo User',
+      role: 'user',
+      hasCompletedOnboarding: false,
+    },
+    likes: {},
+    bookmarks: [],
+    blockedUsers: {},
+    comments: [
+      {
+        id: 'cm_seed_1',
+        clipId: '1',
+        authorId: 'usr_local_demo',
+        authorName: 'Movie Explorer',
+        text: 'Great clip!',
+        likes: 2,
+        createdAt: new Date(Date.now() - 3600_000).toISOString(),
+      },
+    ],
+  }
+
+  const feedItems = [
+    {
+      id: '1',
+      title: 'Interstellar',
+      description: 'Space mission',
+      thumbnailUrl: 'https://example.com/t.jpg',
+      videoUrl: 'https://example.com/v.mp4',
+      externalUrl: 'https://example.com/watch/interstellar',
+      durationSec: 300,
+      genreId: 'action',
+      likesCount: 0,
+      commentsCount: 1,
+      sharesCount: 0,
+      bookmarksCount: 0,
+      status: 'published',
+    },
+  ]
+
   return async (input, init = {}) => {
     const url = typeof input === 'string' ? input : input?.url || ''
     const method = (init.method || 'GET').toUpperCase()
 
-    if (url.startsWith('/api/v1/feed/clips')) {
+    if (/^https?:\/\//.test(url)) {
+      return realFetch(input, init)
+    }
+
+    if (url === '/api/v1/auth/login' && method === 'POST') {
+      const body = parseBody(init.body)
+      const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
+      state.sessionUser = {
+        id: email ? `usr_${email}` : 'usr_local_demo',
+        email: email || 'demo@clipflow.com',
+        displayName: body.displayName || body.name || 'Movie Explorer',
+        role: email === 'admin@clipflow.com' ? 'admin' : 'user',
+        hasCompletedOnboarding: false,
+      }
+
       return jsonResponse({
-        items: [
-          {
-            id: '1',
-            title: 'Interstellar',
-            description: 'Space mission',
-            thumbnailUrl: 'https://example.com/t.jpg',
-            videoUrl: 'https://example.com/v.mp4',
-            durationSec: 300,
-            genreId: 'action',
-            likesCount: 0,
-            commentsCount: 0,
-            sharesCount: 0,
-            bookmarksCount: 0,
-            externalUrl: 'https://example.com/watch/interstellar',
-            status: 'published',
-          },
-        ],
+        accessToken: 'test_access_token',
+        refreshToken: 'test_refresh_token',
+        tokenType: 'Bearer',
+        expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+        user: state.sessionUser,
       })
     }
 
-    if (url === '/api/v1/comments' && method === 'GET') {
-      return jsonResponse({ '1': [{ id: 'cm-1', clipId: '1', authorId: 'u-1', authorName: 'Alex', text: 'Great clip!', likes: 2, createdAt: new Date(Date.now()-3600_000).toISOString() }] })
-    }
-
-    if (/^\/api\/v1\/clips\/[^/]+\/comments$/.test(url) && method === 'POST') {
-      const body = init.body ? JSON.parse(init.body) : {}
+    if (url === '/api/v1/auth/signup' && method === 'POST') {
+      const body = parseBody(init.body)
       return jsonResponse({
-        comment: {
-          id: 'cm_test',
-          clipId: url.split('/')[4],
-          authorId: 'u_test',
-          authorName: 'Movie Explorer',
-          text: body.body || '',
-          likes: 0,
-          createdAt: new Date().toISOString(),
+        accessToken: 'test_access_token',
+        refreshToken: 'test_refresh_token',
+        tokenType: 'Bearer',
+        expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+        user: {
+          id: `usr_${(body.email || 'new').toLowerCase()}`,
+          email: body.email,
+          displayName: body.displayName || 'Movie Explorer',
+          role: 'user',
+          hasCompletedOnboarding: false,
         },
       })
     }
 
-    if (/^\/api\/v1\/clips\/[^/]+\/(like|bookmark)$/.test(url)) {
-      return jsonResponse({ ok: true })
+    if (url === '/api/v1/auth/refresh' && method === 'POST') {
+      return jsonResponse({
+        accessToken: 'test_access_token_refreshed',
+        refreshToken: 'test_refresh_token',
+        tokenType: 'Bearer',
+        expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+        user: state.sessionUser,
+      })
+    }
+
+    if (url.startsWith('/api/v1/feed/clips') && method === 'GET') {
+      return jsonResponse({ items: feedItems })
+    }
+
+    if (url === '/api/v1/comments' && method === 'GET') {
+      return jsonResponse({ items: state.comments })
+    }
+
+    if (/^\/api\/v1\/clips\/[^/]+\/comments$/.test(url) && method === 'POST') {
+      const clipId = url.split('/')[4]
+      const body = parseBody(init.body)
+      const created = {
+        id: `cm_${Date.now()}`,
+        clipId,
+        authorId: state.sessionUser.email || state.sessionUser.id,
+        authorName: state.sessionUser.displayName || 'Movie Explorer',
+        text: body.body || '',
+        likes: 0,
+        createdAt: new Date().toISOString(),
+      }
+      state.comments.unshift(created)
+      return jsonResponse({ comment: created }, 201)
+    }
+
+    if (/^\/api\/v1\/clips\/[^/]+\/like$/.test(url)) {
+      const clipId = url.split('/')[4]
+      if (method === 'POST') {
+        state.likes[clipId] = true
+      }
+      if (method === 'DELETE') {
+        state.likes[clipId] = false
+      }
+      return jsonResponse({ likes: { ...state.likes } })
+    }
+
+    if (/^\/api\/v1\/clips\/[^/]+\/bookmark$/.test(url)) {
+      const clipId = url.split('/')[4]
+      if (method === 'POST' && !state.bookmarks.includes(clipId)) {
+        state.bookmarks.push(clipId)
+      }
+      if (method === 'DELETE') {
+        state.bookmarks = state.bookmarks.filter((id) => id !== clipId)
+      }
+      return jsonResponse({ bookmarks: [...state.bookmarks] })
     }
 
     if (url === '/api/v1/moderation/comments' && method === 'GET') {
-      return jsonResponse({ items: [] })
+      return jsonResponse({ items: state.comments })
+    }
+
+    if (url === '/api/v1/moderation/comments/block-user' && method === 'POST') {
+      const body = parseBody(init.body)
+      if (body?.authorId) {
+        state.blockedUsers[body.authorId] = body.isBlocked !== false
+      }
+
+      return jsonResponse({ blockedUsers: { ...state.blockedUsers } })
+    }
+
+    if (/^\/api\/v1\/moderation\/comments\//.test(url) && method === 'DELETE') {
+      const parts = url.split('/')
+      if (url.includes('/by-user/')) {
+        const authorId = parts[parts.length - 1]
+        state.comments = state.comments.filter((comment) => comment.authorId !== authorId)
+      } else {
+        const commentId = parts[parts.length - 1]
+        state.comments = state.comments.filter((comment) => comment.id !== commentId)
+      }
+
+      return jsonResponse({ ok: true })
     }
 
     if (url === '/api/v1/clips' && method === 'GET') {
-      return jsonResponse({ items: [] })
+      return jsonResponse({ items: feedItems })
     }
 
     if (url === '/api/v1/me/bookmarks' && method === 'GET') {
-      return jsonResponse({ items: [] })
+      return jsonResponse({ items: feedItems.filter((item) => state.bookmarks.includes(item.id)) })
     }
 
     if (url === '/api/v1/me' && method === 'GET') {
-      return jsonResponse({ name: 'Movie Explorer', email: 'hello@movieexplorer.app', counts: {} })
+      return jsonResponse({
+        id: state.sessionUser.id,
+        role: state.sessionUser.role,
+        displayName: state.sessionUser.displayName,
+        email: state.sessionUser.email,
+        counts: {
+          bookmarks: state.bookmarks.length,
+          likes: Object.values(state.likes).filter(Boolean).length,
+        },
+      })
     }
 
     return jsonResponse({})
@@ -102,10 +244,9 @@ function createApiTestFetch() {
 
 beforeEach(() => {
   window.localStorage.clear()
-globalThis.fetch = createApiTestFetch()
+  globalThis.fetch = createApiTestFetch()
 })
 
 afterEach(() => {
   cleanup()
-  vi.restoreAllMocks()
 })
