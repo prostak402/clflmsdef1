@@ -1,5 +1,6 @@
 const DEFAULT_API_BASE_URL = '/api/v1'
 const RETRYABLE_STATUS_CODES = new Set([408, 425, 429, 500, 502, 503, 504])
+const DEFAULT_MAX_ATTEMPTS = 3
 
 function getApiBaseUrl() {
   const raw = import.meta.env?.VITE_API_BASE_URL
@@ -32,6 +33,12 @@ function parseErrorMessage(payload, fallbackMessage) {
   return payload?.error?.message || payload?.message || fallbackMessage
 }
 
+function createUploadError(message, details = {}) {
+  const error = new Error(message)
+  Object.assign(error, details)
+  return error
+}
+
 export function validateClipFile(file) {
   if (!file) {
     return 'Please select a video file'
@@ -58,7 +65,7 @@ export function validateClipFile(file) {
 }
 
 async function requestUploadUrl(file) {
-  const response = await fetch(buildApiUrl('/admin/clips/upload-url'), {
+  const response = await fetch(buildApiUrl('/admin/uploads/initiate'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -73,7 +80,13 @@ async function requestUploadUrl(file) {
   const payload = await parseJsonSafe(response)
 
   if (!response.ok) {
-    throw new Error(parseErrorMessage(payload, `Failed to create upload URL (${response.status})`))
+    throw createUploadError(
+      parseErrorMessage(payload, `Failed to create upload session (${response.status})`),
+      {
+        status: response.status,
+        stage: 'initiate',
+      }
+    )
   }
 
   return payload
@@ -89,9 +102,54 @@ async function uploadFile({ file, uploadUrl, requiredHeaders }) {
   })
 
   if (!response.ok) {
-    const error = new Error(`Upload failed with status ${response.status}`)
-    error.status = response.status
-    throw error
+    throw createUploadError(`Upload failed with status ${response.status}`, {
+      status: response.status,
+      stage: 'upload',
+    })
+  }
+}
+
+async function confirmUpload(uploadId) {
+  const response = await fetch(buildApiUrl(`/admin/uploads/${uploadId}/complete`), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  })
+
+  const payload = await parseJsonSafe(response)
+
+  if (!response.ok) {
+    throw createUploadError(parseErrorMessage(payload, `Failed to confirm upload (${response.status})`), {
+      status: response.status,
+      stage: 'confirm',
+    })
+  }
+
+  return payload
+}
+
+async function rollbackUpload({ uploadId, objectKey, reason }) {
+  const response = await fetch(buildApiUrl(`/admin/uploads/${uploadId}/rollback`), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      objectKey,
+      reason,
+    }),
+  })
+
+  if (!response.ok) {
+    const payload = await parseJsonSafe(response)
+    throw createUploadError(
+      parseErrorMessage(payload, `Rollback failed (${response.status})`),
+      {
+        status: response.status,
+        stage: 'rollback',
+      }
+    )
   }
 }
 
@@ -107,7 +165,13 @@ async function createClipMetadata(metadata) {
   const payload = await parseJsonSafe(response)
 
   if (!response.ok) {
-    throw new Error(parseErrorMessage(payload, `Failed to save clip metadata (${response.status})`))
+    throw createUploadError(
+      parseErrorMessage(payload, `Failed to save clip metadata (${response.status})`),
+      {
+        status: response.status,
+        stage: 'metadata',
+      }
+    )
   }
 
   return payload?.clip || null
@@ -130,43 +194,79 @@ function isRetryableError(error) {
 }
 
 export async function uploadClipWithMetadata({ file, metadata, maxAttempts = 3 }) {
+  const attemptLimit = Number(maxAttempts) > 0 ? Number(maxAttempts) : DEFAULT_MAX_ATTEMPTS
+  const notifyProgress =
+    typeof metadata?.onUploadProgress === 'function' ? metadata.onUploadProgress : null
   const uploadUrlPayload = await requestUploadUrl(file)
 
   let attempt = 0
   let lastError = null
 
-  while (attempt < maxAttempts) {
+  while (attempt < attemptLimit) {
     attempt += 1
 
     try {
+      notifyProgress?.({ stage: 'uploading', attempt, maxAttempts: attemptLimit })
+
       await uploadFile({
         file,
         uploadUrl: uploadUrlPayload.uploadUrl,
         requiredHeaders: uploadUrlPayload.requiredHeaders,
       })
 
+      notifyProgress?.({ stage: 'confirming', attempt, maxAttempts: attemptLimit })
+      await confirmUpload(uploadUrlPayload.uploadId)
+
+      notifyProgress?.({ stage: 'finalizing', attempt, maxAttempts: attemptLimit })
+
       const clip = await createClipMetadata({
         ...toClipContractPayload(metadata),
         objectKey: uploadUrlPayload.objectKey,
       })
 
+      notifyProgress?.({ stage: 'done', attempt, maxAttempts: attemptLimit })
+
       return {
         clip,
+        uploadId: uploadUrlPayload.uploadId,
         objectKey: uploadUrlPayload.objectKey,
         attemptsUsed: attempt,
       }
     } catch (error) {
       lastError = error
 
-      if (!isRetryableError(error) || attempt >= maxAttempts) {
+      notifyProgress?.({
+        stage: 'retrying',
+        attempt,
+        maxAttempts: attemptLimit,
+        message: error?.message || '',
+      })
+
+      if (!isRetryableError(error) || attempt >= attemptLimit) {
         break
       }
     }
   }
 
+  if (uploadUrlPayload?.uploadId && uploadUrlPayload?.objectKey) {
+    notifyProgress?.({ stage: 'rollback', attempt, maxAttempts: attemptLimit })
+    try {
+      await rollbackUpload({
+        uploadId: uploadUrlPayload.uploadId,
+        objectKey: uploadUrlPayload.objectKey,
+        reason: lastError?.message || 'upload_flow_failed',
+      })
+    } catch (rollbackError) {
+      throw createUploadError(`${lastError?.message || 'Upload failed'}. ${rollbackError.message}`, {
+        stage: 'rollback',
+        cause: lastError,
+      })
+    }
+  }
+
   throw new Error(
     lastError?.message
-      ? `${lastError.message}. Attempts used: ${maxAttempts}`
-      : `Upload failed after ${maxAttempts} attempts`
+      ? `${lastError.message}. Attempts used: ${attemptLimit}`
+      : `Upload failed after ${attemptLimit} attempts`
   )
 }

@@ -255,6 +255,30 @@
   transform: translateY(-1px);
 }
 
+
+.admin-upload-flow-status {
+  margin-top: var(--space-sm);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.admin-upload-flow-status em {
+  font-style: normal;
+  color: var(--text-tertiary);
+}
+
+.admin-upload-flow-status.failed {
+  color: #fca5a5;
+}
+
+.admin-upload-flow-status.done {
+  color: #86efac;
+}
+
 .admin-submit:disabled {
   opacity: 0.7;
   cursor: not-allowed;
@@ -357,6 +381,11 @@
 .admin-upload-status.ready {
   background: rgba(16, 185, 129, 0.15);
   color: #10b981;
+}
+
+.admin-upload-status.failed {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
 }
 
 .admin-upload-spinner {

@@ -64,6 +64,7 @@ describe('TASK-030: admin upload retry UX', () => {
 
     await waitFor(() => {
       expect(screen.getByRole('alert')).toHaveTextContent('Upload failed with status 503')
+      expect(screen.getByRole('status')).toHaveTextContent('Upload failed.')
     })
 
     fireEvent.click(screen.getByRole('button', { name: /retry upload/i }))
@@ -71,5 +72,7 @@ describe('TASK-030: admin upload retry UX', () => {
     await waitFor(() => {
       expect(addAdminClipMock).toHaveBeenCalledTimes(1)
     })
+
+    expect(addAdminClipMock).toHaveBeenCalledWith(expect.objectContaining({ status: 'ready' }))
   })
 })

@@ -166,7 +166,7 @@ Env-матрица для backend-ready сценариев:
 
 - **Auth mode:** в `mock` — demo-вход; в `api` — backend-сессия с `login/refresh/logout/me`, хранением `auth_session_v1` и авто-refresh access token.
 - **Локальные данные:** состояние и пользовательские действия хранятся в `localStorage`.
-- **Без реального upload:** админская форма не загружает файлы в хранилище и не создаёт persistent media-объекты.
+- **Upload flow подключён, но ограничен видео-контентом:** backend должен поддерживать `initiate/complete/rollback` для админских загрузок.
 - **API-режим покрывает ключевые продуктовые потоки:** feed/comments/likes/bookmarks/moderation/profile/catalog работают через adapter/service слой; в работе остаётся финальный stage cutover-check для отключения `mock.js`.
 
 ### Статус потоков API-адаптера (mock vs api)
@@ -185,6 +185,17 @@ Env-матрица для backend-ready сценариев:
 - **Единый источник истины по endpoint-ам: `docs/api-contract.md`.**
 - Любое изменение endpoint-а, query/body-полей или формата ответа сначала фиксируется в `docs/api-contract.md`, и только затем в коде adapter/service.
 - После изменений контракта обязательно синхронизировать связанные документы (`README.md`, `docs/task-020-mock-to-api-migration-map.md`) в том же PR.
+
+
+## Upload ограничения и UX-правила (Admin)
+
+- Поддерживаемые MIME-типы клипа: `video/mp4`, `video/webm`, `video/quicktime`.
+- Лимит размера файла по умолчанию: `250MB` (может быть переопределён через `VITE_UPLOAD_MAX_SIZE_MB`).
+- UI не отправляет metadata без выбранного жанра и валидного видеофайла.
+- Upload flow разбит на этапы: `uploading` → `confirming` → `finalizing`; при временных сетевых ошибках включается retry.
+- Retry выполняется автоматически в сервисе (`maxAttempts`, по умолчанию `3`) для `408/425/429/5xx`.
+- Если flow не завершился, клиент инициирует rollback upload-сессии (`/admin/uploads/:uploadId/rollback`) перед показом финальной ошибки.
+- В форме админки отображаются промежуточные статусы и номер попытки; при окончательном фейле доступна кнопка `Retry upload`.
 
 ## Roadmap next: mock → api
 

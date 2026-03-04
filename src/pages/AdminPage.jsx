@@ -17,6 +17,8 @@ export default function AdminPage() {
   const [saveAction, setSaveAction] = useState('create')
   const [editingClipId, setEditingClipId] = useState('')
   const [isEditMode, setIsEditMode] = useState(false)
+  const [uploadStage, setUploadStage] = useState('idle')
+  const [uploadAttempts, setUploadAttempts] = useState('')
 
   const emptyForm = {
     title: '',
@@ -80,6 +82,8 @@ export default function AdminPage() {
     setForm(emptyForm)
     setEditingClipId('')
     setIsEditMode(false)
+    setUploadStage('idle')
+    setUploadAttempts('')
   }
 
   const handleStartEdit = (upload) => {
@@ -104,6 +108,7 @@ export default function AdminPage() {
   const submitForm = async (payload, { allowRetryStore = true } = {}) => {
     setSubmitError('')
     setIsSubmitting(true)
+    setUploadAttempts('')
 
     try {
       if (!payload.genreId) {
@@ -125,7 +130,7 @@ export default function AdminPage() {
           return
         }
 
-        await uploadClipWithMetadata({
+        const uploadResult = await uploadClipWithMetadata({
           file: payload.clipFile,
           metadata: {
             title: payload.title,
@@ -136,10 +141,21 @@ export default function AdminPage() {
             thumbnailUrl: payload.thumbnailUrl,
             status: payload.status,
             externalUrl: payload.externalUrl,
+            onUploadProgress: ({ stage, attempt, maxAttempts }) => {
+              setUploadStage(stage)
+              if (Number(maxAttempts) > 1) {
+                setUploadAttempts(`Attempt ${attempt}/${maxAttempts}`)
+              }
+            },
           },
         })
 
-        addAdminClip(payload)
+        addAdminClip({
+          ...payload,
+          id: uploadResult?.clip?.id || payload.id,
+          status: 'ready',
+        })
+        setUploadStage('done')
         setSaveAction('create')
       }
 
@@ -151,6 +167,7 @@ export default function AdminPage() {
     } catch (error) {
       const nextError = error instanceof Error ? error.message : 'Upload failed. Please try again.'
 
+      setUploadStage('failed')
       setSubmitError(nextError)
 
       if (allowRetryStore) {
@@ -165,6 +182,18 @@ export default function AdminPage() {
     e.preventDefault()
     await submitForm({ ...form, ...normalizedFormPayload })
   }
+
+
+  const uploadStatusLabel = {
+    idle: '',
+    uploading: 'Uploading file to storage…',
+    confirming: 'Confirming uploaded object…',
+    finalizing: 'Saving clip metadata…',
+    retrying: 'Retrying upload after temporary failure…',
+    rollback: 'Rolling back failed upload session…',
+    done: 'Upload completed successfully.',
+    failed: 'Upload failed.',
+  }[uploadStage]
 
   return (
     <div className="admin-page">
@@ -295,6 +324,13 @@ export default function AdminPage() {
             {isSubmitting ? 'Uploading...' : isEditMode ? 'Save Changes' : 'Upload Clip'}
           </button>
 
+          {uploadStatusLabel && (
+            <p className={`admin-upload-flow-status ${uploadStage}`} role="status">
+              <span>{uploadStatusLabel}</span>
+              {uploadAttempts && <em>{uploadAttempts}</em>}
+            </p>
+          )}
+
           {submitError && (
             <div className="admin-submit-error" role="alert">
               <p>{submitError}</p>
@@ -334,7 +370,7 @@ export default function AdminPage() {
                   ) : (
                     <Check size={14} />
                   )}
-                  <span>{upload.status === 'processing' ? 'Processing' : 'Ready'}</span>
+                  <span>{upload.status === 'processing' ? 'Processing' : upload.status === 'failed' ? 'Failed' : 'Ready'}</span>
                 </div>
                 <div className="admin-upload-actions">
                   <button
