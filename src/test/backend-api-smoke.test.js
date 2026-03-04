@@ -106,4 +106,36 @@ describe('backend API smoke', () => {
     expect(moderationWriteResponse.status).toBe(200)
     expect(moderationWritePayload.blockedUsers).toMatchObject({ usr_local_demo: true })
   })
+
+  it('handles CORS preflight and exposes CORS headers on API responses', async () => {
+    const preflightResponse = await fetch(`${BASE_URL}/admin/clips`, {
+      method: 'OPTIONS',
+      headers: {
+        Origin: 'http://localhost:5173',
+        'Access-Control-Request-Method': 'POST',
+      },
+    })
+
+    expect(preflightResponse.status).toBe(204)
+    expect(preflightResponse.headers.get('access-control-allow-origin')).toBe(
+      'http://localhost:5173'
+    )
+    expect(preflightResponse.headers.get('access-control-allow-methods')).toBe(
+      'GET,POST,DELETE,PUT,OPTIONS'
+    )
+    expect(preflightResponse.headers.get('access-control-allow-headers')).toBe(
+      'Content-Type, Authorization'
+    )
+
+    const apiResponse = await fetch(`${BASE_URL}/feed/clips`, {
+      headers: {
+        Origin: 'http://127.0.0.1:5173',
+      },
+    })
+
+    expect(apiResponse.status).toBe(200)
+    expect(apiResponse.headers.get('access-control-allow-origin')).toBe('http://127.0.0.1:5173')
+    expect(apiResponse.headers.get('access-control-allow-credentials')).toBe('true')
+  })
+
 })
