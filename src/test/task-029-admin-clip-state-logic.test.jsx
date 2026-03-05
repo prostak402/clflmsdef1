@@ -125,6 +125,8 @@ describe('TASK-029: AppContext admin clip state logic', () => {
         videoUrl: 'https://cdn.example.com/clip.mp4',
         thumbnailUrl: 'https://cdn.example.com/thumb.jpg',
         externalUrl: 'https://cinema.example.com/watch/contract',
+        watchUrl: 'https://cinema.example.com/watch/contract',
+        clipDescription: 'contract clip description',
       })
     })
 
@@ -136,12 +138,14 @@ describe('TASK-029: AppContext admin clip state logic', () => {
       expect.objectContaining({
         genreId: 'comedy',
         durationSec: 90,
+        watchUrl: 'https://cinema.example.com/watch/contract',
+        clipDescription: 'contract clip description',
       })
     )
     expect(createdUpload).not.toHaveProperty('year')
     expect(createdUpload).not.toHaveProperty('director')
-    expect(createdUpload).not.toHaveProperty('watchUrl')
-    expect(createdUpload).not.toHaveProperty('clipDescription')
+    expect(createdUpload).toHaveProperty('watchUrl')
+    expect(createdUpload).toHaveProperty('clipDescription')
 
     await act(async () => {
       const updated = getCurrent().updateAdminClip(createdUpload.movieId, {

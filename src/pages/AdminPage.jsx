@@ -23,6 +23,8 @@ export default function AdminPage() {
   const emptyForm = {
     title: '',
     description: '',
+    clipDescription: '',
+    watchUrl: '',
     genres: [],
     duration: '',
     kinopoiskId: '',
@@ -34,6 +36,8 @@ export default function AdminPage() {
   const [form, setForm] = useState({
     title: '',
     description: '',
+    clipDescription: '',
+    watchUrl: '',
     genres: [],
     duration: '',
     kinopoiskId: '',
@@ -49,14 +53,16 @@ export default function AdminPage() {
     return {
       title: form.title,
       description: form.description,
+      clipDescription: form.clipDescription,
+      watchUrl: form.watchUrl,
       genreId: form.genres[0] || '',
       durationSec,
       videoUrl: '',
       thumbnailUrl: form.poster || '',
-      externalUrl: '#',
+      externalUrl: form.watchUrl || '#',
       status: 'draft',
     }
-  }, [form.description, form.duration, form.genres, form.poster, form.title])
+  }, [form.clipDescription, form.description, form.duration, form.genres, form.poster, form.title, form.watchUrl])
 
   if (!user?.isAdmin) {
     return (
@@ -96,6 +102,8 @@ export default function AdminPage() {
     setForm({
       title: upload.title || '',
       description: upload.description || '',
+      clipDescription: upload.clipDescription || upload.description || '',
+      watchUrl: upload.watchUrl || upload.externalUrl || '',
       genres: upload.genreId ? [upload.genreId] : [],
       duration: upload.duration || '',
       kinopoiskId: upload.kinopoiskId || '',
@@ -135,6 +143,8 @@ export default function AdminPage() {
           metadata: {
             title: payload.title,
             description: payload.description,
+            clipDescription: payload.clipDescription,
+            watchUrl: payload.watchUrl,
             genreId: payload.genreId,
             durationSec: payload.durationSec,
             videoUrl: payload.videoUrl,
@@ -255,6 +265,26 @@ export default function AdminPage() {
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
                 rows={3}
+              />
+            </div>
+
+            <div className="admin-field full">
+              <label>Clip Description</label>
+              <textarea
+                placeholder="Short clip description..."
+                value={form.clipDescription}
+                onChange={(e) => setForm({ ...form, clipDescription: e.target.value })}
+                rows={2}
+              />
+            </div>
+
+            <div className="admin-field full">
+              <label>Watch URL</label>
+              <input
+                type="url"
+                placeholder="https://example.com/watch"
+                value={form.watchUrl}
+                onChange={(e) => setForm({ ...form, watchUrl: e.target.value })}
               />
             </div>
 

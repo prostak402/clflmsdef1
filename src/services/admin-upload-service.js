@@ -146,6 +146,8 @@ function toClipContractPayload(metadata = {}) {
   return {
     title: metadata.title,
     description: metadata.description,
+    clipDescription: metadata.clipDescription || metadata.description || '',
+    watchUrl: metadata.watchUrl || metadata.externalUrl || '#',
     genreId: metadata.genreId,
     durationSec: Number(metadata.durationSec) || 0,
     videoUrl: metadata.videoUrl,

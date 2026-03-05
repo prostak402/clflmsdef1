@@ -629,6 +629,8 @@ export function AppProvider({ children }) {
       kinopoiskId: form.kinopoiskId,
       thumbnailUrl: form.thumbnailUrl,
       videoUrl: form.videoUrl,
+      clipDescription: form.clipDescription || form.description || '',
+      watchUrl: form.watchUrl || form.externalUrl || '#',
       externalUrl: form.externalUrl || '#',
       status: 'processing',
       createdAt,
@@ -650,6 +652,8 @@ export function AppProvider({ children }) {
       kinopoiskId: form.kinopoiskId,
       thumbnailUrl: form.thumbnailUrl || poster,
       videoUrl: form.videoUrl || '',
+      clipDescription: form.clipDescription || form.description || '',
+      watchUrl: form.watchUrl || form.externalUrl || '#',
       createdAt,
     }
 
@@ -728,6 +732,12 @@ export function AppProvider({ children }) {
           ...(Object.hasOwn(normalizedPatch, 'externalUrl')
             ? { externalUrl: normalizedPatch.externalUrl }
             : {}),
+          ...(Object.hasOwn(normalizedPatch, 'watchUrl')
+            ? { watchUrl: normalizedPatch.watchUrl }
+            : {}),
+          ...(Object.hasOwn(normalizedPatch, 'clipDescription')
+            ? { clipDescription: normalizedPatch.clipDescription }
+            : {}),
           ...(Object.hasOwn(normalizedPatch, 'description')
             ? { description: normalizedPatch.description }
             : {}),
@@ -784,6 +794,12 @@ export function AppProvider({ children }) {
               : {}),
             ...(Object.hasOwn(normalizedPatch, 'externalUrl')
               ? { externalUrl: normalizedPatch.externalUrl }
+              : {}),
+            ...(Object.hasOwn(normalizedPatch, 'watchUrl')
+              ? { watchUrl: normalizedPatch.watchUrl }
+              : {}),
+            ...(Object.hasOwn(normalizedPatch, 'clipDescription')
+              ? { clipDescription: normalizedPatch.clipDescription }
               : {}),
             ...(Object.hasOwn(normalizedPatch, 'status')
               ? { status: normalizedPatch.status }
