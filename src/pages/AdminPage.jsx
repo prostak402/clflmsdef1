@@ -56,6 +56,8 @@ export default function AdminPage() {
       clipDescription: form.clipDescription,
       watchUrl: form.watchUrl,
       genreId: form.genres[0] || '',
+      genreIds: form.genres,
+      genres: form.genres,
       durationSec,
       videoUrl: '',
       thumbnailUrl: form.poster || '',
@@ -96,6 +98,15 @@ export default function AdminPage() {
     const clipId =
       typeof upload.movieId === 'string' && upload.movieId.trim() ? upload.movieId : upload.id
 
+    const uploadedGenres =
+      Array.isArray(upload.genreIds) && upload.genreIds.length > 0
+        ? upload.genreIds
+        : Array.isArray(upload.genres) && upload.genres.length > 0
+          ? upload.genres
+          : upload.genreId
+            ? [upload.genreId]
+            : []
+
     setShowForm(true)
     setIsEditMode(true)
     setEditingClipId(clipId)
@@ -104,7 +115,7 @@ export default function AdminPage() {
       description: upload.description || '',
       clipDescription: upload.clipDescription || upload.description || '',
       watchUrl: upload.watchUrl || upload.externalUrl || '',
-      genres: upload.genreId ? [upload.genreId] : [],
+      genres: uploadedGenres,
       duration: upload.duration || '',
       kinopoiskId: upload.kinopoiskId || '',
       poster: upload.poster || '',
@@ -119,8 +130,8 @@ export default function AdminPage() {
     setUploadAttempts('')
 
     try {
-      if (!payload.genreId) {
-        setSubmitError('Please select at least one genre.')
+      if (!Array.isArray(payload.genreIds) || payload.genreIds.length === 0) {
+        setSubmitError('Please select one or more genres.')
         return
       }
 
@@ -146,6 +157,8 @@ export default function AdminPage() {
             clipDescription: payload.clipDescription,
             watchUrl: payload.watchUrl,
             genreId: payload.genreId,
+            genreIds: payload.genreIds,
+            genres: payload.genres,
             durationSec: payload.durationSec,
             videoUrl: payload.videoUrl,
             thumbnailUrl: payload.thumbnailUrl,
@@ -304,7 +317,7 @@ export default function AdminPage() {
             </div>
 
             <div className="admin-field full">
-              <label>Genres</label>
+              <label>Genres (one or more)</label>
               <div className="admin-genres">
                 {contentService.getGenres().map((genre) => (
                   <button

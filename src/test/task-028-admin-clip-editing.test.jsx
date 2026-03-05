@@ -12,6 +12,8 @@ const INITIAL_UPLOAD = {
   title: 'Original title',
   description: 'Original movie description',
   genreId: 'drama',
+  genreIds: ['drama', 'thriller'],
+  genres: ['drama', 'thriller'],
   duration: '120m',
   kinopoiskId: '101',
   status: 'ready',
@@ -111,6 +113,43 @@ describe('TASK-028: admin clip editing UI', () => {
 
     expect(screen.getByText('Clip updated successfully!')).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Edit Clip' })).not.toBeInTheDocument()
+  })
+
+
+
+  it('restores all selected genres when re-opening edit form after save', async () => {
+    renderAdminPage()
+
+    fireEvent.click(screen.getAllByRole('button', { name: /edit/i })[0])
+
+    const dramaChip = screen.getByRole('button', { name: 'Drama' })
+    const thrillerChip = screen.getByRole('button', { name: 'Thriller' })
+    const comedyChip = screen.getByRole('button', { name: 'Comedy' })
+
+    expect(dramaChip).toHaveClass('active')
+    expect(thrillerChip).toHaveClass('active')
+    expect(comedyChip).not.toHaveClass('active')
+
+    fireEvent.click(thrillerChip)
+    fireEvent.click(comedyChip)
+    fireEvent.click(screen.getByRole('button', { name: /save changes/i }))
+
+    await waitFor(() => {
+      expect(updateAdminClipSpy).toHaveBeenCalledWith(
+        'admin_upload_1',
+        expect.objectContaining({
+          genreId: 'drama',
+          genreIds: ['drama', 'comedy'],
+          genres: ['drama', 'comedy'],
+        })
+      )
+    })
+
+    fireEvent.click(screen.getAllByRole('button', { name: /edit/i })[0])
+
+    expect(screen.getByRole('button', { name: 'Drama' })).toHaveClass('active')
+    expect(screen.getByRole('button', { name: 'Comedy' })).toHaveClass('active')
+    expect(screen.getByRole('button', { name: 'Thriller' })).not.toHaveClass('active')
   })
 
   it('cancels edit and resets form to create-state', async () => {
