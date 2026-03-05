@@ -289,12 +289,29 @@ async function handleCreateClipMetadata(body, res) {
   }
 
   const objectKey = body.objectKey.trim()
-  const genreId =
-    typeof body?.genreId === 'string' && body.genreId.trim()
-      ? body.genreId.trim()
-      : typeof body?.genres?.[0] === 'string' && body.genres[0].trim()
-        ? body.genres[0].trim()
-        : 'unknown'
+  const normalizedGenreIds = normalizeGenreIds(
+    Array.isArray(body?.genreIds) ? body.genreIds : body?.genres
+  )
+
+  if (
+    (Array.isArray(body?.genreIds) || Array.isArray(body?.genres)) &&
+    normalizedGenreIds.length === 0
+  ) {
+    sendJson(res, 400, {
+      error: { message: 'genreIds/genres must be a non-empty array of strings' },
+    })
+    return
+  }
+
+  const fallbackGenreId =
+    typeof body?.genreId === 'string' && body.genreId.trim() ? body.genreId.trim() : null
+  const genres =
+    normalizedGenreIds.length > 0
+      ? normalizedGenreIds
+      : fallbackGenreId
+        ? [fallbackGenreId]
+        : ['unknown']
+  const genreId = genres[0]
 
   if (s3Client && S3_BUCKET) {
     try {
@@ -317,6 +334,7 @@ async function handleCreateClipMetadata(body, res) {
     clipDescription: body.clipDescription.trim(),
     watchUrl: body.watchUrl.trim(),
     genreId,
+    genres,
     director: typeof body.director === 'string' ? body.director.trim() : '',
     duration: typeof body.duration === 'string' ? body.duration.trim() : '',
     year: typeof body.year === 'string' ? body.year.trim() : '',
@@ -329,16 +347,29 @@ async function handleCreateClipMetadata(body, res) {
   sendJson(res, 201, { clip })
 }
 
-function resolveClipGenreId(clip) {
+function normalizeGenreIds(values) {
+  if (!Array.isArray(values)) {
+    return []
+  }
+
+  return [
+    ...new Set(
+      values.map((value) => (typeof value === 'string' ? value.trim() : '')).filter(Boolean)
+    ),
+  ]
+}
+
+function resolveClipGenreIds(clip) {
+  const normalizedGenres = normalizeGenreIds(clip?.genres)
+  if (normalizedGenres.length > 0) {
+    return normalizedGenres
+  }
+
   if (typeof clip?.genreId === 'string' && clip.genreId.trim()) {
-    return clip.genreId.trim()
+    return [clip.genreId.trim()]
   }
 
-  if (Array.isArray(clip?.genres) && typeof clip.genres[0] === 'string' && clip.genres[0].trim()) {
-    return clip.genres[0].trim()
-  }
-
-  return 'unknown'
+  return ['unknown']
 }
 
 function handleFeedRead(url, res) {
@@ -349,13 +380,23 @@ function handleFeedRead(url, res) {
 
   hydrateClipCounters()
 
-  const items = clips.filter((clip) => {
-    if (selectedGenreIds.length === 0) {
-      return true
-    }
+  const items = clips
+    .filter((clip) => {
+      if (selectedGenreIds.length === 0) {
+        return true
+      }
 
-    return selectedGenreIds.includes(resolveClipGenreId(clip))
-  })
+      const clipGenreIds = resolveClipGenreIds(clip)
+      return clipGenreIds.some((genreId) => selectedGenreIds.includes(genreId))
+    })
+    .map((clip) => {
+      const clipGenreIds = resolveClipGenreIds(clip)
+      return {
+        ...clip,
+        genreId: clipGenreIds[0],
+        genres: clipGenreIds,
+      }
+    })
 
   sendJson(res, 200, { items, nextCursor: null })
 }

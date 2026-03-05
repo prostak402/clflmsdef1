@@ -107,8 +107,7 @@ describe('backend API smoke', () => {
     expect(moderationWritePayload.blockedUsers).toMatchObject({ usr_local_demo: true })
   })
 
-
-  it('returns admin-created clip in feed when genre filter matches', async () => {
+  it('returns admin-created multi-genre clip in feed for any selected genre', async () => {
     const adminCreateResponse = await fetch(`${BASE_URL}/admin/clips`, {
       method: 'POST',
       headers: {
@@ -116,12 +115,12 @@ describe('backend API smoke', () => {
         Authorization: 'Bearer admin-token',
       },
       body: JSON.stringify({
-        title: 'Admin upload genre filter test',
+        title: 'Admin upload genre intersection test',
         description: 'Created through admin endpoint',
         clipDescription: 'Genre feed visibility',
         watchUrl: 'https://cinema.example.com/watch/admin-upload',
         objectKey: 'clips/admin-upload.mp4',
-        genreId: 'comedy',
+        genreIds: ['comedy', 'drama'],
       }),
     })
 
@@ -129,16 +128,29 @@ describe('backend API smoke', () => {
     expect(adminCreateResponse.status).toBe(201)
     expect(adminCreatePayload.clip).toMatchObject({
       genreId: 'comedy',
-      title: 'Admin upload genre filter test',
+      genres: ['comedy', 'drama'],
+      title: 'Admin upload genre intersection test',
     })
 
-    const feedByGenreResponse = await fetch(`${BASE_URL}/feed/clips?genreId=comedy`)
-    const feedByGenrePayload = await feedByGenreResponse.json()
+    const comedyFeedResponse = await fetch(`${BASE_URL}/feed/clips?genreId=comedy`)
+    const comedyFeedPayload = await comedyFeedResponse.json()
+    expect(comedyFeedResponse.status).toBe(200)
+    expect(comedyFeedPayload.items.some((clip) => clip.id === adminCreatePayload.clip.id)).toBe(
+      true
+    )
 
-    expect(feedByGenreResponse.status).toBe(200)
-    expect(
-      feedByGenrePayload.items.some((clip) => clip.id === adminCreatePayload.clip.id)
-    ).toBe(true)
+    const dramaFeedResponse = await fetch(`${BASE_URL}/feed/clips?genre=drama`)
+    const dramaFeedPayload = await dramaFeedResponse.json()
+    expect(dramaFeedResponse.status).toBe(200)
+    expect(dramaFeedPayload.items.some((clip) => clip.id === adminCreatePayload.clip.id)).toBe(true)
+
+    const clipInDramaFeed = dramaFeedPayload.items.find(
+      (clip) => clip.id === adminCreatePayload.clip.id
+    )
+    expect(clipInDramaFeed).toMatchObject({
+      genreId: 'comedy',
+      genres: ['comedy', 'drama'],
+    })
   })
 
   it('handles CORS preflight and exposes CORS headers on API responses', async () => {
@@ -171,5 +183,4 @@ describe('backend API smoke', () => {
     expect(apiResponse.headers.get('access-control-allow-origin')).toBe('http://127.0.0.1:5173')
     expect(apiResponse.headers.get('access-control-allow-credentials')).toBe('true')
   })
-
 })
