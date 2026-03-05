@@ -143,12 +143,15 @@ async function createClipMetadata(metadata) {
 }
 
 function toClipContractPayload(metadata = {}) {
+  const normalizedGenreId =
+    typeof metadata.genreId === 'string' && metadata.genreId.trim() ? metadata.genreId.trim() : 'unknown'
+
   return {
     title: metadata.title,
     description: metadata.description,
     clipDescription: metadata.clipDescription || metadata.description || '',
     watchUrl: metadata.watchUrl || metadata.externalUrl || '#',
-    genreId: metadata.genreId,
+    genreId: normalizedGenreId,
     durationSec: Number(metadata.durationSec) || 0,
     videoUrl: metadata.videoUrl,
     thumbnailUrl: metadata.thumbnailUrl,
