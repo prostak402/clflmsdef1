@@ -28,7 +28,7 @@ describe('TASK-033: admin create clip payload matches API contract shape', () =>
     uploadClipWithMetadataMock.mockClear()
   })
 
-  it('creates clip without legacy fields on write-path', async () => {
+  it('creates clip with required contract fields on write-path', async () => {
     render(
       <MemoryRouter>
         <AdminPage />
@@ -41,6 +41,12 @@ describe('TASK-033: admin create clip payload matches API contract shape', () =>
     })
     fireEvent.change(screen.getByPlaceholderText('Full movie description...'), {
       target: { value: 'Contract description' },
+    })
+    fireEvent.change(screen.getByPlaceholderText('Short clip description...'), {
+      target: { value: 'Short contract clip' },
+    })
+    fireEvent.change(screen.getByPlaceholderText('https://example.com/watch'), {
+      target: { value: 'https://cinema.example.com/watch/contract-clip' },
     })
 
     fireEvent.click(screen.getByRole('button', { name: 'Drama' }))
@@ -63,6 +69,8 @@ describe('TASK-033: admin create clip payload matches API contract shape', () =>
         title: 'Contract Clip',
         description: 'Contract description',
         genreId: 'drama',
+        clipDescription: 'Short contract clip',
+        watchUrl: 'https://cinema.example.com/watch/contract-clip',
         durationSec: 0,
         videoUrl: '',
         thumbnailUrl: '',
@@ -71,14 +79,18 @@ describe('TASK-033: admin create clip payload matches API contract shape', () =>
     )
     expect(metadata).not.toHaveProperty('year')
     expect(metadata).not.toHaveProperty('director')
-    expect(metadata).not.toHaveProperty('watchUrl')
-    expect(metadata).not.toHaveProperty('clipDescription')
+    expect(metadata).toHaveProperty('watchUrl')
+    expect(metadata).toHaveProperty('clipDescription')
 
     const createdPayload = addAdminClipMock.mock.calls[0][0]
     expect(createdPayload).toEqual(expect.objectContaining({ genreId: 'drama' }))
     expect(createdPayload).not.toHaveProperty('year')
     expect(createdPayload).not.toHaveProperty('director')
-    expect(createdPayload).not.toHaveProperty('watchUrl')
-    expect(createdPayload).not.toHaveProperty('clipDescription')
+    expect(createdPayload).toEqual(
+      expect.objectContaining({
+        watchUrl: 'https://cinema.example.com/watch/contract-clip',
+        clipDescription: 'Short contract clip',
+      })
+    )
   })
 })
