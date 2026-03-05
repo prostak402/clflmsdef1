@@ -90,6 +90,17 @@ function createApiTestFetch() {
     },
   ]
 
+
+  const adminClips = [
+    ...feedItems.map((item) => ({
+      ...item,
+      watchUrl: item.watchUrl || item.externalUrl || '#',
+      clipDescription: item.clipDescription || item.description || '',
+      createdAt: item.createdAt || new Date().toISOString(),
+      status: item.status || 'ready',
+    })),
+  ]
+
   return async (input, init = {}) => {
     const url = typeof input === 'string' ? input : input?.url || ''
     const method = (init.method || 'GET').toUpperCase()
@@ -214,6 +225,64 @@ function createApiTestFetch() {
         state.comments = state.comments.filter((comment) => comment.id !== commentId)
       }
 
+      return jsonResponse({ ok: true })
+    }
+
+
+    if (url === '/api/v1/admin/clips' && method === 'GET') {
+      return jsonResponse({ items: adminClips })
+    }
+
+    if (url === '/api/v1/admin/clips' && method === 'POST') {
+      const body = parseBody(init.body)
+      const created = {
+        id: body?.id || `clip_${Date.now()}`,
+        title: body?.title || '',
+        description: body?.description || '',
+        clipDescription: body?.clipDescription || body?.description || '',
+        watchUrl: body?.watchUrl || '#',
+        genreId: body?.genreId || 'unknown',
+        genres: Array.isArray(body?.genreIds) && body.genreIds.length ? body.genreIds : [body?.genreId || 'unknown'],
+        durationSec: Number(body?.durationSec) || 0,
+        createdAt: new Date().toISOString(),
+        status: body?.status || 'ready',
+      }
+      adminClips.unshift(created)
+      feedItems.unshift(created)
+      return jsonResponse({ clip: created }, 201)
+    }
+
+    if (/^\/api\/v1\/admin\/clips\/[^/]+$/.test(url) && method === 'PATCH') {
+      const clipId = url.split('/')[5]
+      const body = parseBody(init.body)
+      const idx = adminClips.findIndex((clip) => clip.id === clipId)
+      if (idx < 0) {
+        const created = { id: clipId, ...body }
+        adminClips.unshift(created)
+        const existingFeedIdx = feedItems.findIndex((clip) => clip.id === clipId)
+        if (existingFeedIdx >= 0) {
+          feedItems[existingFeedIdx] = { ...feedItems[existingFeedIdx], ...body }
+        } else {
+          feedItems.unshift(created)
+        }
+        return jsonResponse({ clip: created })
+      }
+      adminClips[idx] = { ...adminClips[idx], ...body }
+      const feedIdx = feedItems.findIndex((clip) => clip.id === clipId)
+      if (feedIdx >= 0) {
+        feedItems[feedIdx] = { ...feedItems[feedIdx], ...body }
+      }
+      return jsonResponse({ clip: adminClips[idx] })
+    }
+
+    if (/^\/api\/v1\/admin\/clips\/[^/]+$/.test(url) && method === 'DELETE') {
+      const clipId = url.split('/')[5]
+      const nextAdmin = adminClips.filter((clip) => clip.id !== clipId)
+      adminClips.length = 0
+      adminClips.push(...nextAdmin)
+      const nextFeed = feedItems.filter((clip) => clip.id !== clipId)
+      feedItems.length = 0
+      feedItems.push(...nextFeed)
       return jsonResponse({ ok: true })
     }
 

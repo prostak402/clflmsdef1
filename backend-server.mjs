@@ -372,6 +372,71 @@ function resolveClipGenreIds(clip) {
   return ['unknown']
 }
 
+
+function updateClipById(clipId, patch) {
+  const targetIndex = clips.findIndex((clip) => clip.id === clipId)
+  if (targetIndex < 0) {
+    return null
+  }
+
+  const target = clips[targetIndex]
+  const genres = normalizeGenreIds(Array.isArray(patch?.genreIds) ? patch.genreIds : patch?.genres)
+  const fallbackGenreId =
+    typeof patch?.genreId === 'string' && patch.genreId.trim() ? patch.genreId.trim() : ''
+
+  const nextClip = {
+    ...target,
+    ...(typeof patch?.title === 'string' ? { title: patch.title.trim() } : {}),
+    ...(typeof patch?.description === 'string' ? { description: patch.description.trim() } : {}),
+    ...(typeof patch?.clipDescription === 'string'
+      ? { clipDescription: patch.clipDescription.trim() }
+      : {}),
+    ...(typeof patch?.watchUrl === 'string' ? { watchUrl: patch.watchUrl.trim() } : {}),
+    ...(typeof patch?.externalUrl === 'string' ? { externalUrl: patch.externalUrl.trim() } : {}),
+    ...(typeof patch?.thumbnailUrl === 'string' ? { thumbnailUrl: patch.thumbnailUrl.trim() } : {}),
+    ...(typeof patch?.videoUrl === 'string' ? { videoUrl: patch.videoUrl.trim() } : {}),
+    ...(typeof patch?.duration === 'string' ? { duration: patch.duration.trim() } : {}),
+    ...(typeof patch?.kinopoiskId === 'string' ? { kinopoiskId: patch.kinopoiskId.trim() } : {}),
+    ...(Number.isFinite(Number(patch?.durationSec))
+      ? { durationSec: Number(patch.durationSec) }
+      : {}),
+  }
+
+  if (genres.length > 0) {
+    nextClip.genres = genres
+    nextClip.genreId = genres[0]
+  } else if (fallbackGenreId) {
+    nextClip.genreId = fallbackGenreId
+    nextClip.genres = [fallbackGenreId]
+  }
+
+  clips[targetIndex] = nextClip
+  return nextClip
+}
+
+function deleteClipById(clipId) {
+  const targetIndex = clips.findIndex((clip) => clip.id === clipId)
+  if (targetIndex < 0) {
+    return false
+  }
+
+  clips.splice(targetIndex, 1)
+
+  comments
+    .filter((comment) => comment.clipId === clipId)
+    .forEach((comment) => {
+      const idx = comments.findIndex((row) => row.id === comment.id)
+      if (idx >= 0) {
+        comments.splice(idx, 1)
+      }
+    })
+
+  Object.values(likesByUser).forEach((set) => set.delete(clipId))
+  Object.values(bookmarksByUser).forEach((set) => set.delete(clipId))
+
+  return true
+}
+
 function handleFeedRead(url, res) {
   const selectedGenreIds = [
     ...url.searchParams.getAll('genreId'),
@@ -416,7 +481,7 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'OPTIONS') {
       res.writeHead(204, {
-        'Access-Control-Allow-Methods': 'GET,POST,DELETE,PUT,OPTIONS',
+        'Access-Control-Allow-Methods': 'GET,POST,PATCH,DELETE,PUT,OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       })
       res.end()
@@ -595,6 +660,36 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'GET' && url.pathname === `${API_PREFIX}/admin/clips`) {
       sendJson(res, 200, { items: clips })
+      return
+    }
+
+
+    const adminClipMatch = url.pathname.match(new RegExp(`^${API_PREFIX}/admin/clips/([^/]+)$`))
+    if (adminClipMatch && req.method === 'PATCH') {
+      const clipId = adminClipMatch[1]
+      const body = await readBody(req)
+      const updatedClip = updateClipById(clipId, body)
+
+      if (!updatedClip) {
+        sendError(res, 404, 'Clip not found', 'NOT_FOUND')
+        return
+      }
+
+      sendJson(res, 200, { clip: updatedClip })
+      return
+    }
+
+    if (adminClipMatch && req.method === 'DELETE') {
+      const clipId = adminClipMatch[1]
+      const removed = deleteClipById(clipId)
+
+      if (!removed) {
+        sendError(res, 404, 'Clip not found', 'NOT_FOUND')
+        return
+      }
+
+      hydrateClipCounters()
+      sendJson(res, 200, { ok: true })
       return
     }
 

@@ -153,6 +153,50 @@ describe('backend API smoke', () => {
     })
   })
 
+
+  it('keeps uploaded clip consistent between admin list and feed across repeated reads', async () => {
+    const createdTitle = `Reload consistency ${Date.now()}`
+    const createResponse = await fetch(`${BASE_URL}/admin/clips`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer admin-token',
+      },
+      body: JSON.stringify({
+        title: createdTitle,
+        description: 'Consistency check clip',
+        clipDescription: 'Consistency check clip',
+        watchUrl: 'https://cinema.example.com/watch/consistency-check',
+        objectKey: 'clips/consistency-check.mp4',
+        genreId: 'drama',
+      }),
+    })
+
+    const createPayload = await createResponse.json()
+    expect(createResponse.status).toBe(201)
+
+    const firstAdminRead = await fetch(`${BASE_URL}/admin/clips`)
+    const firstAdminPayload = await firstAdminRead.json()
+    expect(firstAdminRead.status).toBe(200)
+
+    const firstFeedRead = await fetch(`${BASE_URL}/feed/clips`)
+    const firstFeedPayload = await firstFeedRead.json()
+    expect(firstFeedRead.status).toBe(200)
+
+    const secondAdminRead = await fetch(`${BASE_URL}/admin/clips`)
+    const secondAdminPayload = await secondAdminRead.json()
+    expect(secondAdminRead.status).toBe(200)
+
+    const secondFeedRead = await fetch(`${BASE_URL}/feed/clips`)
+    const secondFeedPayload = await secondFeedRead.json()
+    expect(secondFeedRead.status).toBe(200)
+
+    expect(firstAdminPayload.items.some((clip) => clip.id === createPayload.clip.id)).toBe(true)
+    expect(firstFeedPayload.items.some((clip) => clip.id === createPayload.clip.id)).toBe(true)
+    expect(secondAdminPayload.items.some((clip) => clip.id === createPayload.clip.id)).toBe(true)
+    expect(secondFeedPayload.items.some((clip) => clip.id === createPayload.clip.id)).toBe(true)
+  })
+
   it('handles CORS preflight and exposes CORS headers on API responses', async () => {
     const preflightResponse = await fetch(`${BASE_URL}/admin/clips`, {
       method: 'OPTIONS',
@@ -167,7 +211,7 @@ describe('backend API smoke', () => {
       'http://localhost:5173'
     )
     expect(preflightResponse.headers.get('access-control-allow-methods')).toBe(
-      'GET,POST,DELETE,PUT,OPTIONS'
+      'GET,POST,PATCH,DELETE,PUT,OPTIONS'
     )
     expect(preflightResponse.headers.get('access-control-allow-headers')).toBe(
       'Content-Type, Authorization'

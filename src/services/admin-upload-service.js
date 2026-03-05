@@ -142,6 +142,67 @@ async function createClipMetadata(metadata) {
   return payload?.clip || null
 }
 
+export async function fetchAdminClips() {
+  const response = await fetch(buildApiUrl('/admin/clips'))
+  const payload = await parseJsonSafe(response)
+
+  if (!response.ok) {
+    throw createUploadError(
+      parseErrorMessage(payload, `Failed to load admin clips (${response.status})`),
+      {
+        status: response.status,
+        stage: 'list',
+      }
+    )
+  }
+
+  return Array.isArray(payload?.items) ? payload.items : []
+}
+
+export async function updateAdminClipRequest(clipId, patch = {}) {
+  const response = await fetch(buildApiUrl(`/admin/clips/${clipId}`), {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(patch),
+  })
+
+  const payload = await parseJsonSafe(response)
+
+  if (!response.ok) {
+    throw createUploadError(
+      parseErrorMessage(payload, `Failed to update clip (${response.status})`),
+      {
+        status: response.status,
+        stage: 'edit',
+      }
+    )
+  }
+
+  return payload?.clip || null
+}
+
+export async function deleteAdminClipRequest(clipId) {
+  const response = await fetch(buildApiUrl(`/admin/clips/${clipId}`), {
+    method: 'DELETE',
+  })
+
+  const payload = await parseJsonSafe(response)
+
+  if (!response.ok) {
+    throw createUploadError(
+      parseErrorMessage(payload, `Failed to delete clip (${response.status})`),
+      {
+        status: response.status,
+        stage: 'delete',
+      }
+    )
+  }
+
+  return Boolean(payload?.ok)
+}
+
 function toClipContractPayload(metadata = {}) {
   const normalizedGenreId =
     typeof metadata.genreId === 'string' && metadata.genreId.trim() ? metadata.genreId.trim() : 'unknown'
