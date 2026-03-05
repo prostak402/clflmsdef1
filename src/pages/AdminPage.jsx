@@ -1,13 +1,21 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useApp } from '../context/useApp'
 import { Link, useNavigate } from 'react-router-dom'
 import { Upload, Film, Plus, Trash2, X, Save, AlertTriangle, Check, Pencil } from 'lucide-react'
 import { contentService } from '../services/content-service'
-import { uploadClipWithMetadata, validateClipFile } from '../services/admin-upload-service'
+import {
+  deleteAdminClipRequest,
+  fetchAdminClips,
+  updateAdminClipRequest,
+  uploadClipWithMetadata,
+  validateClipFile,
+} from '../services/admin-upload-service'
 import './AdminPage.css'
 
 export default function AdminPage() {
-  const { user, adminUploads, addAdminClip, updateAdminClip, removeAdminUpload } = useApp()
+  const { user, adminUploads, addAdminClip, updateAdminClip, removeAdminUpload, syncAdminClips } = useApp()
+  const [serverClips, setServerClips] = useState(Array.isArray(adminUploads) ? adminUploads : [])
+  const [isLoadingClips, setIsLoadingClips] = useState(false)
   const navigate = useNavigate()
   const [showForm, setShowForm] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -19,6 +27,7 @@ export default function AdminPage() {
   const [isEditMode, setIsEditMode] = useState(false)
   const [uploadStage, setUploadStage] = useState('idle')
   const [uploadAttempts, setUploadAttempts] = useState('')
+  const hasServerSync = typeof syncAdminClips === 'function'
 
   const emptyForm = {
     title: '',
@@ -65,6 +74,44 @@ export default function AdminPage() {
       status: 'draft',
     }
   }, [form.clipDescription, form.description, form.duration, form.genres, form.poster, form.title, form.watchUrl])
+
+
+  const refreshAdminClips = useCallback(async () => {
+    setIsLoadingClips(true)
+    try {
+      const items = await fetchAdminClips()
+      const nextClips = Array.isArray(items) ? items : []
+      setServerClips(nextClips)
+      if (hasServerSync) {
+        syncAdminClips(nextClips)
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to load admin clips.'
+      setSubmitError(message)
+    } finally {
+      setIsLoadingClips(false)
+    }
+  }, [hasServerSync, syncAdminClips])
+
+
+  useEffect(() => {
+    if (!hasServerSync) {
+      setServerClips(Array.isArray(adminUploads) ? adminUploads : [])
+      return
+    }
+
+    if (serverClips.length === 0 && Array.isArray(adminUploads) && adminUploads.length > 0) {
+      setServerClips(adminUploads)
+    }
+  }, [adminUploads, hasServerSync, serverClips.length])
+
+  useEffect(() => {
+    if (!user?.isAdmin || !hasServerSync) {
+      return
+    }
+
+    refreshAdminClips()
+  }, [hasServerSync, refreshAdminClips, user?.isAdmin])
 
   if (!user?.isAdmin) {
     return (
@@ -136,10 +183,10 @@ export default function AdminPage() {
       }
 
       if (isEditMode) {
-        const updated = updateAdminClip(editingClipId, payload)
-        if (!updated) {
-          setSubmitError('Failed to update clip metadata.')
-          return
+        updateAdminClip(editingClipId, payload)
+        if (hasServerSync) {
+          await updateAdminClipRequest(editingClipId, payload)
+          await refreshAdminClips()
         }
         setSaveAction('edit')
       } else {
@@ -178,6 +225,9 @@ export default function AdminPage() {
           id: uploadResult?.clip?.id || payload.id,
           status: 'ready',
         })
+        if (hasServerSync) {
+          await refreshAdminClips()
+        }
         setUploadStage('done')
         setSaveAction('create')
       }
@@ -394,14 +444,18 @@ export default function AdminPage() {
       {/* Upload list */}
       <div className="admin-uploads">
         <h3 className="admin-section-title">Recent Uploads</h3>
-        {adminUploads.length === 0 ? (
+        {isLoadingClips && serverClips.length === 0 ? (
+          <div className="admin-uploads-empty glass">
+            <p>Loading clips...</p>
+          </div>
+        ) : serverClips.length === 0 ? (
           <div className="admin-uploads-empty glass">
             <Film size={32} />
             <p>No clips uploaded yet</p>
           </div>
         ) : (
           <div className="admin-upload-list">
-            {adminUploads.map((upload) => (
+            {serverClips.map((upload) => (
               <div key={upload.id} className="admin-upload-item glass">
                 <div className="admin-upload-info">
                   <h4>{upload.title}</h4>
@@ -427,7 +481,20 @@ export default function AdminPage() {
                   <button
                     type="button"
                     className="admin-upload-delete"
-                    onClick={() => removeAdminUpload(upload.id)}
+                    onClick={async () => {
+                      removeAdminUpload(upload.id)
+                      try {
+                        await deleteAdminClipRequest(upload.id)
+                        if (hasServerSync) {
+          await refreshAdminClips()
+        }
+                      } catch (error) {
+                        setSubmitError(error instanceof Error ? error.message : 'Failed to delete clip.')
+                        if (hasServerSync) {
+          await refreshAdminClips()
+        }
+                      }
+                    }}
                   >
                     <Trash2 size={16} />
                   </button>

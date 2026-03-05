@@ -861,6 +861,32 @@ export function AppProvider({ children }) {
     [adminUploads]
   )
 
+
+  const syncAdminClips = useCallback((clips) => {
+    const safeClips = Array.isArray(clips) ? clips : []
+
+    setAdminUploads(safeClips)
+    setAdminCatalogMovies(
+      safeClips.map((clip) => ({
+        id: typeof clip.id === 'string' && clip.id.startsWith('admin_') ? clip.id : `admin_${clip.id}` ,
+        title: clip.title || '',
+        rating: 0,
+        genreId: clip.genreId || 'unknown',
+        poster: clip.poster || clip.thumbnailUrl || '',
+        externalUrl: clip.externalUrl || clip.watchUrl || '#',
+        description: clip.description || '',
+        durationSec: Number(clip.durationSec) || 0,
+        duration: clip.duration || '',
+        kinopoiskId: clip.kinopoiskId || '',
+        thumbnailUrl: clip.thumbnailUrl || clip.poster || '',
+        videoUrl: clip.videoUrl || '',
+        clipDescription: clip.clipDescription || clip.description || '',
+        watchUrl: clip.watchUrl || clip.externalUrl || '#',
+        createdAt: clip.createdAt || '',
+      }))
+    )
+  }, [])
+
   const getCatalog = useCallback(async () => {
     const adapterCatalog = await contentService.getCatalog()
     const safeCatalog = Array.isArray(adapterCatalog) ? adapterCatalog : []
@@ -915,6 +941,7 @@ export function AppProvider({ children }) {
     updateAdminClip,
     removeAdminUpload,
     getCatalog,
+    syncAdminClips,
   }
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
