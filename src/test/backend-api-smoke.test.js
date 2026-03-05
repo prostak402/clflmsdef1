@@ -107,6 +107,40 @@ describe('backend API smoke', () => {
     expect(moderationWritePayload.blockedUsers).toMatchObject({ usr_local_demo: true })
   })
 
+
+  it('returns admin-created clip in feed when genre filter matches', async () => {
+    const adminCreateResponse = await fetch(`${BASE_URL}/admin/clips`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer admin-token',
+      },
+      body: JSON.stringify({
+        title: 'Admin upload genre filter test',
+        description: 'Created through admin endpoint',
+        clipDescription: 'Genre feed visibility',
+        watchUrl: 'https://cinema.example.com/watch/admin-upload',
+        objectKey: 'clips/admin-upload.mp4',
+        genreId: 'comedy',
+      }),
+    })
+
+    const adminCreatePayload = await adminCreateResponse.json()
+    expect(adminCreateResponse.status).toBe(201)
+    expect(adminCreatePayload.clip).toMatchObject({
+      genreId: 'comedy',
+      title: 'Admin upload genre filter test',
+    })
+
+    const feedByGenreResponse = await fetch(`${BASE_URL}/feed/clips?genreId=comedy`)
+    const feedByGenrePayload = await feedByGenreResponse.json()
+
+    expect(feedByGenreResponse.status).toBe(200)
+    expect(
+      feedByGenrePayload.items.some((clip) => clip.id === adminCreatePayload.clip.id)
+    ).toBe(true)
+  })
+
   it('handles CORS preflight and exposes CORS headers on API responses', async () => {
     const preflightResponse = await fetch(`${BASE_URL}/admin/clips`, {
       method: 'OPTIONS',

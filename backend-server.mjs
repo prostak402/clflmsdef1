@@ -277,10 +277,6 @@ async function handleCreatePresignedUpload(body, res) {
 }
 
 async function handleCreateClipMetadata(body, res) {
-  if (!s3Client || !S3_BUCKET) {
-    sendError(res, 503, 'Upload storage is not configured', 'SERVICE_UNAVAILABLE')
-    return
-  }
   const requiredFields = ['title', 'description', 'clipDescription', 'watchUrl', 'objectKey']
   const missing = requiredFields.filter((field) => {
     const value = body?.[field]
@@ -293,17 +289,25 @@ async function handleCreateClipMetadata(body, res) {
   }
 
   const objectKey = body.objectKey.trim()
+  const genreId =
+    typeof body?.genreId === 'string' && body.genreId.trim()
+      ? body.genreId.trim()
+      : typeof body?.genres?.[0] === 'string' && body.genres[0].trim()
+        ? body.genres[0].trim()
+        : 'unknown'
 
-  try {
-    await s3Client.send(
-      new HeadObjectCommand({
-        Bucket: S3_BUCKET,
-        Key: objectKey,
-      })
-    )
-  } catch {
-    sendJson(res, 400, { error: { message: 'Uploaded object is not found in storage' } })
-    return
+  if (s3Client && S3_BUCKET) {
+    try {
+      await s3Client.send(
+        new HeadObjectCommand({
+          Bucket: S3_BUCKET,
+          Key: objectKey,
+        })
+      )
+    } catch {
+      sendJson(res, 400, { error: { message: 'Uploaded object is not found in storage' } })
+      return
+    }
   }
 
   const clip = {
@@ -312,7 +316,7 @@ async function handleCreateClipMetadata(body, res) {
     description: body.description.trim(),
     clipDescription: body.clipDescription.trim(),
     watchUrl: body.watchUrl.trim(),
-    genres: Array.isArray(body.genres) ? body.genres : [],
+    genreId,
     director: typeof body.director === 'string' ? body.director.trim() : '',
     duration: typeof body.duration === 'string' ? body.duration.trim() : '',
     year: typeof body.year === 'string' ? body.year.trim() : '',
@@ -323,6 +327,18 @@ async function handleCreateClipMetadata(body, res) {
 
   clips.unshift(clip)
   sendJson(res, 201, { clip })
+}
+
+function resolveClipGenreId(clip) {
+  if (typeof clip?.genreId === 'string' && clip.genreId.trim()) {
+    return clip.genreId.trim()
+  }
+
+  if (Array.isArray(clip?.genres) && typeof clip.genres[0] === 'string' && clip.genres[0].trim()) {
+    return clip.genres[0].trim()
+  }
+
+  return 'unknown'
 }
 
 function handleFeedRead(url, res) {
@@ -338,7 +354,7 @@ function handleFeedRead(url, res) {
       return true
     }
 
-    return selectedGenreIds.includes(clip.genreId)
+    return selectedGenreIds.includes(resolveClipGenreId(clip))
   })
 
   sendJson(res, 200, { items, nextCursor: null })

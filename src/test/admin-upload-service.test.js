@@ -62,6 +62,14 @@ describe('admin-upload-service', () => {
     expect(globalThis.fetch).toHaveBeenCalledTimes(4)
     expect(globalThis.fetch.mock.calls[0][0]).toMatch(/\/admin\/clips\/upload-url$/)
     expect(globalThis.fetch.mock.calls[3][0]).toMatch(/\/admin\/clips$/)
+
+    const metadataRequestBody = JSON.parse(globalThis.fetch.mock.calls[3][1].body)
+    expect(metadataRequestBody).toEqual(
+      expect.objectContaining({
+        genreId: 'drama',
+      })
+    )
+    expect(metadataRequestBody).not.toHaveProperty('genres')
     expect(onUploadProgress).toHaveBeenCalledWith(
       expect.objectContaining({ stage: 'uploading', attempt: 1 })
     )
