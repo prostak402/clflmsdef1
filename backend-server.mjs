@@ -410,13 +410,56 @@ function handleModerationCommentsRead(res) {
   sendJson(res, 200, { items: comments })
 }
 
+
+async function handlePatchAdminClip(clipId, body, res) {
+  const target = clips.find((clip) => clip.id === clipId)
+  if (!target) {
+    sendError(res, 404, 'Clip not found', 'NOT_FOUND')
+    return
+  }
+
+  const patch = {}
+  if (typeof body?.title === 'string') patch.title = body.title.trim()
+  if (typeof body?.description === 'string') patch.description = body.description.trim()
+  if (typeof body?.clipDescription === 'string') patch.clipDescription = body.clipDescription.trim()
+  if (typeof body?.watchUrl === 'string') patch.watchUrl = body.watchUrl.trim()
+  if (typeof body?.thumbnailUrl === 'string') patch.thumbnailUrl = body.thumbnailUrl.trim()
+  if (typeof body?.videoUrl === 'string') patch.videoUrl = body.videoUrl.trim()
+  if (typeof body?.kinopoiskId === 'string') patch.kinopoiskId = body.kinopoiskId.trim()
+  if (typeof body?.duration === 'string') patch.duration = body.duration.trim()
+  if (Number.isFinite(Number(body?.durationSec))) patch.durationSec = Number(body.durationSec)
+
+  const genres = normalizeGenreIds(Array.isArray(body?.genreIds) ? body.genreIds : body?.genres)
+  if (genres.length > 0) {
+    patch.genres = genres
+    patch.genreId = genres[0]
+  } else if (typeof body?.genreId === 'string' && body.genreId.trim()) {
+    patch.genreId = body.genreId.trim()
+    patch.genres = [body.genreId.trim()]
+  }
+
+  Object.assign(target, patch)
+  sendJson(res, 200, { clip: target })
+}
+
+function handleDeleteAdminClip(clipId, res) {
+  const idx = clips.findIndex((clip) => clip.id === clipId)
+  if (idx < 0) {
+    sendError(res, 404, 'Clip not found', 'NOT_FOUND')
+    return
+  }
+
+  clips.splice(idx, 1)
+  sendJson(res, 200, { ok: true })
+}
+
 const server = http.createServer(async (req, res) => {
   try {
     applyCorsHeaders(req, res)
 
     if (req.method === 'OPTIONS') {
       res.writeHead(204, {
-        'Access-Control-Allow-Methods': 'GET,POST,DELETE,PUT,OPTIONS',
+        'Access-Control-Allow-Methods': 'GET,POST,DELETE,PUT,PATCH,OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       })
       res.end()
@@ -595,6 +638,18 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'GET' && url.pathname === `${API_PREFIX}/admin/clips`) {
       sendJson(res, 200, { items: clips })
+      return
+    }
+
+    const adminClipByIdMatch = url.pathname.match(new RegExp(`^${API_PREFIX}/admin/clips/([^/]+)$`))
+    if (adminClipByIdMatch && req.method === 'PATCH') {
+      const body = await readBody(req)
+      await handlePatchAdminClip(adminClipByIdMatch[1], body, res)
+      return
+    }
+
+    if (adminClipByIdMatch && req.method === 'DELETE') {
+      handleDeleteAdminClip(adminClipByIdMatch[1], res)
       return
     }
 

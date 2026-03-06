@@ -1,13 +1,19 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useApp } from '../context/useApp'
 import { Link, useNavigate } from 'react-router-dom'
 import { Upload, Film, Plus, Trash2, X, Save, AlertTriangle, Check, Pencil } from 'lucide-react'
 import { contentService } from '../services/content-service'
-import { uploadClipWithMetadata, validateClipFile } from '../services/admin-upload-service'
+import {
+  uploadClipWithMetadata,
+  validateClipFile,
+  fetchAdminClips,
+  patchAdminClip,
+  deleteAdminClip,
+} from '../services/admin-upload-service'
 import './AdminPage.css'
 
 export default function AdminPage() {
-  const { user, adminUploads, addAdminClip, updateAdminClip, removeAdminUpload } = useApp()
+  const { user, adminUploads, setAdminClipsCacheState, updateAdminClip, removeAdminUpload } = useApp()
   const navigate = useNavigate()
   const [showForm, setShowForm] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -45,6 +51,23 @@ export default function AdminPage() {
     clipFile: null,
     posterFile: null,
   })
+  const syncAdminClips = useCallback(async () => {
+    const items = await fetchAdminClips()
+    setAdminClipsCacheState(items)
+    return items
+  }, [setAdminClipsCacheState])
+
+  useEffect(() => {
+    if (!user?.isAdmin) {
+      return
+    }
+
+    syncAdminClips().catch((error) => {
+      const message = error instanceof Error ? error.message : 'Failed to load clips'
+      setSubmitError(message)
+    })
+  }, [syncAdminClips, user?.isAdmin])
+
 
   const normalizedFormPayload = useMemo(() => {
     const durationMatch = String(form.duration || '').match(/\d+/)
@@ -136,12 +159,20 @@ export default function AdminPage() {
       }
 
       if (isEditMode) {
-        const updated = updateAdminClip(editingClipId, payload)
-        if (!updated) {
+        const optimisticUpdated = updateAdminClip(editingClipId, payload)
+        if (!optimisticUpdated) {
           setSubmitError('Failed to update clip metadata.')
           return
         }
-        setSaveAction('edit')
+
+        try {
+          await patchAdminClip(editingClipId, payload)
+          await syncAdminClips()
+          setSaveAction('edit')
+        } catch (error) {
+          await syncAdminClips()
+          throw error
+        }
       } else {
         const clipValidationError = validateClipFile(payload.clipFile)
         if (clipValidationError) {
@@ -149,7 +180,7 @@ export default function AdminPage() {
           return
         }
 
-        const uploadResult = await uploadClipWithMetadata({
+        await uploadClipWithMetadata({
           file: payload.clipFile,
           metadata: {
             title: payload.title,
@@ -173,11 +204,7 @@ export default function AdminPage() {
           },
         })
 
-        addAdminClip({
-          ...payload,
-          id: uploadResult?.clip?.id || payload.id,
-          status: 'ready',
-        })
+        await syncAdminClips()
         setUploadStage('done')
         setSaveAction('create')
       }
@@ -427,7 +454,14 @@ export default function AdminPage() {
                   <button
                     type="button"
                     className="admin-upload-delete"
-                    onClick={() => removeAdminUpload(upload.id)}
+                    onClick={async () => {
+                      removeAdminUpload(upload.id)
+                      try {
+                        await deleteAdminClip(upload.id)
+                      } finally {
+                        await syncAdminClips()
+                      }
+                    }}
                   >
                     <Trash2 size={16} />
                   </button>

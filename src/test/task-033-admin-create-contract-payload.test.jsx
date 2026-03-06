@@ -4,27 +4,28 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import AdminPage from '../pages/AdminPage'
 
-const addAdminClipMock = vi.fn()
 const uploadClipWithMetadataMock = vi.fn().mockResolvedValue({ clip: { id: 'clip-1' } })
 
 vi.mock('../context/useApp', () => ({
   useApp: () => ({
     user: { id: 'admin', isAdmin: true },
     adminUploads: [],
-    addAdminClip: addAdminClipMock,
     updateAdminClip: vi.fn(),
     removeAdminUpload: vi.fn(),
+    setAdminClipsCacheState: vi.fn(),
   }),
 }))
 
 vi.mock('../services/admin-upload-service', () => ({
   validateClipFile: () => null,
   uploadClipWithMetadata: (...args) => uploadClipWithMetadataMock(...args),
+  fetchAdminClips: vi.fn().mockResolvedValue([]),
+  patchAdminClip: vi.fn(),
+  deleteAdminClip: vi.fn(),
 }))
 
 describe('TASK-033: admin create clip payload matches API contract shape', () => {
   beforeEach(() => {
-    addAdminClipMock.mockClear()
     uploadClipWithMetadataMock.mockClear()
   })
 
@@ -60,7 +61,6 @@ describe('TASK-033: admin create clip payload matches API contract shape', () =>
 
     await waitFor(() => {
       expect(uploadClipWithMetadataMock).toHaveBeenCalledTimes(1)
-      expect(addAdminClipMock).toHaveBeenCalledTimes(1)
     })
 
     const [{ metadata }] = uploadClipWithMetadataMock.mock.calls[0]
@@ -82,15 +82,5 @@ describe('TASK-033: admin create clip payload matches API contract shape', () =>
     expect(metadata).toHaveProperty('watchUrl')
     expect(metadata).toHaveProperty('clipDescription')
 
-    const createdPayload = addAdminClipMock.mock.calls[0][0]
-    expect(createdPayload).toEqual(expect.objectContaining({ genreId: 'drama' }))
-    expect(createdPayload).not.toHaveProperty('year')
-    expect(createdPayload).not.toHaveProperty('director')
-    expect(createdPayload).toEqual(
-      expect.objectContaining({
-        watchUrl: 'https://cinema.example.com/watch/contract-clip',
-        clipDescription: 'Short contract clip',
-      })
-    )
   })
 })

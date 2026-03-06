@@ -153,6 +153,60 @@ describe('backend API smoke', () => {
     })
   })
 
+
+
+  it('keeps uploaded clip consistent between admin list and feed after reload-like re-fetch', async () => {
+    const createResponse = await fetch(`${BASE_URL}/admin/clips`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer admin-token',
+      },
+      body: JSON.stringify({
+        title: 'Persistence clip',
+        description: 'Should survive refresh',
+        clipDescription: 'Persistent clip',
+        watchUrl: 'https://cinema.example.com/watch/persistence-clip',
+        objectKey: 'clips/persistence-clip.mp4',
+        genreIds: ['drama'],
+      }),
+    })
+
+    const createPayload = await createResponse.json()
+    expect(createResponse.status).toBe(201)
+
+    const createdId = createPayload.clip.id
+
+    const adminListResponse = await fetch(`${BASE_URL}/admin/clips`)
+    const adminListPayload = await adminListResponse.json()
+    expect(adminListResponse.status).toBe(200)
+    expect(adminListPayload.items.some((clip) => clip.id === createdId)).toBe(true)
+
+    const feedResponse = await fetch(`${BASE_URL}/feed/clips`)
+    const feedPayload = await feedResponse.json()
+    expect(feedResponse.status).toBe(200)
+    expect(feedPayload.items.some((clip) => clip.id === createdId)).toBe(true)
+
+    // reload simulation: repeat reads as if page was reopened
+    const adminListAfterReload = await fetch(`${BASE_URL}/admin/clips`)
+    const adminListAfterReloadPayload = await adminListAfterReload.json()
+    const feedAfterReload = await fetch(`${BASE_URL}/feed/clips`)
+    const feedAfterReloadPayload = await feedAfterReload.json()
+
+    expect(adminListAfterReload.status).toBe(200)
+    expect(feedAfterReload.status).toBe(200)
+
+    const adminClip = adminListAfterReloadPayload.items.find((clip) => clip.id === createdId)
+    const feedClip = feedAfterReloadPayload.items.find((clip) => clip.id === createdId)
+
+    expect(adminClip).toBeTruthy()
+    expect(feedClip).toBeTruthy()
+    expect(feedClip).toMatchObject({
+      id: adminClip.id,
+      title: adminClip.title,
+      clipDescription: adminClip.clipDescription,
+    })
+  })
   it('handles CORS preflight and exposes CORS headers on API responses', async () => {
     const preflightResponse = await fetch(`${BASE_URL}/admin/clips`, {
       method: 'OPTIONS',
@@ -167,7 +221,7 @@ describe('backend API smoke', () => {
       'http://localhost:5173'
     )
     expect(preflightResponse.headers.get('access-control-allow-methods')).toBe(
-      'GET,POST,DELETE,PUT,OPTIONS'
+      'GET,POST,DELETE,PUT,PATCH,OPTIONS'
     )
     expect(preflightResponse.headers.get('access-control-allow-headers')).toBe(
       'Content-Type, Authorization'

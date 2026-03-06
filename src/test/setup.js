@@ -72,7 +72,7 @@ function createApiTestFetch() {
     ],
   }
 
-  const feedItems = [
+  state.feedItems = [
     {
       id: '1',
       title: 'Interstellar',
@@ -146,7 +146,7 @@ function createApiTestFetch() {
     }
 
     if (url.startsWith('/api/v1/feed/clips') && method === 'GET') {
-      return jsonResponse({ items: feedItems })
+      return jsonResponse({ items: state.feedItems })
     }
 
     if (url === '/api/v1/comments' && method === 'GET') {
@@ -217,12 +217,56 @@ function createApiTestFetch() {
       return jsonResponse({ ok: true })
     }
 
+
+
+    if (url === '/api/v1/admin/clips' && method === 'GET') {
+      return jsonResponse({ items: state.feedItems })
+    }
+
+    if (url === '/api/v1/admin/clips' && method === 'POST') {
+      const body = parseBody(init.body)
+      const created = {
+        id: `clip_${Date.now()}`,
+        title: body.title || 'Untitled',
+        description: body.description || '',
+        clipDescription: body.clipDescription || body.description || '',
+        thumbnailUrl: body.thumbnailUrl || '',
+        videoUrl: body.videoUrl || '',
+        watchUrl: body.watchUrl || body.externalUrl || '#',
+        durationSec: Number(body.durationSec) || 0,
+        genreId: body.genreId || 'unknown',
+        genres: Array.isArray(body.genreIds) ? body.genreIds : [body.genreId || 'unknown'],
+        status: body.status || 'draft',
+        createdAt: new Date().toISOString(),
+      }
+      state.feedItems.unshift(created)
+      return jsonResponse({ clip: created }, 201)
+    }
+
+    if (/^\/api\/v1\/admin\/clips\/[^/]+$/.test(url) && method === 'PATCH') {
+      const clipId = url.split('/')[5]
+      const body = parseBody(init.body)
+      const index = state.feedItems.findIndex((item) => item.id === clipId)
+      if (index < 0) {
+        return jsonResponse({ error: { message: 'Clip not found' } }, 404)
+      }
+
+      state.feedItems[index] = { ...state.feedItems[index], ...body }
+      return jsonResponse({ clip: state.feedItems[index] })
+    }
+
+    if (/^\/api\/v1\/admin\/clips\/[^/]+$/.test(url) && method === 'DELETE') {
+      const clipId = url.split('/')[5]
+      state.feedItems = state.feedItems.filter((item) => item.id !== clipId)
+      return jsonResponse({ ok: true })
+    }
+
     if (url === '/api/v1/clips' && method === 'GET') {
-      return jsonResponse({ items: feedItems })
+      return jsonResponse({ items: state.feedItems })
     }
 
     if (url === '/api/v1/me/bookmarks' && method === 'GET') {
-      return jsonResponse({ items: feedItems.filter((item) => state.bookmarks.includes(item.id)) })
+      return jsonResponse({ items: state.feedItems.filter((item) => state.bookmarks.includes(item.id)) })
     }
 
     if (url === '/api/v1/me' && method === 'GET') {
