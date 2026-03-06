@@ -21,6 +21,14 @@ const INITIAL_UPLOAD = {
   poster: '',
 }
 
+vi.mock('../services/admin-upload-service', () => ({
+  fetchAdminClips: vi.fn().mockResolvedValue([{ id: 'upload_1', movieId: 'admin_upload_1', title: 'Original title' }]),
+  patchAdminClip: vi.fn().mockResolvedValue({ clip: { id: 'upload_1' } }),
+  deleteAdminClip: vi.fn(),
+  validateClipFile: vi.fn(() => null),
+  uploadClipWithMetadata: vi.fn(),
+}))
+
 vi.mock('../context/useApp', async () => {
   const React = await vi.importActual('react')
 
@@ -60,6 +68,7 @@ vi.mock('../context/useApp', async () => {
         addAdminClip: vi.fn(),
         updateAdminClip,
         removeAdminUpload: vi.fn(),
+        setAdminClipsCacheState: vi.fn(),
       }
     },
   }

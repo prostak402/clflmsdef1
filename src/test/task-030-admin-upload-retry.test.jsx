@@ -3,21 +3,24 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import AdminPage from '../pages/AdminPage'
 
-const addAdminClipMock = vi.fn()
 const uploadClipWithMetadataMock = vi.fn()
+const fetchAdminClipsMock = vi.fn()
 
 vi.mock('../services/admin-upload-service', () => ({
   validateClipFile: () => null,
   uploadClipWithMetadata: (...args) => uploadClipWithMetadataMock(...args),
+  fetchAdminClips: (...args) => fetchAdminClipsMock(...args),
+  patchAdminClip: vi.fn(),
+  deleteAdminClip: vi.fn(),
 }))
 
 vi.mock('../context/useApp', () => ({
   useApp: () => ({
     user: { id: 'admin', isAdmin: true },
     adminUploads: [],
-    addAdminClip: addAdminClipMock,
     updateAdminClip: vi.fn(() => true),
     removeAdminUpload: vi.fn(),
+    setAdminClipsCacheState: vi.fn(),
   }),
 }))
 
@@ -32,14 +35,16 @@ vi.mock('react-router-dom', async () => {
 
 describe('TASK-030: admin upload retry UX', () => {
   beforeEach(() => {
-    addAdminClipMock.mockClear()
     uploadClipWithMetadataMock.mockReset()
+    fetchAdminClipsMock.mockReset().mockResolvedValue([])
   })
 
   it('shows error and retries failed upload', async () => {
     uploadClipWithMetadataMock
       .mockRejectedValueOnce(new Error('Upload failed with status 503. Attempts used: 3'))
       .mockResolvedValueOnce({ clip: { id: 'clip_1' } })
+
+    fetchAdminClipsMock.mockResolvedValue([{ id: 'clip_1', title: 'Movie', status: 'ready' }])
 
     render(<AdminPage />)
 
@@ -70,9 +75,7 @@ describe('TASK-030: admin upload retry UX', () => {
     fireEvent.click(screen.getByRole('button', { name: /retry upload/i }))
 
     await waitFor(() => {
-      expect(addAdminClipMock).toHaveBeenCalledTimes(1)
+      expect(uploadClipWithMetadataMock).toHaveBeenCalledTimes(2)
     })
-
-    expect(addAdminClipMock).toHaveBeenCalledWith(expect.objectContaining({ status: 'ready' }))
   })
 })

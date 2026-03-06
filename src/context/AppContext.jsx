@@ -29,7 +29,7 @@ const DEFAULT_STATE = {
   likes: {},
   blockedCommentUsers: {},
   draftPreferences: DEFAULT_DRAFT_PREFERENCES,
-  adminUploads: [],
+  adminClipsCache: [],
   adminCatalogMovies: [],
 }
 
@@ -71,7 +71,11 @@ function sanitizeState(value) {
       value.draftPreferences && typeof value.draftPreferences === 'object'
         ? { ...DEFAULT_DRAFT_PREFERENCES, ...value.draftPreferences }
         : DEFAULT_DRAFT_PREFERENCES,
-    adminUploads: Array.isArray(value.adminUploads) ? value.adminUploads : [],
+    adminClipsCache: Array.isArray(value.adminClipsCache)
+      ? value.adminClipsCache
+      : Array.isArray(value.adminUploads)
+        ? value.adminUploads
+        : [],
     adminCatalogMovies: Array.isArray(value.adminCatalogMovies) ? value.adminCatalogMovies : [],
   }
 }
@@ -150,9 +154,8 @@ function normalizeClipPatch(patchOrForm) {
   return typeof patchOrForm === 'object' ? patchOrForm : {}
 }
 
-function isBlobUrl(value) {
-  return typeof value === 'string' && value.startsWith('blob:')
-}
+
+
 
 function normalizeMovieTitle(value) {
   return typeof value === 'string' ? value.trim().toLowerCase() : ''
@@ -179,7 +182,7 @@ export function AppProvider({ children }) {
   const [blockedCommentUsers, setBlockedCommentUsers] = useState(persistedState.blockedCommentUsers)
   const [draftPreferences, setDraftPreferences] = useState(persistedState.draftPreferences)
   const [comments, setComments] = useState({})
-  const [adminUploads, setAdminUploads] = useState(persistedState.adminUploads)
+  const [adminClipsCache, setAdminClipsCache] = useState(persistedState.adminClipsCache)
   const [adminCatalogMovies, setAdminCatalogMovies] = useState(persistedState.adminCatalogMovies)
   const [authStatus, setAuthStatus] = useState('checking')
   const [sessionExpired, setSessionExpired] = useState(false)
@@ -288,7 +291,8 @@ export function AppProvider({ children }) {
       likes,
       blockedCommentUsers,
       draftPreferences,
-      adminUploads,
+      adminClipsCache,
+      adminUploads: adminClipsCache,
       adminCatalogMovies,
     })
   }, [
@@ -299,7 +303,7 @@ export function AppProvider({ children }) {
     likes,
     blockedCommentUsers,
     draftPreferences,
-    adminUploads,
+    adminClipsCache,
     adminCatalogMovies,
   ])
 
@@ -612,12 +616,62 @@ export function AppProvider({ children }) {
     setDraftPreferences((prev) => ({ ...prev, ...patch }))
   }, [])
 
-  const addAdminClip = useCallback((form) => {
-    const uploadId = `upload_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
-    const createdAt = new Date().toLocaleString()
-    const poster = form.posterFile ? URL.createObjectURL(form.posterFile) : ''
+  const setAdminClipsCacheState = useCallback((clips) => {
+    if (!Array.isArray(clips)) {
+      setAdminClipsCache([])
+      setAdminCatalogMovies([])
+      return
+    }
 
-    const catalogMovieId = `admin_${uploadId}`
+    const normalizedUploads = clips.map((clip) => ({
+      id: clip.id,
+      movieId: clip.id,
+      title: clip.title,
+      description: clip.description || '',
+      genreId: clip.genreId || 'unknown',
+      genreIds: Array.isArray(clip.genres) ? clip.genres : [clip.genreId || 'unknown'],
+      durationSec: Number(clip.durationSec) || 0,
+      duration: clip.duration || '',
+      kinopoiskId: clip.kinopoiskId || '',
+      thumbnailUrl: clip.thumbnailUrl || '',
+      videoUrl: clip.videoUrl || '',
+      clipDescription: clip.clipDescription || clip.description || '',
+      watchUrl: clip.watchUrl || '#',
+      externalUrl: clip.watchUrl || '#',
+      status: clip.status || 'ready',
+      createdAt: clip.createdAt || '',
+      poster: clip.thumbnailUrl || '',
+    }))
+
+    setAdminClipsCache(normalizedUploads)
+
+    const catalogMovies = normalizedUploads.map((clip) => ({
+      id: clip.movieId || clip.id,
+      title: clip.title,
+      rating: 0,
+      genreId: clip.genreId || 'unknown',
+      poster: clip.poster || '',
+      externalUrl: clip.externalUrl || '#',
+      description: clip.description || '',
+      durationSec: Number(clip.durationSec) || 0,
+      duration: clip.duration || '',
+      kinopoiskId: clip.kinopoiskId || '',
+      thumbnailUrl: clip.thumbnailUrl || '',
+      videoUrl: clip.videoUrl || '',
+      clipDescription: clip.clipDescription || clip.description || '',
+      watchUrl: clip.watchUrl || '#',
+      createdAt: clip.createdAt || '',
+    }))
+
+    setAdminCatalogMovies(catalogMovies)
+  }, [])
+
+  const addAdminClip = useCallback((form) => {
+    const uploadId = form.id || `upload_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
+    const createdAt = new Date().toLocaleString()
+    const poster = form.posterFile ? URL.createObjectURL(form.posterFile) : (form.poster || form.thumbnailUrl || '')
+
+    const catalogMovieId = form.movieId || `admin_${uploadId}`
     const upload = {
       id: uploadId,
       movieId: catalogMovieId,
@@ -632,12 +686,12 @@ export function AppProvider({ children }) {
       clipDescription: form.clipDescription || form.description || '',
       watchUrl: form.watchUrl || form.externalUrl || '#',
       externalUrl: form.externalUrl || '#',
-      status: 'processing',
+      status: form.status || 'processing',
       createdAt,
       poster,
     }
 
-    setAdminUploads((prev) => [upload, ...prev])
+    setAdminClipsCache((prev) => [upload, ...prev])
 
     const catalogMovie = {
       id: catalogMovieId,
@@ -658,24 +712,14 @@ export function AppProvider({ children }) {
     }
 
     setAdminCatalogMovies((prev) => {
-      const existingIndex = prev.findIndex((movie) =>
-        areSameMovieByTitleAndGenre(movie, catalogMovie)
-      )
-
+      const existingIndex = prev.findIndex((movie) => movie.id === catalogMovieId)
       if (existingIndex === -1) {
         return [catalogMovie, ...prev]
       }
-
       const next = [...prev]
       next[existingIndex] = { ...next[existingIndex], ...catalogMovie }
       return next
     })
-
-    setTimeout(() => {
-      setAdminUploads((prev) =>
-        prev.map((item) => (item.id === uploadId ? { ...item, status: 'ready' } : item))
-      )
-    }, 2000)
   }, [])
 
   const updateAdminClip = useCallback(
@@ -692,137 +736,67 @@ export function AppProvider({ children }) {
       const resolvedCatalogId = normalizedClipId.startsWith('admin_')
         ? normalizedClipId
         : `admin_${normalizedClipId}`
-      const existingCatalogMovie = adminCatalogMovies.find(
-        (movie) => movie.id === resolvedCatalogId
+
+      const targetCatalog = adminCatalogMovies.find((movie) => movie.id === resolvedCatalogId)
+      const targetUpload = adminClipsCache.find(
+        (upload) =>
+          upload.id === resolvedUploadId ||
+          upload.movieId === resolvedCatalogId ||
+          (!upload.movieId && targetCatalog && areSameMovieByTitleAndGenre(upload, targetCatalog))
       )
-      if (!existingCatalogMovie) {
+      if (!targetUpload && !targetCatalog) {
         return false
       }
 
-      const hasPosterFile = Boolean(normalizedPatch.posterFile)
-      const hasClipFile = Boolean(normalizedPatch.clipFile)
-      const shouldRefreshCreatedAt = hasPosterFile || hasClipFile
-      const nextCreatedAt = shouldRefreshCreatedAt ? new Date().toLocaleString() : undefined
+      const toNum = (v) => (Object.hasOwn(normalizedPatch, 'durationSec') ? Number(v) || 0 : undefined)
 
-      let previousPoster = ''
-      let nextPoster = ''
+      setAdminCatalogMovies((prev) =>
+        prev.map((movie) =>
+          movie.id === resolvedCatalogId
+            ? {
+                ...movie,
+                ...(Object.hasOwn(normalizedPatch, 'title') ? { title: normalizedPatch.title } : {}),
+                ...(Object.hasOwn(normalizedPatch, 'genreId') ? { genreId: normalizedPatch.genreId } : {}),
+                ...(Object.hasOwn(normalizedPatch, 'description') ? { description: normalizedPatch.description } : {}),
+                ...(Object.hasOwn(normalizedPatch, 'duration') ? { duration: normalizedPatch.duration } : {}),
+                ...(toNum(normalizedPatch.durationSec) !== undefined ? { durationSec: toNum(normalizedPatch.durationSec) } : {}),
+                ...(Object.hasOwn(normalizedPatch, 'kinopoiskId') ? { kinopoiskId: normalizedPatch.kinopoiskId } : {}),
+                ...(Object.hasOwn(normalizedPatch, 'watchUrl') ? { watchUrl: normalizedPatch.watchUrl } : {}),
+                ...(Object.hasOwn(normalizedPatch, 'externalUrl') ? { externalUrl: normalizedPatch.externalUrl } : {}),
+                ...(Object.hasOwn(normalizedPatch, 'clipDescription') ? { clipDescription: normalizedPatch.clipDescription } : {}),
+              }
+            : movie
+        )
+      )
 
-      setAdminCatalogMovies((prev) => {
-        const existingIndex = prev.findIndex((movie) => movie.id === resolvedCatalogId)
-        if (existingIndex === -1) {
-          return prev
-        }
-
-        const prevItem = prev[existingIndex]
-        previousPoster = prevItem.poster || ''
-
-        const shouldUsePatchPoster =
-          typeof normalizedPatch.poster === 'string' && normalizedPatch.poster.trim()
-        nextPoster = hasPosterFile
-          ? URL.createObjectURL(normalizedPatch.posterFile)
-          : shouldUsePatchPoster || normalizedPatch.poster === ''
-            ? normalizedPatch.poster
-            : prevItem.poster || ''
-
-        const catalogPatch = {
-          ...(Object.hasOwn(normalizedPatch, 'title') ? { title: normalizedPatch.title } : {}),
-          ...(Object.hasOwn(normalizedPatch, 'genreId')
-            ? { genreId: normalizedPatch.genreId }
-            : {}),
-          ...(Object.hasOwn(normalizedPatch, 'externalUrl')
-            ? { externalUrl: normalizedPatch.externalUrl }
-            : {}),
-          ...(Object.hasOwn(normalizedPatch, 'watchUrl')
-            ? { watchUrl: normalizedPatch.watchUrl }
-            : {}),
-          ...(Object.hasOwn(normalizedPatch, 'clipDescription')
-            ? { clipDescription: normalizedPatch.clipDescription }
-            : {}),
-          ...(Object.hasOwn(normalizedPatch, 'description')
-            ? { description: normalizedPatch.description }
-            : {}),
-          ...(Object.hasOwn(normalizedPatch, 'duration')
-            ? { duration: normalizedPatch.duration }
-            : {}),
-          ...(Object.hasOwn(normalizedPatch, 'durationSec')
-            ? { durationSec: Number(normalizedPatch.durationSec) || 0 }
-            : {}),
-          ...(Object.hasOwn(normalizedPatch, 'kinopoiskId')
-            ? { kinopoiskId: normalizedPatch.kinopoiskId }
-            : {}),
-          ...(Object.hasOwn(normalizedPatch, 'status') ? { status: normalizedPatch.status } : {}),
-          ...(hasPosterFile || Object.hasOwn(normalizedPatch, 'poster')
-            ? { poster: nextPoster }
-            : {}),
-          ...(shouldRefreshCreatedAt ? { createdAt: nextCreatedAt } : {}),
-        }
-
-        const next = [...prev]
-        next[existingIndex] = { ...prevItem, ...catalogPatch }
-        return next
-      })
-
-      setAdminUploads((prev) =>
+      setAdminClipsCache((prev) =>
         prev.map((upload) => {
-          const shouldUpdateUpload =
+          const shouldUpdate =
             upload.id === resolvedUploadId ||
             upload.movieId === resolvedCatalogId ||
-            (!upload.movieId &&
-              normalizedClipId.startsWith('admin_') &&
-              areSameMovieByTitleAndGenre(upload, existingCatalogMovie))
-
-          if (!shouldUpdateUpload) {
+            (!upload.movieId && targetCatalog && areSameMovieByTitleAndGenre(upload, targetCatalog))
+          if (!shouldUpdate) {
             return upload
           }
 
-          const uploadPatch = {
+          return {
+            ...upload,
             ...(Object.hasOwn(normalizedPatch, 'title') ? { title: normalizedPatch.title } : {}),
-            ...(Object.hasOwn(normalizedPatch, 'description')
-              ? { description: normalizedPatch.description }
-              : {}),
-            ...(Object.hasOwn(normalizedPatch, 'genreId')
-              ? { genreId: normalizedPatch.genreId }
-              : {}),
-            ...(Object.hasOwn(normalizedPatch, 'duration')
-              ? { duration: normalizedPatch.duration }
-              : {}),
-            ...(Object.hasOwn(normalizedPatch, 'durationSec')
-              ? { durationSec: Number(normalizedPatch.durationSec) || 0 }
-              : {}),
-            ...(Object.hasOwn(normalizedPatch, 'kinopoiskId')
-              ? { kinopoiskId: normalizedPatch.kinopoiskId }
-              : {}),
-            ...(Object.hasOwn(normalizedPatch, 'externalUrl')
-              ? { externalUrl: normalizedPatch.externalUrl }
-              : {}),
-            ...(Object.hasOwn(normalizedPatch, 'watchUrl')
-              ? { watchUrl: normalizedPatch.watchUrl }
-              : {}),
-            ...(Object.hasOwn(normalizedPatch, 'clipDescription')
-              ? { clipDescription: normalizedPatch.clipDescription }
-              : {}),
-            ...(Object.hasOwn(normalizedPatch, 'status')
-              ? { status: normalizedPatch.status }
-              : shouldRefreshCreatedAt
-                ? { status: 'ready' }
-                : {}),
-            ...(hasPosterFile || Object.hasOwn(normalizedPatch, 'poster')
-              ? { poster: nextPoster }
-              : {}),
-            ...(shouldRefreshCreatedAt ? { createdAt: nextCreatedAt } : {}),
+            ...(Object.hasOwn(normalizedPatch, 'description') ? { description: normalizedPatch.description } : {}),
+            ...(Object.hasOwn(normalizedPatch, 'genreId') ? { genreId: normalizedPatch.genreId } : {}),
+            ...(Object.hasOwn(normalizedPatch, 'duration') ? { duration: normalizedPatch.duration } : {}),
+            ...(toNum(normalizedPatch.durationSec) !== undefined ? { durationSec: toNum(normalizedPatch.durationSec) } : {}),
+            ...(Object.hasOwn(normalizedPatch, 'kinopoiskId') ? { kinopoiskId: normalizedPatch.kinopoiskId } : {}),
+            ...(Object.hasOwn(normalizedPatch, 'watchUrl') ? { watchUrl: normalizedPatch.watchUrl } : {}),
+            ...(Object.hasOwn(normalizedPatch, 'externalUrl') ? { externalUrl: normalizedPatch.externalUrl } : {}),
+            ...(Object.hasOwn(normalizedPatch, 'clipDescription') ? { clipDescription: normalizedPatch.clipDescription } : {}),
           }
-
-          return { ...upload, ...uploadPatch }
         })
       )
 
-      if (hasPosterFile && isBlobUrl(previousPoster) && previousPoster !== nextPoster) {
-        URL.revokeObjectURL(previousPoster)
-      }
-
       return true
     },
-    [adminCatalogMovies]
+    [adminCatalogMovies, adminClipsCache]
   )
 
   const removeAdminUpload = useCallback(
@@ -832,12 +806,12 @@ export function AppProvider({ children }) {
       }
 
       const normalizedUploadId = uploadId.trim()
-      const removedUpload = adminUploads.find((upload) => upload.id === normalizedUploadId)
+      const removedUpload = adminClipsCache.find((upload) => upload.id === normalizedUploadId)
       if (!removedUpload) {
         return false
       }
 
-      setAdminUploads((prevUploads) =>
+      setAdminClipsCache((prevUploads) =>
         prevUploads.filter((upload) => upload.id !== normalizedUploadId)
       )
 
@@ -851,14 +825,12 @@ export function AppProvider({ children }) {
           return prevCatalogMovies.filter((movie) => movie.id !== resolvedMovieId)
         }
 
-        return prevCatalogMovies.filter(
-          (movie) => !areSameMovieByTitleAndGenre(movie, removedUpload)
-        )
+        return prevCatalogMovies.filter((movie) => !areSameMovieByTitleAndGenre(movie, removedUpload))
       })
 
       return true
     },
-    [adminUploads]
+    [adminClipsCache]
   )
 
   const getCatalog = useCallback(async () => {
@@ -891,7 +863,8 @@ export function AppProvider({ children }) {
     blockedCommentUsers,
     comments,
     draftPreferences,
-    adminUploads,
+    adminClipsCache,
+    adminUploads: adminClipsCache,
     adminCatalogMovies,
     login,
     logout,
@@ -912,6 +885,7 @@ export function AppProvider({ children }) {
     setDraftPreferences,
     updateDraftPreferences,
     addAdminClip,
+    setAdminClipsCacheState,
     updateAdminClip,
     removeAdminUpload,
     getCatalog,
