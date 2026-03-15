@@ -4,18 +4,26 @@ import userEvent from '@testing-library/user-event'
 
 import App from '../App'
 
+async function waitForFeedReady() {
+  await waitFor(() => {
+    expect(window.location.pathname).toBe('/feed')
+  })
+
+  await waitFor(() => {
+    expect(document.querySelectorAll('.clip-actions .clip-action-btn').length).toBeGreaterThan(0)
+  })
+}
+
 async function loginAndOpenFeed(user) {
   render(<App />)
 
   await user.click(screen.getByRole('button', { name: /demo account/i }))
+  await user.click(await screen.findByRole('button', { name: /Action/i }))
+  await user.click(screen.getByRole('button', { name: /Drama/i }))
+  await user.click(screen.getByRole('button', { name: /Comedy/i }))
+  await user.click(screen.getByRole('button', { name: /Explore clips/i }))
 
-  const genreButtons = document.querySelectorAll('.genre-chip')
-  await user.click(genreButtons[0])
-  await user.click(genreButtons[1])
-  await user.click(genreButtons[2])
-  await user.click(document.querySelector('.genre-continue'))
-
-  expect((await screen.findAllByText(/Watch Full Movie/i)).length).toBeGreaterThan(0)
+  await waitForFeedReady()
 }
 
 describe('TASK-013: key business flow integration', () => {
@@ -24,7 +32,7 @@ describe('TASK-013: key business flow integration', () => {
     window.history.replaceState({}, '', '/')
   })
 
-  it('covers happy path: login → genre pick → feed interactions → bookmarks', async () => {
+  it('covers happy path: login -> genre pick -> feed interactions -> bookmarks', async () => {
     const user = userEvent.setup()
     await loginAndOpenFeed(user)
 
@@ -40,9 +48,9 @@ describe('TASK-013: key business flow integration', () => {
 
     await user.click(commentsButton)
     const commentInput = await screen.findByPlaceholderText(/add a comment/i)
-    await user.type(commentInput, 'Интеграционный happy path комментарий')
+    await user.type(commentInput, 'Integration happy path comment')
     await user.click(document.querySelector('.comments-send'))
-    expect(await screen.findByText('Интеграционный happy path комментарий')).toBeInTheDocument()
+    expect(await screen.findByText('Integration happy path comment')).toBeInTheDocument()
 
     await user.click(bookmarkButton)
     await waitFor(() => {

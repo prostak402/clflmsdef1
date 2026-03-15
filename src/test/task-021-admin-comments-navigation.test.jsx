@@ -2,18 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 
 import App from '../App'
-
-const STORAGE_KEY = 'app_state_v1'
-
-function setPersistedState(state) {
-  window.localStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify({
-      version: 1,
-      state,
-    })
-  )
-}
+import { persistAuthenticatedState } from './test-session-helpers'
 
 describe('TASK-021: admin comments navigation links', () => {
   beforeEach(() => {
@@ -23,8 +12,8 @@ describe('TASK-021: admin comments navigation links', () => {
   })
 
   it('shows a quick access link from admin panel to comments moderation', async () => {
-    setPersistedState({
-      user: { name: 'Admin User', email: 'admin@clipflow.com', isAdmin: true },
+    persistAuthenticatedState({
+      user: { name: 'Admin User', email: 'admin@local.dev', role: 'admin' },
       hasCompletedOnboarding: true,
       selectedGenres: ['action', 'drama', 'comedy'],
     })
@@ -37,8 +26,8 @@ describe('TASK-021: admin comments navigation links', () => {
   })
 
   it('marks comments moderation item as active in side nav on /admin/comments', async () => {
-    setPersistedState({
-      user: { name: 'Admin User', email: 'admin@clipflow.com', isAdmin: true },
+    persistAuthenticatedState({
+      user: { name: 'Admin User', email: 'admin@local.dev', role: 'admin' },
       hasCompletedOnboarding: true,
       selectedGenres: ['action', 'drama', 'comedy'],
     })

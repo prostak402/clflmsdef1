@@ -1,9 +1,8 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useApp } from '../context/useApp'
-import { feedService } from '../services/feed-service'
-import { contentService } from '../services/content-service'
 import { createGenreLookup, toClipViewModel } from '../services/clip-view-model'
 import { EVENT_NAMES, EVENT_SOURCE, EVENT_SURFACE } from '../services/analytics/events'
+import { feedService } from '../services/feed-service'
 import ClipCard from '../components/ClipCard'
 import CommentsPanel from '../components/CommentsPanel'
 import GenrePickerFloat from '../components/GenrePickerFloat'
@@ -19,10 +18,10 @@ function createTrackingId(prefix) {
 }
 
 const MAX_ACTIVE_CLIP_ASPECT_RATIO = 1.5777777777777777
-const GENRE_LOOKUP = createGenreLookup(contentService.getGenres())
 
 export default function FeedPage() {
-  const { getFilteredClips, selectedGenres } = useApp()
+  const { getFilteredClips, selectedGenres, genres = [] } = useApp()
+  const genreLookup = useMemo(() => createGenreLookup(genres), [genres])
   const [clips, setClips] = useState([])
   const [loadState, setLoadState] = useState({ status: 'loading', error: '' })
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -41,7 +40,7 @@ export default function FeedPage() {
       await feedService.wait(350)
       const rawClips = await getFilteredClips()
       const nextClips = (Array.isArray(rawClips) ? rawClips : []).map((clip) =>
-        toClipViewModel(clip, GENRE_LOOKUP)
+        toClipViewModel(clip, genreLookup)
       )
       const nextFeedRequestId = createTrackingId('feed')
       const nextImpressionMap = nextClips.reduce((acc, clip) => {
@@ -64,7 +63,7 @@ export default function FeedPage() {
     } catch {
       setLoadState({ status: 'error', error: 'Failed to load feed. Please try again.' })
     }
-  }, [getFilteredClips, selectedGenres.length])
+  }, [genreLookup, getFilteredClips, selectedGenres.length])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -111,30 +110,37 @@ export default function FeedPage() {
 
   useEffect(() => {
     const container = containerRef.current
-    if (!container || clips.length === 0 || loadState.status !== 'ready') return
+    if (!container || clips.length === 0 || loadState.status !== 'ready') {
+      return undefined
+    }
 
     let touchStartY = 0
     let touchStartTime = 0
 
-    const handleWheel = (e) => {
-      e.preventDefault()
-      if (isScrolling.current) return
+    const handleWheel = (event) => {
+      event.preventDefault()
+      if (isScrolling.current) {
+        return
+      }
 
-      if (e.deltaY > 30 && currentIndex < clips.length - 1) {
+      if (event.deltaY > 30 && currentIndex < clips.length - 1) {
         scrollToIndex(currentIndex + 1)
-      } else if (e.deltaY < -30 && currentIndex > 0) {
+      } else if (event.deltaY < -30 && currentIndex > 0) {
         scrollToIndex(currentIndex - 1)
       }
     }
 
-    const handleTouchStart = (e) => {
-      touchStartY = e.touches[0].clientY
+    const handleTouchStart = (event) => {
+      touchStartY = event.touches[0].clientY
       touchStartTime = Date.now()
     }
 
-    const handleTouchEnd = (e) => {
-      if (isScrolling.current) return
-      const deltaY = touchStartY - e.changedTouches[0].clientY
+    const handleTouchEnd = (event) => {
+      if (isScrolling.current) {
+        return
+      }
+
+      const deltaY = touchStartY - event.changedTouches[0].clientY
       const deltaTime = Date.now() - touchStartTime
       const velocity = Math.abs(deltaY) / deltaTime
 
@@ -147,12 +153,12 @@ export default function FeedPage() {
       }
     }
 
-    const handleKeyDown = (e) => {
-      if (e.key === 'ArrowDown' && currentIndex < clips.length - 1) {
-        e.preventDefault()
+    const handleKeyDown = (event) => {
+      if (event.key === 'ArrowDown' && currentIndex < clips.length - 1) {
+        event.preventDefault()
         scrollToIndex(currentIndex + 1)
-      } else if (e.key === 'ArrowUp' && currentIndex > 0) {
-        e.preventDefault()
+      } else if (event.key === 'ArrowUp' && currentIndex > 0) {
+        event.preventDefault()
         scrollToIndex(currentIndex - 1)
       }
     }

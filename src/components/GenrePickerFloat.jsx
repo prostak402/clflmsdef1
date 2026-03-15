@@ -1,36 +1,49 @@
-import { useState, useRef, useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useApp } from '../context/useApp'
-import { contentService } from '../services/content-service'
 import { SlidersHorizontal, X, Check } from 'lucide-react'
 import './GenrePickerFloat.css'
 
 export default function GenrePickerFloat() {
-  const { selectedGenres, toggleGenre } = useApp()
+  const {
+    selectedGenres,
+    toggleGenre,
+    setSelectedGenres,
+    genres = [],
+    isProfileSyncing = false,
+    profileSyncError = '',
+  } = useApp()
   const [open, setOpen] = useState(false)
   const panelRef = useRef(null)
 
   useEffect(() => {
-    if (!open) return
-    const handleClick = (e) => {
-      if (panelRef.current && !panelRef.current.contains(e.target)) {
+    if (!open) {
+      return undefined
+    }
+
+    const handleClick = (event) => {
+      if (panelRef.current && !panelRef.current.contains(event.target)) {
         setOpen(false)
       }
     }
-    const handleKey = (e) => {
-      if (e.key === 'Escape') setOpen(false)
+
+    const handleKey = (event) => {
+      if (event.key === 'Escape') {
+        setOpen(false)
+      }
     }
+
     document.addEventListener('mousedown', handleClick)
     document.addEventListener('keydown', handleKey)
+
     return () => {
       document.removeEventListener('mousedown', handleClick)
       document.removeEventListener('keydown', handleKey)
     }
   }, [open])
 
-  const activeGenreNames = contentService
-    .getGenres()
-    .filter((g) => selectedGenres.includes(g.id))
-    .map((g) => g.name)
+  const activeGenreNames = genres
+    .filter((genre) => selectedGenres.includes(genre.id))
+    .map((genre) => genre.name)
 
   return (
     <div className="gpf-wrap" ref={panelRef}>
@@ -57,16 +70,15 @@ export default function GenrePickerFloat() {
             </button>
           </div>
           <div className="gpf-list">
-            {contentService.getGenres().map((genre) => {
+            {genres.map((genre) => {
               const isActive = selectedGenres.includes(genre.id)
               return (
                 <button
                   key={genre.id}
                   className={`gpf-item ${isActive ? 'active' : ''}`}
                   onClick={() => toggleGenre(genre.id)}
-                  style={{ '--gc': genre.color }}
+                  disabled={isProfileSyncing}
                 >
-                  <span className="gpf-dot" style={{ background: genre.color }} />
                   <span className="gpf-name">{genre.name}</span>
                   {isActive && <Check size={14} className="gpf-check" />}
                 </button>
@@ -76,11 +88,13 @@ export default function GenrePickerFloat() {
           {selectedGenres.length > 0 && (
             <button
               className="gpf-clear"
-              onClick={() => selectedGenres.forEach((g) => toggleGenre(g))}
+              onClick={() => setSelectedGenres([])}
+              disabled={isProfileSyncing}
             >
-              Clear all
+              {isProfileSyncing ? 'Saving...' : 'Clear all'}
             </button>
           )}
+          {profileSyncError && <p className="gpf-error">{profileSyncError}</p>}
         </div>
       )}
     </div>

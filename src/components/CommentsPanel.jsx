@@ -7,11 +7,18 @@ import { EVENT_NAMES, EVENT_SOURCE, EVENT_SURFACE } from '../services/analytics/
 import DataState from './DataState'
 import './CommentsPanel.css'
 
+const COMMENT_BLOCKED_MESSAGE = 'Commenting is disabled for this account.'
+const SESSION_EXPIRED_MESSAGE = 'Session expired. Sign in again to leave a comment.'
+const AUTH_REQUIRED_MESSAGE = 'Sign in to leave a comment.'
+const COMMENT_SUBMIT_FAILED_MESSAGE = 'Could not submit comment.'
+const COMMENT_LIKE_FAILED_MESSAGE = 'Could not update comment like.'
+
 export default function CommentsPanel({ clipId, onClose, position, feedRequestId, impressionId }) {
-  const { comments, addComment, user, isUserCommentBlocked } = useApp()
+  const { comments, addComment, toggleCommentLike, user, isUserCommentBlocked } = useApp()
   const [text, setText] = useState('')
   const [loadState, setLoadState] = useState({ status: 'loading', error: '' })
   const [submitError, setSubmitError] = useState('')
+  const [pendingCommentLikes, setPendingCommentLikes] = useState({})
   const panelRef = useRef(null)
   const inputRef = useRef(null)
   const isMountedRef = useRef(false)
@@ -63,11 +70,11 @@ export default function CommentsPanel({ clipId, onClose, position, feedRequestId
 
   useEffect(() => {
     if (isCommentBlocked) {
-      setSubmitError('Вам запрещено публиковать комментарии')
+      setSubmitError(COMMENT_BLOCKED_MESSAGE)
       return
     }
 
-    setSubmitError((prev) => (prev === 'Вам запрещено публиковать комментарии' ? '' : prev))
+    setSubmitError((prev) => (prev === COMMENT_BLOCKED_MESSAGE ? '' : prev))
   }, [isCommentBlocked])
 
   useEffect(() => {
@@ -78,11 +85,35 @@ export default function CommentsPanel({ clipId, onClose, position, feedRequestId
     return () => window.removeEventListener('keydown', handleKey)
   }, [onClose])
 
+  const handleToggleCommentLike = async (commentId) => {
+    if (!user) {
+      setSubmitError(AUTH_REQUIRED_MESSAGE)
+      return
+    }
+
+    setPendingCommentLikes((prev) => ({
+      ...prev,
+      [commentId]: true,
+    }))
+
+    try {
+      const didToggle = await toggleCommentLike(clipId, commentId)
+      if (!didToggle) {
+        setSubmitError(COMMENT_LIKE_FAILED_MESSAGE)
+      }
+    } finally {
+      setPendingCommentLikes((prev) => ({
+        ...prev,
+        [commentId]: false,
+      }))
+    }
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
 
     if (isCommentBlocked) {
-      setSubmitError('Вам запрещено публиковать комментарии')
+      setSubmitError(COMMENT_BLOCKED_MESSAGE)
       inputRef.current?.focus()
       return
     }
@@ -97,13 +128,13 @@ export default function CommentsPanel({ clipId, onClose, position, feedRequestId
     const result = await addComment(clipId, validation.normalizedText)
     if (!result?.ok) {
       if (result?.error === 'comment_blocked') {
-        setSubmitError('Вам запрещено публиковать комментарии')
+        setSubmitError(COMMENT_BLOCKED_MESSAGE)
       } else if (result?.error === 'comment_unauthorized') {
-        setSubmitError('Сессия истекла. Войдите снова, чтобы оставить комментарий')
+        setSubmitError(SESSION_EXPIRED_MESSAGE)
       } else if (result?.error === 'auth_required') {
-        setSubmitError('Войдите, чтобы оставить комментарий')
+        setSubmitError(AUTH_REQUIRED_MESSAGE)
       } else {
-        setSubmitError(result?.error || 'Не удалось отправить комментарий')
+        setSubmitError(result?.error || COMMENT_SUBMIT_FAILED_MESSAGE)
       }
       inputRef.current?.focus()
       return
@@ -128,6 +159,7 @@ export default function CommentsPanel({ clipId, onClose, position, feedRequestId
     <div className="comments-overlay" onClick={onClose}>
       <div
         className="comments-panel glass-strong"
+        data-testid="comments-panel"
         ref={panelRef}
         onClick={(e) => e.stopPropagation()}
       >
@@ -136,7 +168,13 @@ export default function CommentsPanel({ clipId, onClose, position, feedRequestId
             Comments
             <span className="comments-count">{clipComments.length}</span>
           </h3>
-          <button className="comments-close" onClick={onClose}>
+          <button
+            type="button"
+            className="comments-close"
+            data-testid="comments-close"
+            aria-label="Close comments"
+            onClick={onClose}
+          >
             <X size={20} />
           </button>
         </div>
@@ -170,7 +208,7 @@ export default function CommentsPanel({ clipId, onClose, position, feedRequestId
           {loadState.status === 'ready' &&
             clipComments.length > 0 &&
             clipComments.map((comment) => (
-              <div key={comment.id} className="comment-item">
+              <div key={comment.id} className="comment-item" data-testid={`comment-${comment.id}`}>
                 <div className="comment-avatar">{comment.avatar}</div>
                 <div className="comment-body">
                   <div className="comment-header">
@@ -178,8 +216,18 @@ export default function CommentsPanel({ clipId, onClose, position, feedRequestId
                     <span className="comment-time">{comment.timeLabel}</span>
                   </div>
                   <p className="comment-text">{comment.text}</p>
-                  <button className="comment-like">
-                    <Heart size={14} />
+                  <button
+                    type="button"
+                    className={`comment-like ${comment.likedByViewer ? 'liked' : ''}`}
+                    aria-label={
+                      comment.likedByViewer
+                        ? `Unlike comment by ${comment.authorName}`
+                        : `Like comment by ${comment.authorName}`
+                    }
+                    disabled={Boolean(pendingCommentLikes[comment.id])}
+                    onClick={() => handleToggleCommentLike(comment.id)}
+                  >
+                    <Heart size={14} fill={comment.likedByViewer ? 'currentColor' : 'none'} />
                     <span>{comment.likes}</span>
                   </button>
                 </div>
@@ -191,6 +239,7 @@ export default function CommentsPanel({ clipId, onClose, position, feedRequestId
           <div className="comments-input-field">
             <input
               ref={inputRef}
+              data-testid="comment-input"
               type="text"
               placeholder="Add a comment..."
               value={text}
@@ -210,6 +259,8 @@ export default function CommentsPanel({ clipId, onClose, position, feedRequestId
           </div>
           <button
             type="submit"
+            data-testid="comments-send"
+            aria-label="Send comment"
             disabled={isCommentBlocked}
             className={`comments-send ${isSubmitAllowed ? 'active' : ''}`}
           >

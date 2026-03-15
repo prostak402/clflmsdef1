@@ -26,7 +26,7 @@ beforeEach(() => {
 })
 
 describe('TASK-031: UI safety with API-contract clip view-model', () => {
-  it('renders ClipCard without mock-only fields', () => {
+  it('renders ClipCard without mock-only fields and shows multi-genre label', () => {
     mockUseApp.mockReturnValue({
       likes: {},
       toggleLike: vi.fn(),
@@ -45,8 +45,11 @@ describe('TASK-031: UI safety with API-contract clip view-model', () => {
           externalUrl: 'https://example.com/watch',
           durationSec: 140,
           durationLabel: '2m',
+          genreIds: ['action', 'drama'],
           genreId: 'action',
+          genreNames: ['Action', 'Drama'],
           genreName: 'Action',
+          genreLabel: 'Action, Drama',
           likesCount: 1,
           commentsCount: 2,
           sharesCount: 0,
@@ -61,7 +64,7 @@ describe('TASK-031: UI safety with API-contract clip view-model', () => {
     )
 
     expect(screen.getByText('API Clip')).toBeInTheDocument()
-    expect(screen.getByText('Action')).toBeInTheDocument()
+    expect(screen.getAllByText('Action, Drama').length).toBeGreaterThan(0)
     expect(screen.getAllByText('2m').length).toBeGreaterThan(0)
   })
 
@@ -76,13 +79,17 @@ describe('TASK-031: UI safety with API-contract clip view-model', () => {
           externalUrl: 'https://example.com/watch',
           videoUrl: 'https://example.com/video.mp4',
           durationSec: 61,
-          genreId: 'drama',
+          genreIds: ['drama', 'thriller'],
           likesCount: 1,
           commentsCount: 1,
           bookmarksCount: 1,
         },
       ],
       toggleBookmark: vi.fn().mockResolvedValue(true),
+      genres: [
+        { id: 'drama', name: 'Drama' },
+        { id: 'thriller', name: 'Thriller' },
+      ],
     })
 
     render(
@@ -94,9 +101,10 @@ describe('TASK-031: UI safety with API-contract clip view-model', () => {
     await waitFor(() => {
       expect(screen.getByText('Saved API Clip')).toBeInTheDocument()
     })
+    expect(screen.getAllByText('Drama, Thriller').length).toBeGreaterThan(0)
   })
 
-  it('filters CatalogPage by genreId lookup', async () => {
+  it('filters CatalogPage by any matching clip genre', async () => {
     mockUseApp.mockReturnValue({
       getCatalog: async () => [
         {
@@ -106,17 +114,21 @@ describe('TASK-031: UI safety with API-contract clip view-model', () => {
           externalUrl: 'https://example.com/watch',
           videoUrl: 'https://example.com/video.mp4',
           durationSec: 120,
-          genreId: 'comedy',
+          genreIds: ['comedy', 'thriller'],
           likesCount: 0,
           commentsCount: 0,
           bookmarksCount: 0,
         },
+      ],
+      genres: [
+        { id: 'comedy', name: 'Comedy' },
+        { id: 'thriller', name: 'Thriller' },
       ],
     })
 
     render(<CatalogPage />)
 
     expect(await screen.findByText('Catalog API Clip')).toBeInTheDocument()
-    expect(screen.getAllByText('2m').length).toBeGreaterThan(0)
+    expect(screen.getByText('Comedy, Thriller')).toBeInTheDocument()
   })
 })

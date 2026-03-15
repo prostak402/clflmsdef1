@@ -1,49 +1,54 @@
-const API_PREFIX = '/api/v1'
-const DEFAULT_API_BASE_URL = API_PREFIX
+import { authService } from './auth-service'
+import { parseJsonResponse, resolveApiErrorMessage } from './api-client'
+
 const RETRYABLE_STATUS_CODES = new Set([408, 425, 429, 500, 502, 503, 504])
 const DEFAULT_MAX_ATTEMPTS = 3
-
-function getApiBaseUrl() {
-  const raw = import.meta.env?.VITE_API_BASE_URL
-
-  if (typeof raw !== 'string' || raw.trim().length === 0) {
-    return DEFAULT_API_BASE_URL
-  }
-
-  const normalizedBaseUrl = raw.trim().replace(/\/$/, '')
-
-  if (normalizedBaseUrl.endsWith(API_PREFIX)) {
-    return normalizedBaseUrl
-  }
-
-  return `${normalizedBaseUrl}${API_PREFIX}`
-}
-
-function buildApiUrl(path) {
-  return `${getApiBaseUrl()}${path}`
-}
-
-async function parseJsonSafe(response) {
-  const text = await response.text()
-  if (!text) {
-    return null
-  }
-
-  try {
-    return JSON.parse(text)
-  } catch {
-    return null
-  }
-}
-
-function parseErrorMessage(payload, fallbackMessage) {
-  return payload?.error?.message || payload?.message || fallbackMessage
-}
 
 function createUploadError(message, details = {}) {
   const error = new Error(message)
   Object.assign(error, details)
   return error
+}
+
+function normalizeRating(value) {
+  const parsed = Number(value)
+
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 10) {
+    return null
+  }
+
+  return Math.round(parsed * 10) / 10
+}
+
+function normalizeGenreId(value) {
+  if (typeof value !== 'string') {
+    return ''
+  }
+
+  const normalized = value.trim().toLowerCase()
+  if (!normalized) {
+    return ''
+  }
+
+  return normalized === 'sci-fi' ? 'scifi' : normalized
+}
+
+function normalizeGenreIds(...values) {
+  const normalized = []
+  const seen = new Set()
+
+  values.flat(Infinity).forEach((value) => {
+    const nextGenreId = normalizeGenreId(value)
+
+    if (!nextGenreId || seen.has(nextGenreId)) {
+      return
+    }
+
+    seen.add(nextGenreId)
+    normalized.push(nextGenreId)
+  })
+
+  return normalized
 }
 
 export function validateClipFile(file) {
@@ -72,28 +77,25 @@ export function validateClipFile(file) {
 }
 
 async function requestUploadUrl(file) {
-  const response = await fetch(buildApiUrl('/admin/clips/upload-url'), {
+  const response = await authService.fetchWithAuth('/admin/clips/upload-url', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
+    body: {
       fileName: file.name,
       mimeType: file.type,
       sizeBytes: file.size,
       contentType: file.type,
       size: file.size,
-    }),
+    },
   })
 
-  const payload = await parseJsonSafe(response)
+  const payload = await parseJsonResponse(response)
 
   if (!response.ok) {
     throw createUploadError(
-      parseErrorMessage(payload, `Failed to create upload session (${response.status})`),
+      resolveApiErrorMessage(payload, `Failed to create upload session (${response.status})`),
       {
         status: response.status,
-        stage: 'initiate',
+        stage: 'upload-url',
       }
     )
   }
@@ -119,19 +121,45 @@ async function uploadFile({ file, uploadUrl, requiredHeaders }) {
 }
 
 async function createClipMetadata(metadata) {
-  const response = await fetch(buildApiUrl('/admin/clips'), {
+  const response = await authService.fetchWithAuth('/admin/clips', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(metadata),
+    body: metadata,
   })
 
-  const payload = await parseJsonSafe(response)
+  const payload = await parseJsonResponse(response)
 
   if (!response.ok) {
     throw createUploadError(
-      parseErrorMessage(payload, `Failed to save clip metadata (${response.status})`),
+      resolveApiErrorMessage(payload, `Failed to save clip metadata (${response.status})`),
+      {
+        status: response.status,
+        stage: 'metadata',
+      }
+    )
+  }
+
+  return payload?.clip || null
+}
+
+export async function updateClipMetadata(clipId, metadata) {
+  const normalizedClipId = typeof clipId === 'string' ? clipId.trim() : ''
+
+  if (!normalizedClipId) {
+    throw createUploadError('clipId is required for clip updates', {
+      stage: 'metadata',
+    })
+  }
+
+  const response = await authService.fetchWithAuth(`/admin/clips/${normalizedClipId}`, {
+    method: 'PATCH',
+    body: toClipContractPayload(metadata),
+  })
+
+  const payload = await parseJsonResponse(response)
+
+  if (!response.ok) {
+    throw createUploadError(
+      resolveApiErrorMessage(payload, `Failed to update clip metadata (${response.status})`),
       {
         status: response.status,
         stage: 'metadata',
@@ -143,15 +171,15 @@ async function createClipMetadata(metadata) {
 }
 
 function toClipContractPayload(metadata = {}) {
-  const normalizedGenreId =
-    typeof metadata.genreId === 'string' && metadata.genreId.trim() ? metadata.genreId.trim() : 'unknown'
+  const genreIds = normalizeGenreIds(metadata.genreIds)
 
   return {
     title: metadata.title,
     description: metadata.description,
     clipDescription: metadata.clipDescription || metadata.description || '',
-    watchUrl: metadata.watchUrl || metadata.externalUrl || '#',
-    genreId: normalizedGenreId,
+    watchUrl: metadata.watchUrl || '#',
+    genreIds,
+    rating: normalizeRating(metadata.rating),
     durationSec: Number(metadata.durationSec) || 0,
     videoUrl: metadata.videoUrl,
     thumbnailUrl: metadata.thumbnailUrl,
@@ -189,7 +217,6 @@ export async function uploadClipWithMetadata({ file, metadata, maxAttempts = 3 }
       const clip = await createClipMetadata({
         ...toClipContractPayload(metadata),
         objectKey: uploadUrlPayload.objectKey,
-        uploadToken: uploadUrlPayload.uploadToken,
         uploadId: uploadUrlPayload.uploadId,
       })
 
@@ -197,7 +224,7 @@ export async function uploadClipWithMetadata({ file, metadata, maxAttempts = 3 }
 
       return {
         clip,
-        uploadId: uploadUrlPayload.uploadId || uploadUrlPayload.uploadToken || null,
+        uploadId: uploadUrlPayload.uploadId || null,
         objectKey: uploadUrlPayload.objectKey,
         attemptsUsed: attempt,
       }

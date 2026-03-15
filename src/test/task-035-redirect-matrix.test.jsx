@@ -1,18 +1,16 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 
 import App from '../App'
+import { persistAuthenticatedState } from './test-session-helpers'
 
-const STORAGE_KEY = 'app_state_v1'
+async function expectFeedRoute() {
+  await waitFor(() => {
+    expect(window.location.pathname).toBe('/feed')
+  })
 
-function setPersistedState(state) {
-  window.localStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify({
-      version: 1,
-      state,
-    })
-  )
+  const feedButtons = await screen.findAllByRole('button', { name: /Feed/i })
+  expect(feedButtons[0]).toHaveAttribute('aria-current', 'page')
 }
 
 describe('TASK-035: route redirect matrix', () => {
@@ -35,8 +33,8 @@ describe('TASK-035: route redirect matrix', () => {
   })
 
   it('enforces matrix for onboarded non-admin user', async () => {
-    setPersistedState({
-      user: { name: 'Demo User', email: 'demo@clipflow.com', role: 'user' },
+    persistAuthenticatedState({
+      user: { name: 'Demo User', email: 'user@local.dev', role: 'user' },
       hasCompletedOnboarding: true,
       selectedGenres: ['action', 'drama', 'comedy'],
     })
@@ -44,13 +42,12 @@ describe('TASK-035: route redirect matrix', () => {
     window.history.replaceState({}, '', '/admin/comments')
     render(<App />)
 
-    expect(await screen.findByText(/Loading clips/i)).toBeInTheDocument()
-    expect(window.location.pathname).toBe('/feed')
+    await expectFeedRoute()
   })
 
   it('enforces matrix for onboarded admin user', async () => {
-    setPersistedState({
-      user: { name: 'Admin User', email: 'admin@clipflow.com', role: 'admin' },
+    persistAuthenticatedState({
+      user: { name: 'Admin User', email: 'admin@local.dev', role: 'admin' },
       hasCompletedOnboarding: true,
       selectedGenres: ['action', 'drama', 'comedy'],
     })

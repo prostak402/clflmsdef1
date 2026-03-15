@@ -1,13 +1,98 @@
 import { useMemo, useState } from 'react'
-import { useApp } from '../context/useApp'
 import { Link, useNavigate } from 'react-router-dom'
-import { Upload, Film, Plus, Trash2, X, Save, AlertTriangle, Check, Pencil } from 'lucide-react'
-import { contentService } from '../services/content-service'
-import { uploadClipWithMetadata, validateClipFile } from '../services/admin-upload-service'
+import { AlertTriangle, Check, Film, Pencil, Plus, Save, Trash2, Upload, X } from 'lucide-react'
+
+import { useApp } from '../context/useApp'
+import {
+  updateClipMetadata,
+  uploadClipWithMetadata,
+  validateClipFile,
+} from '../services/admin-upload-service'
 import './AdminPage.css'
 
+const EMPTY_FORM = {
+  title: '',
+  description: '',
+  clipDescription: '',
+  watchUrl: '',
+  genreIds: [],
+  duration: '',
+  rating: '',
+  kinopoiskId: '',
+  poster: '',
+  clipFile: null,
+  posterFile: null,
+}
+
+const UPLOAD_STATUS_LABELS = {
+  idle: '',
+  uploading: 'Uploading file to storage...',
+  finalizing: 'Saving clip metadata...',
+  retrying: 'Retrying upload after temporary failure...',
+  done: 'Upload completed successfully.',
+  failed: 'Upload failed.',
+}
+
+function toDurationSeconds(durationValue) {
+  const durationMatch = String(durationValue || '').match(/\d+/)
+  return Number(durationMatch?.[0]) > 0 ? Number(durationMatch[0]) * 60 : 0
+}
+
+function normalizeRatingInput(value) {
+  const parsed = Number(String(value ?? '').trim())
+
+  if (!Number.isFinite(parsed)) {
+    return null
+  }
+
+  const rounded = Math.round(parsed * 10) / 10
+  return rounded >= 0 && rounded <= 10 ? rounded : null
+}
+
+function normalizeGenreId(value) {
+  if (typeof value !== 'string') {
+    return ''
+  }
+
+  const normalized = value.trim().toLowerCase()
+  if (!normalized) {
+    return ''
+  }
+
+  return normalized === 'sci-fi' ? 'scifi' : normalized
+}
+
+function normalizeGenreIds(...values) {
+  const normalized = []
+  const seen = new Set()
+
+  values.flat(Infinity).forEach((value) => {
+    const genreId = normalizeGenreId(value)
+
+    if (!genreId || seen.has(genreId)) {
+      return
+    }
+
+    seen.add(genreId)
+    normalized.push(genreId)
+  })
+
+  return normalized
+}
+
+function resolveFormGenreIds(upload) {
+  return normalizeGenreIds(upload?.genreIds)
+}
+
 export default function AdminPage() {
-  const { user, adminUploads, addAdminClip, updateAdminClip, removeAdminUpload } = useApp()
+  const {
+    user,
+    genres = [],
+    adminUploads,
+    addAdminClip,
+    updateAdminClip,
+    removeAdminUpload,
+  } = useApp()
   const navigate = useNavigate()
   const [showForm, setShowForm] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -19,52 +104,26 @@ export default function AdminPage() {
   const [isEditMode, setIsEditMode] = useState(false)
   const [uploadStage, setUploadStage] = useState('idle')
   const [uploadAttempts, setUploadAttempts] = useState('')
-
-  const emptyForm = {
-    title: '',
-    description: '',
-    clipDescription: '',
-    watchUrl: '',
-    genres: [],
-    duration: '',
-    kinopoiskId: '',
-    poster: '',
-    clipFile: null,
-    posterFile: null,
-  }
-
-  const [form, setForm] = useState({
-    title: '',
-    description: '',
-    clipDescription: '',
-    watchUrl: '',
-    genres: [],
-    duration: '',
-    kinopoiskId: '',
-    poster: '',
-    clipFile: null,
-    posterFile: null,
-  })
+  const [form, setForm] = useState(EMPTY_FORM)
 
   const normalizedFormPayload = useMemo(() => {
-    const durationMatch = String(form.duration || '').match(/\d+/)
-    const durationSec = Number(durationMatch?.[0]) > 0 ? Number(durationMatch[0]) * 60 : 0
+    const genreIds = normalizeGenreIds(form.genreIds)
 
     return {
       title: form.title,
       description: form.description,
       clipDescription: form.clipDescription,
       watchUrl: form.watchUrl,
-      genreId: form.genres[0] || '',
-      durationSec,
+      genreIds,
+      durationSec: toDurationSeconds(form.duration),
+      rating: normalizeRatingInput(form.rating),
       videoUrl: '',
       thumbnailUrl: form.poster || '',
-      externalUrl: form.watchUrl || '#',
       status: 'draft',
     }
-  }, [form.clipDescription, form.description, form.duration, form.genres, form.poster, form.title, form.watchUrl])
+  }, [form])
 
-  if (!user?.isAdmin) {
+  if (user?.role !== 'admin') {
     return (
       <div className="admin-restricted">
         <AlertTriangle size={48} />
@@ -78,14 +137,14 @@ export default function AdminPage() {
   const handleGenreToggle = (genreId) => {
     setForm((prev) => ({
       ...prev,
-      genres: prev.genres.includes(genreId)
-        ? prev.genres.filter((g) => g !== genreId)
-        : [...prev.genres, genreId],
+      genreIds: prev.genreIds.includes(genreId)
+        ? prev.genreIds.filter((currentGenreId) => currentGenreId !== genreId)
+        : [...prev.genreIds, genreId],
     }))
   }
 
   const resetFormState = () => {
-    setForm(emptyForm)
+    setForm(EMPTY_FORM)
     setEditingClipId('')
     setIsEditMode(false)
     setUploadStage('idle')
@@ -103,9 +162,13 @@ export default function AdminPage() {
       title: upload.title || '',
       description: upload.description || '',
       clipDescription: upload.clipDescription || upload.description || '',
-      watchUrl: upload.watchUrl || upload.externalUrl || '',
-      genres: upload.genreId ? [upload.genreId] : [],
+      watchUrl: upload.watchUrl || '',
+      genreIds: resolveFormGenreIds(upload),
       duration: upload.duration || '',
+      rating:
+        upload.rating === null || upload.rating === undefined || upload.rating === ''
+          ? ''
+          : String(upload.rating),
       kinopoiskId: upload.kinopoiskId || '',
       poster: upload.poster || '',
       clipFile: null,
@@ -119,13 +182,25 @@ export default function AdminPage() {
     setUploadAttempts('')
 
     try {
-      if (!payload.genreId) {
+      if (!Array.isArray(payload.genreIds) || payload.genreIds.length === 0) {
         setSubmitError('Please select at least one genre.')
         return
       }
 
+      if (payload.rating === null) {
+        setSubmitError('Please provide a valid rating between 0 and 10.')
+        return
+      }
+
       if (isEditMode) {
-        const updated = updateAdminClip(editingClipId, payload)
+        const nextPersistedPayload =
+          typeof editingClipId === 'string' &&
+          editingClipId.trim() &&
+          !editingClipId.startsWith('admin_')
+            ? await updateClipMetadata(editingClipId, payload)
+            : payload
+
+        const updated = updateAdminClip(editingClipId, nextPersistedPayload || payload)
         if (!updated) {
           setSubmitError('Failed to update clip metadata.')
           return
@@ -145,12 +220,12 @@ export default function AdminPage() {
             description: payload.description,
             clipDescription: payload.clipDescription,
             watchUrl: payload.watchUrl,
-            genreId: payload.genreId,
+            genreIds: payload.genreIds,
             durationSec: payload.durationSec,
+            rating: payload.rating,
             videoUrl: payload.videoUrl,
             thumbnailUrl: payload.thumbnailUrl,
             status: payload.status,
-            externalUrl: payload.externalUrl,
             onUploadProgress: ({ stage, attempt, maxAttempts }) => {
               setUploadStage(stage)
               if (Number(maxAttempts) > 1) {
@@ -188,22 +263,12 @@ export default function AdminPage() {
     }
   }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
+  const handleSubmit = async (event) => {
+    event.preventDefault()
     await submitForm({ ...form, ...normalizedFormPayload })
   }
 
-
-  const uploadStatusLabel = {
-    idle: '',
-    uploading: 'Uploading file to storage…',
-    confirming: 'Confirming uploaded object…',
-    finalizing: 'Saving clip metadata…',
-    retrying: 'Retrying upload after temporary failure…',
-    rollback: 'Rolling back failed upload session…',
-    done: 'Upload completed successfully.',
-    failed: 'Upload failed.',
-  }[uploadStage]
+  const uploadStatusLabel = UPLOAD_STATUS_LABELS[uploadStage] || ''
 
   return (
     <div className="admin-page">
@@ -216,6 +281,8 @@ export default function AdminPage() {
           </Link>
         </div>
         <button
+          type="button"
+          data-testid="admin-add-clip"
           className="admin-add-btn"
           onClick={() => {
             if (showForm) {
@@ -230,7 +297,11 @@ export default function AdminPage() {
       </div>
 
       {showForm && (
-        <form className="admin-form glass-strong" onSubmit={handleSubmit}>
+        <form
+          className="admin-form glass-strong"
+          data-testid="admin-clip-form"
+          onSubmit={handleSubmit}
+        >
           <h3 className="admin-form-title">
             <Upload size={20} />
             {isEditMode ? 'Edit Clip' : 'Upload New Clip'}
@@ -243,7 +314,7 @@ export default function AdminPage() {
                 type="text"
                 placeholder="Enter movie title"
                 value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
+                onChange={(event) => setForm({ ...form, title: event.target.value })}
                 required
               />
             </div>
@@ -254,7 +325,21 @@ export default function AdminPage() {
                 type="text"
                 placeholder="2h 30m"
                 value={form.duration}
-                onChange={(e) => setForm({ ...form, duration: e.target.value })}
+                onChange={(event) => setForm({ ...form, duration: event.target.value })}
+              />
+            </div>
+
+            <div className="admin-field">
+              <label>Rating</label>
+              <input
+                type="number"
+                min="0"
+                max="10"
+                step="0.1"
+                placeholder="8.5"
+                value={form.rating}
+                onChange={(event) => setForm({ ...form, rating: event.target.value })}
+                required
               />
             </div>
 
@@ -263,8 +348,9 @@ export default function AdminPage() {
               <textarea
                 placeholder="Full movie description..."
                 value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                onChange={(event) => setForm({ ...form, description: event.target.value })}
                 rows={3}
+                required
               />
             </div>
 
@@ -273,8 +359,9 @@ export default function AdminPage() {
               <textarea
                 placeholder="Short clip description..."
                 value={form.clipDescription}
-                onChange={(e) => setForm({ ...form, clipDescription: e.target.value })}
+                onChange={(event) => setForm({ ...form, clipDescription: event.target.value })}
                 rows={2}
+                required
               />
             </div>
 
@@ -284,7 +371,8 @@ export default function AdminPage() {
                 type="url"
                 placeholder="https://example.com/watch"
                 value={form.watchUrl}
-                onChange={(e) => setForm({ ...form, watchUrl: e.target.value })}
+                onChange={(event) => setForm({ ...form, watchUrl: event.target.value })}
+                required
               />
             </div>
 
@@ -293,9 +381,9 @@ export default function AdminPage() {
               <div className="admin-kinopoisk-row">
                 <input
                   type="text"
-                  placeholder="Например: 435"
+                  placeholder="For example: 435"
                   value={form.kinopoiskId}
-                  onChange={(e) => setForm({ ...form, kinopoiskId: e.target.value })}
+                  onChange={(event) => setForm({ ...form, kinopoiskId: event.target.value })}
                 />
                 <button type="button" className="admin-update-btn">
                   Update
@@ -306,11 +394,11 @@ export default function AdminPage() {
             <div className="admin-field full">
               <label>Genres</label>
               <div className="admin-genres">
-                {contentService.getGenres().map((genre) => (
+                {genres.map((genre) => (
                   <button
                     key={genre.id}
                     type="button"
-                    className={`admin-genre-chip ${form.genres.includes(genre.id) ? 'active' : ''}`}
+                    className={`admin-genre-chip ${form.genreIds.includes(genre.id) ? 'active' : ''}`}
                     onClick={() => handleGenreToggle(genre.id)}
                     style={{ '--g-color': genre.color }}
                   >
@@ -318,6 +406,7 @@ export default function AdminPage() {
                   </button>
                 ))}
               </div>
+              {genres.length === 0 && <p className="admin-file-name">Genres are loading...</p>}
             </div>
 
             <div className="admin-field">
@@ -327,8 +416,11 @@ export default function AdminPage() {
                 <span>Choose video file</span>
                 <input
                   type="file"
+                  data-testid="admin-video-file"
                   accept="video/*"
-                  onChange={(e) => setForm({ ...form, clipFile: e.target.files[0] })}
+                  onChange={(event) =>
+                    setForm({ ...form, clipFile: event.target.files?.[0] || null })
+                  }
                 />
               </div>
               {form.clipFile && <p className="admin-file-name">{form.clipFile.name}</p>}
@@ -341,15 +433,23 @@ export default function AdminPage() {
                 <span>Choose image</span>
                 <input
                   type="file"
+                  data-testid="admin-poster-file"
                   accept="image/*"
-                  onChange={(e) => setForm({ ...form, posterFile: e.target.files[0] })}
+                  onChange={(event) =>
+                    setForm({ ...form, posterFile: event.target.files?.[0] || null })
+                  }
                 />
               </div>
               {form.posterFile && <p className="admin-file-name">{form.posterFile.name}</p>}
             </div>
           </div>
 
-          <button type="submit" className="admin-submit" disabled={isSubmitting}>
+          <button
+            type="submit"
+            data-testid="admin-submit-clip"
+            className="admin-submit"
+            disabled={isSubmitting}
+          >
             <Save size={18} />
             {isSubmitting ? 'Uploading...' : isEditMode ? 'Save Changes' : 'Upload Clip'}
           </button>
@@ -378,7 +478,6 @@ export default function AdminPage() {
         </form>
       )}
 
-      {/* Upload list */}
       <div className="admin-uploads">
         <h3 className="admin-section-title">Recent Uploads</h3>
         {adminUploads.length === 0 ? (
@@ -389,7 +488,11 @@ export default function AdminPage() {
         ) : (
           <div className="admin-upload-list">
             {adminUploads.map((upload) => (
-              <div key={upload.id} className="admin-upload-item glass">
+              <div
+                key={upload.id}
+                className="admin-upload-item glass"
+                data-testid={`admin-upload-${upload.id}`}
+              >
                 <div className="admin-upload-info">
                   <h4>{upload.title}</h4>
                   <p>{upload.createdAt}</p>
@@ -400,12 +503,20 @@ export default function AdminPage() {
                   ) : (
                     <Check size={14} />
                   )}
-                  <span>{upload.status === 'processing' ? 'Processing' : upload.status === 'failed' ? 'Failed' : 'Ready'}</span>
+                  <span>
+                    {upload.status === 'processing'
+                      ? 'Processing'
+                      : upload.status === 'failed'
+                        ? 'Failed'
+                        : 'Ready'}
+                  </span>
                 </div>
                 <div className="admin-upload-actions">
                   <button
                     type="button"
                     className="admin-upload-edit"
+                    data-testid={`admin-edit-${upload.id}`}
+                    aria-label={`Edit ${upload.title}`}
                     onClick={() => handleStartEdit(upload)}
                   >
                     <Pencil size={16} />

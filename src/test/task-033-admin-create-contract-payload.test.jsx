@@ -9,7 +9,8 @@ const uploadClipWithMetadataMock = vi.fn().mockResolvedValue({ clip: { id: 'clip
 
 vi.mock('../context/useApp', () => ({
   useApp: () => ({
-    user: { id: 'admin', isAdmin: true },
+    user: { id: 'admin', role: 'admin' },
+    genres: [{ id: 'drama', name: 'Drama' }],
     adminUploads: [],
     addAdminClip: addAdminClipMock,
     updateAdminClip: vi.fn(),
@@ -39,6 +40,9 @@ describe('TASK-033: admin create clip payload matches API contract shape', () =>
     fireEvent.change(screen.getByPlaceholderText('Enter movie title'), {
       target: { value: 'Contract Clip' },
     })
+    fireEvent.change(screen.getByPlaceholderText('8.5'), {
+      target: { value: '8.4' },
+    })
     fireEvent.change(screen.getByPlaceholderText('Full movie description...'), {
       target: { value: 'Contract description' },
     })
@@ -51,7 +55,8 @@ describe('TASK-033: admin create clip payload matches API contract shape', () =>
 
     fireEvent.click(screen.getByRole('button', { name: 'Drama' }))
 
-    const videoInput = document.querySelector('input[type="file"]')
+    const videoUploadZone = screen.getByText('Choose video file').closest('.admin-upload-zone')
+    const videoInput = videoUploadZone?.querySelector('input[type="file"]')
     fireEvent.change(videoInput, {
       target: { files: [new File(['video'], 'clip.mp4', { type: 'video/mp4' })] },
     })
@@ -68,29 +73,33 @@ describe('TASK-033: admin create clip payload matches API contract shape', () =>
       expect.objectContaining({
         title: 'Contract Clip',
         description: 'Contract description',
-        genreId: 'drama',
+        genreIds: ['drama'],
         clipDescription: 'Short contract clip',
         watchUrl: 'https://cinema.example.com/watch/contract-clip',
         durationSec: 0,
+        rating: 8.4,
         videoUrl: '',
         thumbnailUrl: '',
         status: 'draft',
       })
     )
+    expect(metadata).not.toHaveProperty('genreId')
     expect(metadata).not.toHaveProperty('year')
     expect(metadata).not.toHaveProperty('director')
     expect(metadata).toHaveProperty('watchUrl')
     expect(metadata).toHaveProperty('clipDescription')
 
     const createdPayload = addAdminClipMock.mock.calls[0][0]
-    expect(createdPayload).toEqual(expect.objectContaining({ genreId: 'drama' }))
-    expect(createdPayload).not.toHaveProperty('year')
-    expect(createdPayload).not.toHaveProperty('director')
     expect(createdPayload).toEqual(
       expect.objectContaining({
+        genreIds: ['drama'],
+        rating: 8.4,
         watchUrl: 'https://cinema.example.com/watch/contract-clip',
         clipDescription: 'Short contract clip',
       })
     )
+    expect(createdPayload).not.toHaveProperty('genreId')
+    expect(createdPayload).not.toHaveProperty('year')
+    expect(createdPayload).not.toHaveProperty('director')
   })
 })

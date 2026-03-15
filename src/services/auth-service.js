@@ -1,25 +1,21 @@
+﻿import {
+  buildApiUrl,
+  createApiError,
+  parseJsonResponse,
+  requestJson,
+  resolveApiErrorMessage,
+} from './api-client'
+
 export const AUTH_SESSION_STORAGE_KEY = 'auth_session_v1'
-const DEFAULT_API_BASE_URL = '/api/v1'
 const ACCESS_TTL_MS = 15 * 60 * 1000
 const SESSION_ENDED_EVENT = 'auth:session-ended'
+const DEFAULT_SESSION_USER_PREFERENCES = Object.freeze({
+  notificationsEnabled: true,
+  autoplayEnabled: true,
+  preferredLanguage: 'en',
+})
 
 let refreshPromise = null
-
-function getApiBaseUrl() {
-  const raw = import.meta.env?.VITE_API_BASE_URL
-
-  if (typeof raw !== 'string' || raw.trim().length === 0) {
-    return DEFAULT_API_BASE_URL
-  }
-
-  return raw.trim().replace(/\/$/, '')
-}
-
-function buildUrl(path) {
-  const baseUrl = getApiBaseUrl()
-  const url = new URL(`${baseUrl}${path}`, window.location.origin)
-  return `${url.pathname}${url.search}`
-}
 
 function parseJwtClaims(token) {
   if (typeof token !== 'string' || token.split('.').length < 2) {
@@ -36,49 +32,131 @@ function parseJwtClaims(token) {
   }
 }
 
-function parseJsonSafe(text) {
-  if (!text) {
-    return null
-  }
-
-  try {
-    return JSON.parse(text)
-  } catch {
-    return null
-  }
+function normalizeNonEmptyString(value) {
+  return typeof value === 'string' && value.trim() ? value.trim() : ''
 }
 
-function resolveErrorMessage(payload, fallback) {
-  const message = payload?.error?.message || payload?.message
-  return typeof message === 'string' && message.trim() ? message.trim() : fallback
+function normalizeGenreId(value) {
+  if (typeof value !== 'string') {
+    return ''
+  }
+
+  const normalized = value.trim().toLowerCase()
+  if (!normalized) {
+    return ''
+  }
+
+  return normalized === 'sci-fi' ? 'scifi' : normalized
 }
 
-async function requestJson(path, { method = 'GET', body, accessToken } = {}) {
-  const headers = {
-    'Content-Type': 'application/json',
-  }
+function normalizeGenreIds(...values) {
+  const normalized = []
+  const seen = new Set()
 
-  if (typeof accessToken === 'string' && accessToken.trim()) {
-    headers.Authorization = `Bearer ${accessToken.trim()}`
-  }
+  values.flat(Infinity).forEach((value) => {
+    const genreId = normalizeGenreId(value)
 
-  const response = await fetch(buildUrl(path), {
-    method,
-    headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
+    if (!genreId || seen.has(genreId)) {
+      return
+    }
+
+    seen.add(genreId)
+    normalized.push(genreId)
   })
 
-  const payload = parseJsonSafe(await response.text())
+  return normalized
+}
 
-  if (!response.ok) {
-    const error = new Error(
-      resolveErrorMessage(payload, `Auth request failed (${response.status})`)
-    )
-    error.status = response.status
-    throw error
+function normalizeSessionUserPreferences(value = {}) {
+  const safeValue = value && typeof value === 'object' && !Array.isArray(value) ? value : {}
+
+  return {
+    notificationsEnabled:
+      typeof safeValue.notificationsEnabled === 'boolean'
+        ? safeValue.notificationsEnabled
+        : DEFAULT_SESSION_USER_PREFERENCES.notificationsEnabled,
+    autoplayEnabled:
+      typeof safeValue.autoplayEnabled === 'boolean'
+        ? safeValue.autoplayEnabled
+        : DEFAULT_SESSION_USER_PREFERENCES.autoplayEnabled,
+    preferredLanguage:
+      typeof safeValue.preferredLanguage === 'string' && safeValue.preferredLanguage.trim()
+        ? safeValue.preferredLanguage.trim()
+        : DEFAULT_SESSION_USER_PREFERENCES.preferredLanguage,
+  }
+}
+
+function normalizeExpiresAt(value) {
+  const expiresAt = normalizeNonEmptyString(value)
+  if (!expiresAt) {
+    return ''
   }
 
-  return payload
+  return Number.isNaN(Date.parse(expiresAt)) ? '' : expiresAt
+}
+
+function resolveSessionUserRole(user = {}, fallbackRole = '') {
+  const explicitRole = normalizeNonEmptyString(user.role)
+  if (explicitRole) {
+    return explicitRole
+  }
+
+  if (user.isAdmin === true) {
+    return 'admin'
+  }
+
+  return normalizeNonEmptyString(fallbackRole)
+}
+
+function normalizeSessionUser(user = {}, fallbackRole = '') {
+  if (!user || typeof user !== 'object' || Array.isArray(user)) {
+    return null
+  }
+
+  const id = normalizeNonEmptyString(user.id)
+  const email = normalizeNonEmptyString(user.email)
+  const role = resolveSessionUserRole(user, fallbackRole)
+
+  if (!id || !email || !role) {
+    return null
+  }
+
+  return {
+    ...user,
+    id,
+    email,
+    role,
+    selectedGenres: normalizeGenreIds(user.selectedGenres),
+    preferences: normalizeSessionUserPreferences(user.preferences),
+  }
+}
+
+function normalizeSessionShape(session = {}) {
+  const accessToken = normalizeNonEmptyString(session.accessToken)
+  const refreshToken = normalizeNonEmptyString(session.refreshToken)
+  const expiresAt = normalizeExpiresAt(session.expiresAt)
+  const user = normalizeSessionUser(session.user, session.user?.role || '')
+
+  if (!accessToken || !refreshToken || !expiresAt || !user) {
+    return null
+  }
+
+  return {
+    ...session,
+    accessToken,
+    refreshToken,
+    tokenType: normalizeNonEmptyString(session.tokenType) || 'Bearer',
+    expiresAt,
+    user,
+  }
+}
+
+function normalizeStoredSession(session) {
+  if (!session || typeof session !== 'object' || Array.isArray(session)) {
+    return null
+  }
+
+  return normalizeSessionShape(session)
 }
 
 function emitSessionEnded(reason = 'logged_out') {
@@ -87,24 +165,6 @@ function emitSessionEnded(reason = 'logged_out') {
   }
 
   window.dispatchEvent(new CustomEvent(SESSION_ENDED_EVENT, { detail: { reason } }))
-}
-
-function readStoredSession() {
-  if (typeof window === 'undefined') {
-    return null
-  }
-
-  try {
-    const raw = window.localStorage.getItem(AUTH_SESSION_STORAGE_KEY)
-    if (!raw) {
-      return null
-    }
-
-    const parsed = JSON.parse(raw)
-    return parsed && typeof parsed === 'object' ? parsed : null
-  } catch {
-    return null
-  }
 }
 
 function persistSession(session) {
@@ -120,9 +180,69 @@ function persistSession(session) {
   window.localStorage.setItem(AUTH_SESSION_STORAGE_KEY, JSON.stringify(session))
 }
 
+function readStoredSession() {
+  if (typeof window === 'undefined') {
+    return null
+  }
+
+  try {
+    const raw = window.localStorage.getItem(AUTH_SESSION_STORAGE_KEY)
+    if (!raw) {
+      return null
+    }
+
+    const parsed = JSON.parse(raw)
+    const normalized = normalizeStoredSession(parsed)
+
+    if (!normalized) {
+      persistSession(null)
+      return null
+    }
+
+    return normalized
+  } catch {
+    persistSession(null)
+    return null
+  }
+}
+
 function getStoredSession() {
-  const session = readStoredSession()
-  return session && typeof session === 'object' ? session : null
+  return readStoredSession()
+}
+
+function normalizeSessionPayload(payload, fallbackUser = null) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return null
+  }
+
+  const accessToken = normalizeNonEmptyString(payload.accessToken)
+  const refreshToken = normalizeNonEmptyString(payload.refreshToken)
+  const expiresAt = normalizeExpiresAt(payload.expiresAt)
+  const claims = parseJwtClaims(accessToken)
+  const roleFromClaims = normalizeNonEmptyString(claims?.role || claims?.roles?.[0])
+  const userFromPayload = fallbackUser || payload.user || payload.me
+  const user = normalizeSessionUser(userFromPayload, roleFromClaims)
+
+  if (!accessToken || !refreshToken || !expiresAt || !user) {
+    return null
+  }
+
+  return {
+    ...payload,
+    accessToken,
+    refreshToken,
+    tokenType: normalizeNonEmptyString(payload.tokenType) || 'Bearer',
+    expiresAt,
+    user,
+  }
+}
+
+function assertValidSessionPayload(session, message) {
+  if (!session) {
+    throw createApiError(message)
+  }
+
+  return session
 }
 
 function isSessionExpired(expiresAt) {
@@ -134,51 +254,15 @@ function isSessionExpired(expiresAt) {
   return Number.isNaN(ts) || ts <= Date.now()
 }
 
-function createMockSession(user) {
-  const now = new Date()
-  return {
-    accessToken: `mock_access_${Math.random().toString(36).slice(2, 10)}`,
-    refreshToken: `mock_refresh_${Math.random().toString(36).slice(2, 10)}`,
-    tokenType: 'Bearer',
-    expiresAt: new Date(now.getTime() + ACCESS_TTL_MS).toISOString(),
-    user,
-  }
-}
-
-function createMockUser({ email, displayName }) {
-  const normalizedEmail = (email || '').trim().toLowerCase()
-  const resolvedRole = normalizedEmail === 'admin@clipflow.com' ? 'admin' : 'user'
-  const nameFallback = normalizedEmail.split('@')[0] || 'movie-fan'
-
-  return {
-    id: `usr_${normalizedEmail || Math.random().toString(36).slice(2, 10)}`,
-    email: normalizedEmail,
-    displayName: (displayName || '').trim() || nameFallback,
-    avatarUrl: null,
-    role: resolvedRole,
-    hasCompletedOnboarding: false,
-  }
-}
-
-function normalizeSessionPayload(payload, fallbackUser = null) {
-  const userFromPayload = payload?.user || payload?.me || fallbackUser
-  const claims = parseJwtClaims(payload?.accessToken)
-  const roleFromClaims = claims?.role || claims?.roles?.[0]
-
-  if (!userFromPayload) {
-    return null
-  }
-
-  return {
-    accessToken: payload?.accessToken || '',
-    refreshToken: payload?.refreshToken || '',
-    tokenType: payload?.tokenType || 'Bearer',
-    expiresAt: payload?.expiresAt || null,
-    user: {
-      ...userFromPayload,
-      role: userFromPayload.role || roleFromClaims || 'user',
-    },
-  }
+async function requestJsonWithAccess(path, { method = 'GET', body, accessToken } = {}) {
+  return requestJson(path, {
+    method,
+    body,
+    headers:
+      typeof accessToken === 'string' && accessToken.trim()
+        ? { Authorization: `Bearer ${accessToken.trim()}` }
+        : undefined,
+  })
 }
 
 async function apiSignIn(credentials) {
@@ -187,7 +271,7 @@ async function apiSignIn(credentials) {
     body: credentials,
   })
 
-  return normalizeSessionPayload(payload)
+  return assertValidSessionPayload(normalizeSessionPayload(payload), 'Login payload is invalid')
 }
 
 async function apiSignUp(credentials) {
@@ -196,7 +280,7 @@ async function apiSignUp(credentials) {
     body: credentials,
   })
 
-  return normalizeSessionPayload(payload)
+  return assertValidSessionPayload(normalizeSessionPayload(payload), 'Signup payload is invalid')
 }
 
 async function apiRefresh(refreshToken) {
@@ -205,11 +289,11 @@ async function apiRefresh(refreshToken) {
     body: { refreshToken },
   })
 
-  return normalizeSessionPayload(payload)
+  return assertValidSessionPayload(normalizeSessionPayload(payload), 'Refresh payload is invalid')
 }
 
 async function apiMe(accessToken) {
-  return requestJson('/me', { accessToken })
+  return requestJsonWithAccess('/me', { accessToken })
 }
 
 async function refreshSession() {
@@ -218,7 +302,6 @@ async function refreshSession() {
   }
 
   const stored = getStoredSession()
-
   if (!stored?.refreshToken) {
     persistSession(null)
     emitSessionEnded('expired')
@@ -227,26 +310,15 @@ async function refreshSession() {
 
   refreshPromise = (async () => {
     try {
-      if (isApiDataSource()) {
-        const refreshed = await apiRefresh(stored.refreshToken)
-        const me = await apiMe(refreshed?.accessToken || '')
-        const nextSession = normalizeSessionPayload(refreshed, me)
+      const refreshed = await apiRefresh(stored.refreshToken)
+      const me = await apiMe(refreshed.accessToken)
+      const nextSession = assertValidSessionPayload(
+        normalizeSessionPayload(refreshed, me),
+        'Refresh payload is invalid'
+      )
 
-        if (!nextSession?.accessToken) {
-          throw new Error('Refresh payload is invalid')
-        }
-
-        persistSession(nextSession)
-        return nextSession
-      }
-
-      const renewed = {
-        ...stored,
-        accessToken: `mock_access_${Math.random().toString(36).slice(2, 10)}`,
-        expiresAt: new Date(Date.now() + ACCESS_TTL_MS).toISOString(),
-      }
-      persistSession(renewed)
-      return renewed
+      persistSession(nextSession)
+      return nextSession
     } catch {
       persistSession(null)
       emitSessionEnded('expired')
@@ -259,17 +331,73 @@ async function refreshSession() {
   return refreshPromise
 }
 
-const isApiDataSource = () =>
-  String(import.meta.env?.VITE_DATA_SOURCE || '')
-    .trim()
-    .toLowerCase() === 'api'
-
 export const authService = {
   SESSION_ENDED_EVENT,
   isSessionExpired,
   readStoredSession,
   getSession() {
     return getStoredSession()
+  },
+  updateSessionUser(patch) {
+    const session = getStoredSession()
+    if (!session?.user) {
+      return null
+    }
+
+    const nextUser =
+      typeof patch === 'function' ? patch(session.user) : { ...session.user, ...(patch || {}) }
+    const normalizedUser = normalizeSessionUser(nextUser, session.user.role || '')
+
+    if (!normalizedUser) {
+      return null
+    }
+
+    const nextSession = {
+      ...session,
+      user: normalizedUser,
+    }
+
+    persistSession(nextSession)
+    return nextSession
+  },
+  async patchCurrentUser(patch = {}) {
+    const response = await authService.fetchWithAuth('/me', {
+      method: 'PATCH',
+      body: patch,
+    })
+    const payload = await parseJsonResponse(response)
+
+    if (!response.ok) {
+      throw createApiError(resolveApiErrorMessage(payload) + ' (' + response.status + ')', {
+        status: response.status,
+        payload,
+      })
+    }
+
+    const currentSession = getStoredSession()
+    if (!currentSession?.user) {
+      throw createApiError('Session is missing after PATCH /me')
+    }
+
+    const normalizedUser = normalizeSessionUser(
+      {
+        ...currentSession.user,
+        ...(payload || {}),
+      },
+      currentSession.user.role || ''
+    )
+
+    if (!normalizedUser) {
+      throw createApiError('PATCH /me returned invalid user payload')
+    }
+
+    const nextSession = {
+      ...currentSession,
+      user: normalizedUser,
+    }
+
+    persistSession(nextSession)
+    return nextSession
   },
   subscribeToSessionEnded(listener) {
     if (typeof window === 'undefined' || typeof listener !== 'function') {
@@ -287,31 +415,16 @@ export const authService = {
     const session = getStoredSession()
     return session?.accessToken || ''
   },
-
   async signIn({ email, password }) {
-    if (isApiDataSource()) {
-      const session = await apiSignIn({ email, password })
-      persistSession(session)
-      return session
-    }
-
-    const session = createMockSession(createMockUser({ email }))
+    const session = await apiSignIn({ email, password })
     persistSession(session)
     return session
   },
-
   async signUp({ displayName, email, password }) {
-    if (isApiDataSource()) {
-      const session = await apiSignUp({ displayName, email, password })
-      persistSession(session)
-      return session
-    }
-
-    const session = createMockSession(createMockUser({ email, displayName }))
+    const session = await apiSignUp({ displayName, email, password })
     persistSession(session)
     return session
   },
-
   async restoreSession() {
     const stored = getStoredSession()
     if (!stored) {
@@ -329,39 +442,23 @@ export const authService = {
 
     return { session: refreshed, expired: false }
   },
-
   async fetchWithAuth(path, options = {}) {
     const { method = 'GET', query, headers, body } = options
-    const url = new URL(buildUrl(path), window.location.origin)
-
-    if (query && typeof query === 'object') {
-      Object.entries(query).forEach(([key, value]) => {
-        if (value === undefined || value === null || value === '') {
-          return
-        }
-
-        if (Array.isArray(value)) {
-          value.forEach((item) => {
-            url.searchParams.append(key, String(item))
-          })
-          return
-        }
-
-        url.searchParams.set(key, String(value))
-      })
+    const execute = async (accessToken) => {
+      try {
+        return await fetch(buildApiUrl(path, query), {
+          method,
+          headers: {
+            ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+            ...(headers || {}),
+            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+          },
+          body: body === undefined ? undefined : JSON.stringify(body),
+        })
+      } catch (error) {
+        throw createApiError(`Network request failed for ${method} ${path}`, { cause: error })
+      }
     }
-
-    const safeHeaders = { 'Content-Type': 'application/json', ...(headers || {}) }
-
-    const execute = async (accessToken) =>
-      fetch(`${url.pathname}${url.search}`, {
-        method,
-        headers: {
-          ...safeHeaders,
-          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-        },
-        body: body === undefined ? undefined : JSON.stringify(body),
-      })
 
     let session = getStoredSession()
     if (session?.expiresAt && isSessionExpired(session.expiresAt)) {
@@ -375,21 +472,24 @@ export const authService = {
       if (!refreshed?.accessToken) {
         return response
       }
+
       response = await execute(refreshed.accessToken)
     }
 
     return response
   },
-
   async logout() {
     const session = getStoredSession()
 
-    if (isApiDataSource() && session?.refreshToken) {
+    if (session?.refreshToken) {
       try {
         await requestJson('/auth/logout', {
           method: 'POST',
           body: { refreshToken: session.refreshToken },
-          accessToken: session.accessToken,
+          headers:
+            typeof session.accessToken === 'string' && session.accessToken.trim()
+              ? { Authorization: `Bearer ${session.accessToken.trim()}` }
+              : undefined,
         })
       } catch {
         // ignore logout errors

@@ -7,7 +7,7 @@ import { BACKEND_CONSTRAINTS, normalizeWritePayload } from '../services/payload-
 describe('TASK-011: payload normalization for write operations', () => {
   it('exposes mirror backend constraints for write payloads', () => {
     expect(BACKEND_CONSTRAINTS.commentText.maxLength).toBe(500)
-    expect(BACKEND_CONSTRAINTS.userName.maxLength).toBe(50)
+    expect(BACKEND_CONSTRAINTS.authorId.maxLength).toBe(120)
     expect(BACKEND_CONSTRAINTS.clipId.required).toBe(true)
   })
 
@@ -17,15 +17,13 @@ describe('TASK-011: payload normalization for write operations', () => {
       clipId: '  clip-1  ',
       text: longText,
       comments: null,
-      userName: '  A  ',
-      authorId: '   user-123   ',
     })
 
-    expect(payload.clipId).toBe('clip-1')
-    expect(payload.text.length).toBe(BACKEND_CONSTRAINTS.commentText.maxLength)
-    expect(payload.comments).toEqual({})
-    expect(payload.userName).toBeUndefined()
-    expect(payload.authorId).toBe('user-123')
+    expect(payload).toEqual({
+      clipId: 'clip-1',
+      text: 'a'.repeat(BACKEND_CONSTRAINTS.commentText.maxLength),
+      comments: {},
+    })
   })
 
   it('normalizes toggleLike payload before adapter write', () => {

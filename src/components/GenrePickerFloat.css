@@ -167,6 +167,13 @@
   color: var(--accent-pink);
 }
 
+.gpf-error {
+  margin-top: var(--space-xs);
+  padding: 0 var(--space-xs) var(--space-xs);
+  font-size: var(--text-xs);
+  color: #fda4af;
+}
+
 /* Desktop: position relative to feed container */
 @media (min-width: 1024px) {
   .gpf-wrap {

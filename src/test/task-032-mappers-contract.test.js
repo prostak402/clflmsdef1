@@ -10,11 +10,15 @@ const REQUIRED_CLIP_FIELDS = [
   'description',
   'thumbnailUrl',
   'videoUrl',
-  'externalUrl',
+  'watchUrl',
   'durationSec',
   'durationLabel',
+  'rating',
+  'genreIds',
   'genreId',
+  'genreNames',
   'genreName',
+  'genreLabel',
   'likesCount',
   'commentsCount',
   'sharesCount',
@@ -23,16 +27,20 @@ const REQUIRED_CLIP_FIELDS = [
 
 describe('TASK-032: mappers api->ui contract', () => {
   it('maps API clip payload to stable UI clip object with defaults', () => {
-    const genreLookup = createGenreLookup([{ id: 'scifi', name: 'Sci-Fi' }])
+    const genreLookup = createGenreLookup([
+      { id: 'scifi', name: 'Sci-Fi' },
+      { id: 'drama', name: 'Drama' },
+    ])
     const apiPayload = {
       id: 'clip-42',
       title: 'Arrival',
       description: 'First contact scene',
       thumbnailUrl: 'https://cdn.example/poster.jpg',
       videoUrl: 'https://cdn.example/clip.mp4',
-      externalUrl: 'https://movie.example/arrival',
+      watchUrl: 'https://movie.example/arrival',
       durationSec: 125,
-      genreId: 'scifi',
+      rating: 8.1,
+      genreIds: ['scifi', 'drama'],
       likesCount: 21,
       commentsCount: 4,
       sharesCount: 3,
@@ -47,8 +55,12 @@ describe('TASK-032: mappers api->ui contract', () => {
       )
     )
     expect(uiClip.durationLabel).toBe('2m')
+    expect(uiClip.genreId).toBe('scifi')
     expect(uiClip.genreName).toBe('Sci-Fi')
+    expect(uiClip.genreNames).toEqual(['Sci-Fi', 'Drama'])
+    expect(uiClip.genreLabel).toBe('Sci-Fi, Drama')
     expect(uiClip.likesCount).toBe(21)
+    expect(uiClip.rating).toBe(8.1)
   })
 
   it('uses strict API defaults when required clip fields are missing', () => {
@@ -56,9 +68,13 @@ describe('TASK-032: mappers api->ui contract', () => {
 
     expect(uiClip.description).toBe('')
     expect(uiClip.videoUrl).toBe('')
-    expect(uiClip.externalUrl).toBe('#')
+    expect(uiClip.watchUrl).toBe('#')
     expect(uiClip.durationSec).toBe(0)
+    expect(uiClip.rating).toBe(null)
+    expect(uiClip.genreIds).toEqual([])
     expect(uiClip.genreId).toBe('unknown')
+    expect(uiClip.genreNames).toEqual([])
+    expect(uiClip.genreLabel).toBe('Unknown')
     expect(uiClip.likesCount).toBe(0)
     expect(uiClip.sharesCount).toBe(0)
   })
@@ -72,6 +88,7 @@ describe('TASK-032: mappers api->ui contract', () => {
       text: 'Nice scene',
       createdAt: '2025-01-01T00:00:00.000Z',
       likes: 12,
+      likedByViewer: true,
     }
 
     const uiComment = toCommentUiModel(apiComment, 'clip-1')
@@ -83,6 +100,7 @@ describe('TASK-032: mappers api->ui contract', () => {
         authorName: 'Alex',
         text: 'Nice scene',
         likes: 12,
+        likedByViewer: true,
       })
     )
 
@@ -95,6 +113,7 @@ describe('TASK-032: mappers api->ui contract', () => {
       expect.objectContaining({
         clipTitle: 'Arrival',
         isBlockedAuthor: true,
+        likedByViewer: true,
       })
     )
   })

@@ -1,15 +1,16 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+﻿import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+
 import { AppProvider } from './context/AppContext'
 import { useApp } from './context/useApp'
 import AppLayout from './components/AppLayout'
+import AdminCommentsPage from './pages/AdminCommentsPage'
+import AdminPage from './pages/AdminPage'
 import AuthPage from './pages/AuthPage'
-import GenreSelectPage from './pages/GenreSelectPage'
-import FeedPage from './pages/FeedPage'
 import BookmarksPage from './pages/BookmarksPage'
 import CatalogPage from './pages/CatalogPage'
+import FeedPage from './pages/FeedPage'
+import GenreSelectPage from './pages/GenreSelectPage'
 import ProfilePage from './pages/ProfilePage'
-import AdminPage from './pages/AdminPage'
-import AdminCommentsPage from './pages/AdminCommentsPage'
 
 function getDefaultAuthorizedPath(hasCompletedOnboarding) {
   return hasCompletedOnboarding ? '/feed' : '/genres'
@@ -53,9 +54,7 @@ function ProtectedRoute({
     return <Navigate to="/feed" replace />
   }
 
-  const userRole = user?.role || (user?.isAdmin ? 'admin' : 'user')
-
-  if (requireAdmin && userRole !== 'admin') {
+  if (requireAdmin && user?.role !== 'admin') {
     return <Navigate to="/feed" replace />
   }
 
@@ -121,7 +120,6 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
-
       <Route
         path="/admin/comments"
         element={

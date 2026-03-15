@@ -1,54 +1,14 @@
-import { toClipUiList } from './mappers/clip-mapper'
+import { authService } from './auth-service'
+import { createApiError, parseJsonResponse, resolveApiErrorMessage } from './api-client'
+import { normalizeWritePayload } from './payload-normalizer'
 import {
   toCommentUiModel,
   toCommentsMapUiModel,
   toModerationCommentUiList,
 } from './mappers/comment-mapper'
-import { normalizeWritePayload } from './payload-normalizer'
-import { authService } from './auth-service'
+import { toClipUiList } from './mappers/clip-mapper'
 
-
-function shouldSendLegacyCreateCommentAuthorFields() {
-  const rawFlag = import.meta.env?.VITE_API_CREATE_COMMENT_LEGACY_AUTHOR_PAYLOAD
-
-  if (typeof rawFlag !== 'string') {
-    return false
-  }
-
-  return ['1', 'true', 'yes', 'on'].includes(rawFlag.trim().toLowerCase())
-}
-
-async function parseJsonSafe(response) {
-  let raw = ''
-
-  try {
-    raw = await response.text()
-  } catch {
-    return null
-  }
-
-  if (!raw) {
-    return null
-  }
-
-  try {
-    return JSON.parse(raw)
-  } catch {
-    return null
-  }
-}
-
-function resolveApiErrorMessage(payload) {
-  const message = payload?.error?.message || payload?.message
-
-  if (typeof message === 'string' && message.trim()) {
-    return message.trim()
-  }
-
-  return 'API request failed'
-}
-
-async function requestJson(path, { method = 'GET', query, body } = {}) {
+async function requestJsonWithAuth(path, { method = 'GET', query, body } = {}) {
   let response
 
   try {
@@ -58,15 +18,23 @@ async function requestJson(path, { method = 'GET', query, body } = {}) {
       body,
     })
   } catch (error) {
-    throw new Error(`Network request failed for ${method} ${path}`, { cause: error })
+    if (error instanceof Error) {
+      throw error
+    }
+
+    throw createApiError(`Network request failed for ${method} ${path}`, { cause: error })
   }
+
+  const payload = await parseJsonResponse(response)
 
   if (!response.ok) {
-    const payload = await parseJsonSafe(response)
-    throw new Error(`${resolveApiErrorMessage(payload)} (${response.status})`)
+    throw createApiError(`${resolveApiErrorMessage(payload)} (${response.status})`, {
+      status: response.status,
+      payload,
+    })
   }
 
-  return parseJsonSafe(response)
+  return payload
 }
 
 function toggleBooleanMapEntry(map, key) {
@@ -100,6 +68,45 @@ function groupCommentsByClip(comments = []) {
   }, {})
 }
 
+function replaceCommentInMap(commentsMap = {}, clipId, nextComment) {
+  const normalizedComment = toCommentUiModel(nextComment, clipId)
+  const safeComments = commentsMap && typeof commentsMap === 'object' ? commentsMap : {}
+  const clipComments = Array.isArray(safeComments[clipId]) ? safeComments[clipId] : []
+
+  return {
+    ...safeComments,
+    [clipId]: clipComments.map((comment) =>
+      comment.id === normalizedComment.id ? normalizedComment : toCommentUiModel(comment, clipId)
+    ),
+  }
+}
+
+function toggleCommentLikeInMap(commentsMap = {}, clipId, commentId, shouldLike) {
+  const safeComments = commentsMap && typeof commentsMap === 'object' ? commentsMap : {}
+  const clipComments = Array.isArray(safeComments[clipId]) ? safeComments[clipId] : []
+
+  return {
+    ...safeComments,
+    [clipId]: clipComments.map((comment) => {
+      const normalizedComment = toCommentUiModel(comment, clipId)
+
+      if (normalizedComment.id !== commentId) {
+        return normalizedComment
+      }
+
+      const currentLiked = Boolean(normalizedComment.likedByViewer)
+      const nextLiked = typeof shouldLike === 'boolean' ? shouldLike : !currentLiked
+      const delta = nextLiked === currentLiked ? 0 : nextLiked ? 1 : -1
+
+      return {
+        ...normalizedComment,
+        likedByViewer: nextLiked,
+        likes: Math.max(0, normalizedComment.likes + delta),
+      }
+    }),
+  }
+}
+
 function toSafeProfileCount(value) {
   const normalized = Number(value)
 
@@ -120,11 +127,49 @@ function resolveProfileCount(payload, keys = []) {
   return 0
 }
 
+function normalizeSelectedGenres(value) {
+  const normalized = []
+  const seen = new Set()
+
+  ;(Array.isArray(value) ? value : []).forEach((entry) => {
+    if (typeof entry !== 'string') {
+      return
+    }
+
+    const normalizedEntry = entry.trim().toLowerCase()
+    const genreId = normalizedEntry === 'sci-fi' ? 'scifi' : normalizedEntry
+
+    if (!genreId || seen.has(genreId)) {
+      return
+    }
+
+    seen.add(genreId)
+    normalized.push(genreId)
+  })
+
+  return normalized
+}
+
+function normalizeDraftPreferences(value = {}) {
+  const safeValue = value && typeof value === 'object' && !Array.isArray(value) ? value : {}
+
+  return {
+    notificationsEnabled:
+      typeof safeValue.notificationsEnabled === 'boolean' ? safeValue.notificationsEnabled : true,
+    autoplayEnabled:
+      typeof safeValue.autoplayEnabled === 'boolean' ? safeValue.autoplayEnabled : true,
+    preferredLanguage:
+      typeof safeValue.preferredLanguage === 'string' && safeValue.preferredLanguage.trim()
+        ? safeValue.preferredLanguage.trim()
+        : 'en',
+  }
+}
+
 /** @type {import('./feed-adapter').FeedAdapter} */
 export const apiFeedAdapter = {
   async getFeed({ selectedGenres = [] } = {}) {
-    const payload = await requestJson('/feed/clips', {
-      query: selectedGenres.length > 0 ? { genre: selectedGenres } : undefined,
+    const payload = await requestJsonWithAuth('/feed/clips', {
+      query: selectedGenres.length > 0 ? { genreId: selectedGenres } : undefined,
     })
 
     if (Array.isArray(payload)) {
@@ -138,7 +183,7 @@ export const apiFeedAdapter = {
     const payload = normalizeWritePayload('toggleLike', params)
     const method = shouldCreateToggleEntity(payload.likes[payload.clipId]) ? 'POST' : 'DELETE'
 
-    const response = await requestJson(`/clips/${payload.clipId}/like`, {
+    const response = await requestJsonWithAuth(`/clips/${payload.clipId}/like`, {
       method,
     })
 
@@ -155,7 +200,7 @@ export const apiFeedAdapter = {
       ? 'POST'
       : 'DELETE'
 
-    const response = await requestJson(`/clips/${payload.clipId}/bookmark`, {
+    const response = await requestJsonWithAuth(`/clips/${payload.clipId}/bookmark`, {
       method,
     })
 
@@ -166,11 +211,35 @@ export const apiFeedAdapter = {
     return toggleArrayEntry(payload.bookmarks, payload.clipId)
   },
 
+  async toggleCommentLike(params) {
+    const payload = normalizeWritePayload('toggleCommentLike', params)
+    const clipComments = Array.isArray(payload.comments[payload.clipId])
+      ? payload.comments[payload.clipId].map((comment) => toCommentUiModel(comment, payload.clipId))
+      : []
+    const targetComment = clipComments.find((comment) => comment.id === payload.commentId)
+    const method = shouldCreateToggleEntity(targetComment?.likedByViewer) ? 'POST' : 'DELETE'
+
+    const response = await requestJsonWithAuth(`/comments/${payload.commentId}/like`, {
+      method,
+    })
+
+    if (response?.comment) {
+      return replaceCommentInMap(payload.comments, payload.clipId, response.comment)
+    }
+
+    return toggleCommentLikeInMap(
+      payload.comments,
+      payload.clipId,
+      payload.commentId,
+      method === 'POST'
+    )
+  },
+
   async persistLikeToggle(params) {
     const payload = normalizeWritePayload('persistLikeToggle', params)
     const method = payload.shouldLike === false ? 'DELETE' : 'POST'
 
-    await requestJson(`/clips/${payload.clipId}/like`, {
+    await requestJsonWithAuth(`/clips/${payload.clipId}/like`, {
       method,
     })
   },
@@ -179,7 +248,16 @@ export const apiFeedAdapter = {
     const payload = normalizeWritePayload('persistBookmarkToggle', params)
     const method = payload.shouldBookmark === false ? 'DELETE' : 'POST'
 
-    await requestJson(`/clips/${payload.clipId}/bookmark`, {
+    await requestJsonWithAuth(`/clips/${payload.clipId}/bookmark`, {
+      method,
+    })
+  },
+
+  async persistCommentLikeToggle(params) {
+    const payload = normalizeWritePayload('persistCommentLikeToggle', params)
+    const method = payload.shouldLike === false ? 'DELETE' : 'POST'
+
+    await requestJsonWithAuth(`/comments/${payload.commentId}/like`, {
       method,
     })
   },
@@ -187,18 +265,11 @@ export const apiFeedAdapter = {
   async createComment(params) {
     const payload = normalizeWritePayload('createComment', params)
 
-    const requestBody = {
-      body: payload.text,
-    }
-
-    if (shouldSendLegacyCreateCommentAuthorFields()) {
-      requestBody.userName = payload.userName
-      requestBody.authorId = payload.authorId
-    }
-
-    const response = await requestJson(`/clips/${payload.clipId}/comments`, {
+    const response = await requestJsonWithAuth(`/clips/${payload.clipId}/comments`, {
       method: 'POST',
-      body: requestBody,
+      body: {
+        body: payload.text,
+      },
     })
 
     const commentData = response?.comment || response
@@ -211,7 +282,7 @@ export const apiFeedAdapter = {
   },
 
   async getAllCommentsForModeration({ clips = [], blockedUsers = {} } = {}) {
-    const payload = await requestJson('/moderation/comments')
+    const payload = await requestJsonWithAuth('/moderation/comments')
     const rows = Array.isArray(payload?.items)
       ? payload.items
       : Array.isArray(payload)
@@ -224,7 +295,7 @@ export const apiFeedAdapter = {
   async blockUserComments(params) {
     const payload = normalizeWritePayload('blockUserComments', params)
 
-    await requestJson('/moderation/comments/block-user', {
+    await requestJsonWithAuth('/moderation/comments/block-user', {
       method: 'POST',
       body: { authorId: payload.authorId, isBlocked: true },
     })
@@ -238,7 +309,7 @@ export const apiFeedAdapter = {
   async deleteComment(params) {
     const payload = normalizeWritePayload('deleteComment', params)
 
-    await requestJson(`/moderation/comments/${payload.commentId}`, {
+    await requestJsonWithAuth(`/moderation/comments/${payload.commentId}`, {
       method: 'DELETE',
     })
 
@@ -253,7 +324,7 @@ export const apiFeedAdapter = {
   async deleteCommentsByUser(params) {
     const payload = normalizeWritePayload('deleteCommentsByUser', params)
 
-    await requestJson(`/moderation/comments/by-user/${payload.authorId}`, {
+    await requestJsonWithAuth(`/moderation/comments/by-user/${payload.authorId}`, {
       method: 'DELETE',
     })
 
@@ -268,7 +339,7 @@ export const apiFeedAdapter = {
   },
 
   async getCatalog() {
-    const payload = await requestJson('/clips')
+    const payload = await requestJsonWithAuth('/clips')
 
     if (Array.isArray(payload)) {
       return toClipUiList(payload)
@@ -278,7 +349,7 @@ export const apiFeedAdapter = {
   },
 
   async getBookmarks() {
-    const payload = await requestJson('/me/bookmarks')
+    const payload = await requestJsonWithAuth('/me/bookmarks')
 
     if (Array.isArray(payload)) {
       return toClipUiList(payload)
@@ -288,7 +359,7 @@ export const apiFeedAdapter = {
   },
 
   async getProfile({ user } = {}) {
-    const payload = await requestJson('/me')
+    const payload = await requestJsonWithAuth('/me')
 
     const counts = payload?.counts && typeof payload.counts === 'object' ? payload.counts : {}
     const watched =
@@ -297,7 +368,7 @@ export const apiFeedAdapter = {
     return {
       name: payload?.displayName || payload?.name || user?.name || 'Movie Explorer',
       email: payload?.email || user?.email || 'hello@movieexplorer.app',
-      avatar: payload?.avatarUrl || payload?.avatar || user?.avatar || '🎬',
+      avatar: payload?.avatarUrl || payload?.avatar || user?.avatar || 'Movie',
       bookmarkCount:
         resolveProfileCount(payload, ['bookmarkCount', 'bookmarksCount']) ||
         resolveProfileCount(counts, ['bookmarks', 'bookmarkCount']),
@@ -308,13 +379,20 @@ export const apiFeedAdapter = {
         resolveProfileCount(payload, ['watchedCount']) ||
         resolveProfileCount(counts, ['watched', 'watchedCount']) ||
         resolveProfileCount(watched, ['watched', 'clips']),
+      selectedGenres: normalizeSelectedGenres(payload?.selectedGenres || user?.selectedGenres),
+      draftPreferences: normalizeDraftPreferences(payload?.preferences || user?.preferences),
     }
   },
 
   async getInitialComments() {
-    const payload = await requestJson('/comments')
+    const payload = await requestJsonWithAuth('/comments')
 
-    if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+    if (
+      payload &&
+      typeof payload === 'object' &&
+      !Array.isArray(payload) &&
+      !Array.isArray(payload?.items)
+    ) {
       return toCommentsMapUiModel(payload)
     }
 

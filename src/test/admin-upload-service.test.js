@@ -47,7 +47,8 @@ describe('admin-upload-service', () => {
       metadata: {
         title: 'Movie',
         description: 'd',
-        genreId: 'drama',
+        genreIds: ['drama', 'thriller'],
+        rating: 8.5,
         durationSec: 60,
         videoUrl: 'https://cdn/video.mp4',
         thumbnailUrl: 'https://cdn/thumb.jpg',
@@ -66,9 +67,11 @@ describe('admin-upload-service', () => {
     const metadataRequestBody = JSON.parse(globalThis.fetch.mock.calls[3][1].body)
     expect(metadataRequestBody).toEqual(
       expect.objectContaining({
-        genreId: 'drama',
+        genreIds: ['drama', 'thriller'],
+        rating: 8.5,
       })
     )
+    expect(metadataRequestBody).not.toHaveProperty('genreId')
     expect(metadataRequestBody).not.toHaveProperty('genres')
     expect(onUploadProgress).toHaveBeenCalledWith(
       expect.objectContaining({ stage: 'uploading', attempt: 1 })
@@ -99,7 +102,8 @@ describe('admin-upload-service', () => {
         file: { name: 'clip.mp4', type: 'video/mp4', size: 1024 },
         metadata: {
           title: 'Movie',
-          genreId: 'drama',
+          genreIds: ['drama'],
+          rating: 11,
         },
         maxAttempts: 1,
       })

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+﻿import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AlertTriangle } from 'lucide-react'
 import { useApp } from '../context/useApp'
@@ -40,7 +40,7 @@ export default function AdminCommentsPage() {
     setModerationState({ status: 'loading', rows: [], message: '' })
 
     try {
-      const clips = feedService.getFeed({ selectedGenres: [] })
+      const clips = await feedService.getFeed({ selectedGenres: [] })
       const rows = await feedService.getAllCommentsForModeration({
         comments,
         clips,
@@ -63,7 +63,7 @@ export default function AdminCommentsPage() {
 
   const flattenedComments = useMemo(() => moderationState.rows || [], [moderationState.rows])
 
-  if (!user?.isAdmin) {
+  if (user?.role !== 'admin') {
     return (
       <div className="admin-comments-restricted">
         <AlertTriangle size={48} />
@@ -210,7 +210,7 @@ export default function AdminCommentsPage() {
                         {isBlocked && <span className="admin-comments-badge">Blocked</span>}
                       </div>
                     </td>
-                    <td className="admin-comments-text">{row.text || '—'}</td>
+                    <td className="admin-comments-text">{row.text || '-'}</td>
                     <td>
                       <div className="admin-comments-clip">
                         <span>{row.clipTitle}</span>

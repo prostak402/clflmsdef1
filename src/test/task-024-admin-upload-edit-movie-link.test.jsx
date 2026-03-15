@@ -8,15 +8,19 @@ const updateAdminClipMock = vi.fn(() => true)
 
 vi.mock('../context/useApp', () => ({
   useApp: () => ({
-    user: { id: 'admin', isAdmin: true },
+    user: { id: 'admin', role: 'admin' },
+    genres: [{ id: 'drama', name: 'Drama' }],
     adminUploads: [
       {
         id: 'upload_1',
         movieId: 'admin_upload_1',
         title: 'Movie 1',
         description: 'desc',
-        genreId: 'drama',
+        clipDescription: 'desc',
+        watchUrl: 'https://example.com/watch/movie-1',
+        genreIds: ['drama'],
         duration: '',
+        rating: 7.6,
         kinopoiskId: '',
         status: 'failed',
         createdAt: 'now',
@@ -48,7 +52,7 @@ describe('TASK-024: admin upload edit uses movieId', () => {
     expect(screen.getByText('Failed')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: /edit/i }))
-    fireEvent.click(screen.getByRole('button', { name: /save changes/i }))
+    fireEvent.submit(screen.getByRole('button', { name: /save changes/i }).closest('form'))
 
     expect(updateAdminClipMock).toHaveBeenCalledWith('admin_upload_1', expect.any(Object))
   })

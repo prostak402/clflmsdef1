@@ -1,39 +1,38 @@
-# TASK-015 — Модель аутентификации для MVP
+﻿# Auth MVP model
 
-## Выбранный режим релиза
+ClipFlow now uses a single API-backed auth model in local development.
 
-- Для релиза поддерживаются два режима: **mock auth** (`VITE_DATA_SOURCE=mock`) и **API auth** (`VITE_DATA_SOURCE=api`) с backend-сессией.
-- В API-режиме используются endpoint-ы `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `GET /me`; в mock-режиме сохраняется fallback через demo-кнопки.
-- Данные сессии хранятся в `localStorage` в `auth_session_v1`, а UI-state — в `app_state_v1`. При истечении `accessToken` сервис делает refresh; при неуспехе сессия сбрасывается.
+## Storage
 
-## Что считаем авторизацией в MVP
+- Auth session is stored in `localStorage` under `auth_session_v1` and is the only canonical source for auth user state.
+- The canonical auth user includes `role`, `hasCompletedOnboarding`, `selectedGenres`, and backend-backed `preferences`.
+- App UI state is stored separately under `app_state_v1` for non-auth state only.
+- `app_state_v1` keeps local UI data such as bookmarks, likes, blocked comment users, and admin-local lists.
+- Malformed or partial `auth_session_v1` payloads are discarded and treated as signed-out state during bootstrap.
+- Route protection is based on `user !== null`, `user.role`, and `user.hasCompletedOnboarding`.
 
-Авторизованным считается пользователь, у которого в `AppContext` выполнено условие `user !== null`.
+## Session lifecycle
 
-## Действия и разделы, требующие авторизацию
+1. `POST /auth/login` or `POST /auth/signup` returns `accessToken`, `refreshToken`, `expiresAt`, and the canonical `user`.
+2. The frontend persists that session in `auth_session_v1`.
+3. On app startup, `authService.restoreSession()` reads and validates the stored session.
+4. If `expiresAt` is already in the past, the frontend calls `POST /auth/refresh` and then `GET /me`.
+5. Completing onboarding, changing saved genres, and saving profile preferences all call `PATCH /me`, then rewrite `auth_session_v1` from the backend response.
+6. If refresh fails or returns an invalid payload, the frontend clears the session and emits `auth:session-ended` with reason `expired`.
+7. On explicit logout, the frontend calls `POST /auth/logout` on a best-effort basis, clears the session, and emits `auth:session-ended` with reason `logged_out`.
 
-В MVP авторизация обязательна для любого продуктового сценария после входного экрана:
+## Route semantics
 
-- Переход на `/genres` (онбординг жанров).
-- Переход на `/feed` (основная лента).
-- Переход на `/bookmarks`, `/catalog`, `/profile`, `/admin`.
-- Интеракции с контентом:
-  - лайк клипа;
-  - добавление/удаление закладки;
-  - добавление комментария.
+- Anonymous user: only `/` is allowed.
+- Authenticated user without onboarding: `/genres` is allowed, product routes redirect back to `/genres`.
+- Authenticated user with onboarding: `/feed`, `/bookmarks`, `/catalog`, and `/profile` are allowed.
+- Admin routes require `user.role === 'admin'`.
 
-## UX для неаутентифицированного пользователя
+## Demo accounts
 
-- Неаутентифицированный пользователь видит только `AuthPage` (`/`).
-- При попытке открыть защищённый маршрут пользователь автоматически редиректится на `/`.
-- Любая контентная интеракция без сессии блокируется на уровне `AppContext`:
-  - `toggleLike` возвращает `false`;
-  - `toggleBookmark` возвращает `false`;
-  - `addComment` возвращает `{ ok: false, error: 'auth_required' }`.
+The local backend seeds two users:
 
-## Единое поведение auth/unauth (Definition of Done)
+- `user@local.dev` / `demo-password`
+- `admin@local.dev` / `demo-password`
 
-- Маршруты защищены единым `ProtectedRoute`.
-- Состояние авторизации единообразно задаётся через `AppContext.user` + `authStatus` (`checking|authenticated|anonymous`).
-- Доменные действия с контентом проверяют авторизацию и не изменяют состояние без активной сессии.
-- Поведение покрыто тестами: redirect matrix (unauth/user/admin), lifecycle истечения сессии и logout, блокировка действий в контексте.
+These accounts go through the same auth endpoints and return the same canonical `User` shape as every other local user.

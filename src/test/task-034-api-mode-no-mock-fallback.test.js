@@ -1,34 +1,46 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
-
-const JSON_HEADERS = { 'Content-Type': 'application/json' }
+﻿import { afterEach, describe, expect, it, vi } from 'vitest'
 
 function jsonResponse(payload) {
-  return new Response(JSON.stringify(payload), { status: 200, headers: JSON_HEADERS })
+  return new Response(JSON.stringify(payload), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  })
 }
 
-describe('task-034 api mode cutover without mock fallback', () => {
+function pathnames(fetchSpy) {
+  return fetchSpy.mock.calls.map(([url]) => new URL(url).pathname + new URL(url).search)
+}
+
+describe('task-034 api-only cutover without mock fallback', () => {
   afterEach(() => {
     vi.restoreAllMocks()
-    vi.unstubAllEnvs()
     vi.resetModules()
+    vi.unstubAllEnvs()
   })
 
-  it('wires createFeedAdapter(api) directly to api adapter', async () => {
+  it('wires createFeedAdapter directly to the api adapter regardless of env', async () => {
+    vi.stubEnv('VITE_DATA_SOURCE', 'mock')
+
     const { createFeedAdapter } = await import('../services/create-feed-adapter')
     const { apiFeedAdapter } = await import('../services/api-feed-adapter')
 
-    const adapter = createFeedAdapter('api')
-
-    expect(adapter).toBe(apiFeedAdapter)
+    expect(createFeedAdapter()).toBe(apiFeedAdapter)
   })
 
-  it('keeps feed/comments/moderation flows on API adapter when VITE_DATA_SOURCE=api', async () => {
-    vi.stubEnv('VITE_DATA_SOURCE', 'api')
-
+  it('keeps feed/comments/moderation flows on the api adapter', async () => {
     const fetchSpy = vi
       .spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(
-        jsonResponse({ items: [{ id: 'clip_1', title: 'Clip', genreId: 'drama' }] })
+        jsonResponse({
+          items: [
+            {
+              id: 'clip_1',
+              title: 'Clip',
+              genreId: 'drama',
+              watchUrl: 'https://example.com/watch',
+            },
+          ],
+        })
       )
       .mockResolvedValueOnce(jsonResponse({ items: [] }))
       .mockResolvedValueOnce(jsonResponse({ items: [] }))
@@ -43,20 +55,10 @@ describe('task-034 api mode cutover without mock fallback', () => {
       feedService.getAllCommentsForModeration({ clips: [], blockedUsers: {} })
     ).resolves.toEqual([])
 
-    expect(fetchSpy).toHaveBeenNthCalledWith(
-      1,
-      '/api/v1/feed/clips?genre=drama',
-      expect.objectContaining({ method: 'GET' })
-    )
-    expect(fetchSpy).toHaveBeenNthCalledWith(
-      2,
+    expect(pathnames(fetchSpy)).toEqual([
+      '/api/v1/feed/clips?genreId=drama',
       '/api/v1/comments',
-      expect.objectContaining({ method: 'GET' })
-    )
-    expect(fetchSpy).toHaveBeenNthCalledWith(
-      3,
       '/api/v1/moderation/comments',
-      expect.objectContaining({ method: 'GET' })
-    )
+    ])
   })
 })

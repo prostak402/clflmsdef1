@@ -1,30 +1,49 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  Bookmark,
+  ExternalLink,
+  Heart,
+  Info,
+  MessageCircle,
+  Play,
+  Share2,
+  Star,
+  Volume2,
+  VolumeX,
+} from 'lucide-react'
+
 import { useApp } from '../context/useApp'
-import { feedService } from '../services/feed-service'
 import {
   EVENT_NAMES,
   EVENT_SOURCE,
   EVENT_SURFACE,
   VIEW_THRESHOLD,
 } from '../services/analytics/events'
-import {
-  Heart,
-  MessageCircle,
-  Share2,
-  Bookmark,
-  Play,
-  Volume2,
-  VolumeX,
-  Star,
-  ExternalLink,
-  Info,
-} from 'lucide-react'
+import { feedService } from '../services/feed-service'
 import './ClipCard.css'
 
 function formatCount(num) {
-  if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'
-  if (num >= 1000) return (num / 1000).toFixed(1) + 'K'
-  return num.toString()
+  const normalized = Number(num) || 0
+
+  if (normalized >= 1000000) {
+    return (normalized / 1000000).toFixed(1) + 'M'
+  }
+
+  if (normalized >= 1000) {
+    return (normalized / 1000).toFixed(1) + 'K'
+  }
+
+  return normalized.toString()
+}
+
+function formatRatingLabel(rating) {
+  const normalized = Number(rating)
+
+  if (!Number.isFinite(normalized) || normalized < 0 || normalized > 10) {
+    return 'NR'
+  }
+
+  return Number.isInteger(normalized) ? normalized.toFixed(0) : normalized.toFixed(1)
 }
 
 const THRESHOLDS = [
@@ -61,12 +80,13 @@ export default function ClipCard({
 
   const clipVideoUrl = clip.videoUrl
   const clipThumbnailUrl = clip.thumbnailUrl
-  const clipWatchUrl = clip.externalUrl
+  const clipWatchUrl = clip.watchUrl || '#'
   const clipDescription = clip.description
-  const clipLikesCount = clip.likesCount
-  const clipCommentsCount = clip.commentsCount
-  const clipSharesCount = clip.sharesCount
-  const clipBookmarksCount = clip.bookmarksCount
+  const clipLikesCount = Number(clip.likesCount) || 0
+  const clipCommentsCount = Number(clip.commentsCount) || 0
+  const clipSharesCount = Number(clip.sharesCount) || 0
+  const clipBookmarksCount = Number(clip.bookmarksCount) || 0
+  const clipRatingLabel = formatRatingLabel(clip.rating)
 
   const trackEvent = useCallback(
     (event, payload) => {
@@ -123,15 +143,18 @@ export default function ClipCard({
   }, [feedRequestId, getWatchStats, impressionId, trackEvent])
 
   useEffect(() => {
-    if (!videoRef.current) return
+    if (!videoRef.current) {
+      return
+    }
 
     if (isActive) {
       videoRef.current.play().catch(() => {})
-    } else {
-      emitViewEndedRef.current('scrolled_away')
-      videoRef.current.currentTime = 0
-      videoRef.current.pause()
+      return
     }
+
+    emitViewEndedRef.current('scrolled_away')
+    videoRef.current.currentTime = 0
+    videoRef.current.pause()
   }, [isActive])
 
   useEffect(() => {
@@ -145,7 +168,9 @@ export default function ClipCard({
   }, [impressionId])
 
   const handleTimeUpdate = () => {
-    if (!videoRef.current) return
+    if (!videoRef.current) {
+      return
+    }
 
     const currentProgress = videoRef.current.currentTime
     setProgress(currentProgress)
@@ -169,7 +194,9 @@ export default function ClipCard({
   }
 
   const handleLoadedMetadata = () => {
-    if (!videoRef.current) return
+    if (!videoRef.current) {
+      return
+    }
 
     const video = videoRef.current
     setDuration(video.duration || 0)
@@ -184,14 +211,20 @@ export default function ClipCard({
   }
 
   const handleSeek = (event) => {
-    if (!videoRef.current) return
+    if (!videoRef.current) {
+      return
+    }
+
     const newTime = Number(event.target.value)
     videoRef.current.currentTime = newTime
     setProgress(newTime)
   }
 
   const togglePlay = () => {
-    if (!videoRef.current) return
+    if (!videoRef.current) {
+      return
+    }
+
     if (playing) {
       videoRef.current.pause()
       return
@@ -201,28 +234,30 @@ export default function ClipCard({
   }
 
   const handleShare = async () => {
+    const shareUrl = clipWatchUrl && clipWatchUrl !== '#' ? clipWatchUrl : window.location.href
     const shareData = {
       title: clip.title,
       text: `Check out "${clip.title}" on ClipFlow!`,
-      url: clipWatchUrl,
+      url: shareUrl,
     }
+
     try {
       if (navigator.share) {
         await navigator.share(shareData)
       } else {
-        await navigator.clipboard.writeText(clipWatchUrl)
+        await navigator.clipboard.writeText(shareUrl)
         setShareToast(true)
         setTimeout(() => setShareToast(false), 2000)
       }
     } catch {
-      await navigator.clipboard.writeText(clipWatchUrl)
+      await navigator.clipboard.writeText(shareUrl)
       setShareToast(true)
       setTimeout(() => setShareToast(false), 2000)
     }
   }
 
   const handleWatch = () => {
-    if (!clipWatchUrl) {
+    if (!clipWatchUrl || clipWatchUrl === '#') {
       return
     }
 
@@ -242,8 +277,7 @@ export default function ClipCard({
   }
 
   return (
-    <div className="clip-card">
-      {/* Video */}
+    <div className="clip-card" data-testid={`clip-card-${clip.id}`}>
       <div className="clip-video-wrap" onClick={togglePlay}>
         <video
           ref={videoRef}
@@ -270,7 +304,6 @@ export default function ClipCard({
           }}
         />
 
-        {/* Play/Pause overlay */}
         {!playing && (
           <div className="clip-play-overlay">
             <div className="clip-play-btn">
@@ -279,7 +312,6 @@ export default function ClipCard({
           </div>
         )}
 
-        {/* Gradient overlays */}
         <div className="clip-gradient-top" />
         <div className="clip-gradient-bottom" />
       </div>
@@ -292,23 +324,24 @@ export default function ClipCard({
           max={duration || 0}
           step="0.01"
           value={Math.min(progress, duration || 0)}
-          onClick={(e) => e.stopPropagation()}
+          onClick={(event) => event.stopPropagation()}
           onChange={handleSeek}
           style={{ '--clip-progress': duration ? `${(progress / duration) * 100}%` : '0%' }}
           aria-label={`Seek ${clip.title}`}
         />
       </div>
 
-      {/* Top bar */}
       <div className="clip-top-bar">
         <div className="clip-badge glass">
           <Star size={12} fill="#f59e0b" color="#f59e0b" />
-          <span>{clip.durationLabel}</span>
+          <span>{clipRatingLabel}</span>
         </div>
         <button
+          type="button"
           className="clip-mute-btn glass"
-          onClick={(e) => {
-            e.stopPropagation()
+          aria-label={muted ? `Unmute ${clip.title}` : `Mute ${clip.title}`}
+          onClick={(event) => {
+            event.stopPropagation()
             setMuted(!muted)
           }}
         >
@@ -316,9 +349,13 @@ export default function ClipCard({
         </button>
       </div>
 
-      {/* Right action bar */}
       <div className="clip-actions">
-        <button className={`clip-action-btn ${isLiked ? 'liked' : ''}`} onClick={handleToggleLike}>
+        <button
+          type="button"
+          className={`clip-action-btn ${isLiked ? 'liked' : ''}`}
+          aria-label={isLiked ? `Unlike ${clip.title}` : `Like ${clip.title}`}
+          onClick={handleToggleLike}
+        >
           <div className="clip-action-icon">
             <Heart
               size={26}
@@ -332,7 +369,9 @@ export default function ClipCard({
         </button>
 
         <button
+          type="button"
           className="clip-action-btn"
+          aria-label={`Comments for ${clip.title}`}
           onClick={() => onOpenComments({ clipId: clip.id, impressionId, position })}
         >
           <div className="clip-action-icon">
@@ -342,7 +381,9 @@ export default function ClipCard({
         </button>
 
         <button
+          type="button"
           className={`clip-action-btn ${isBookmarked ? 'bookmarked' : ''}`}
+          aria-label={isBookmarked ? `Remove ${clip.title} from saved` : `Save ${clip.title}`}
           onClick={handleToggleBookmark}
         >
           <div className="clip-action-icon">
@@ -355,66 +396,80 @@ export default function ClipCard({
           <span className="clip-action-count">{formatCount(clipBookmarksCount)}</span>
         </button>
 
-        <button className="clip-action-btn" onClick={handleShare}>
+        <button
+          type="button"
+          className="clip-action-btn"
+          aria-label={`Share ${clip.title}`}
+          onClick={handleShare}
+        >
           <div className="clip-action-icon">
             <Share2 size={24} />
           </div>
           <span className="clip-action-count">{formatCount(clipSharesCount)}</span>
         </button>
 
-        <button className="clip-action-btn" onClick={() => setShowInfo(!showInfo)}>
+        <button
+          type="button"
+          className="clip-action-btn"
+          aria-label={`Details for ${clip.title}`}
+          onClick={() => setShowInfo(!showInfo)}
+        >
           <div className="clip-action-icon">
             <Info size={24} />
           </div>
         </button>
       </div>
 
-      {/* Bottom info */}
       <div className="clip-info">
         <h2 className="clip-movie-title">{clip.title}</h2>
         <p className="clip-movie-desc">{clipDescription}</p>
         <div className="clip-meta">
-          <span className="clip-year">{clip.genreName}</span>
-          <span className="clip-separator">•</span>
+          <span className="clip-year">{clip.genreLabel || clip.genreName}</span>
+          <span className="clip-separator">|</span>
           <span className="clip-duration">{clip.durationLabel}</span>
         </div>
 
-        <button className="clip-watch-btn" onClick={handleWatch}>
+        <button
+          type="button"
+          className="clip-watch-btn"
+          aria-label={`Watch ${clip.title}`}
+          onClick={handleWatch}
+        >
           <ExternalLink size={16} />
           <span>Watch Full Movie</span>
         </button>
       </div>
 
-      {/* Movie detail panel */}
       {showInfo && (
         <div className="clip-detail-panel glass-strong" onClick={() => setShowInfo(false)}>
-          <div className="clip-detail-content" onClick={(e) => e.stopPropagation()}>
+          <div className="clip-detail-content" onClick={(event) => event.stopPropagation()}>
             <div className="clip-detail-header">
               <img src={clipThumbnailUrl} alt={clip.title} className="clip-detail-poster" />
               <div className="clip-detail-info">
                 <h3>{clip.title}</h3>
                 <p className="clip-detail-meta">
-                  {clip.genreName} • {clip.durationLabel}
+                  {clip.genreLabel || clip.genreName} | {clip.durationLabel}
                 </p>
                 <div className="clip-detail-genres">
-                  <span className="clip-detail-genre">{clip.genreName}</span>
+                  <span className="clip-detail-genre">{clip.genreLabel || clip.genreName}</span>
                 </div>
               </div>
             </div>
             <p className="clip-detail-desc">{clip.description}</p>
             <div className="clip-detail-actions">
-              <button className="clip-detail-watch" onClick={handleWatch}>
+              <button type="button" className="clip-detail-watch" onClick={handleWatch}>
                 <ExternalLink size={18} />
                 Watch Full Movie
               </button>
               <button
+                type="button"
                 className={`clip-detail-bookmark ${isBookmarked ? 'active' : ''}`}
                 onClick={handleToggleBookmark}
               >
                 <Bookmark size={18} fill={isBookmarked ? 'currentColor' : 'none'} />
                 {isBookmarked ? 'Saved' : 'Save'}
               </button>
-              <button className="clip-detail-share" onClick={handleShare}>
+              <button type="button" className="clip-detail-share" onClick={handleShare}>
                 <Share2 size={18} />
                 Share
               </button>
@@ -423,7 +478,6 @@ export default function ClipCard({
         </div>
       )}
 
-      {/* Share toast */}
       {shareToast && <div className="clip-toast glass-strong">Link copied to clipboard!</div>}
     </div>
   )

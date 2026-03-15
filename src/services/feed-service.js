@@ -374,6 +374,14 @@ export const feedService = {
       operation: () => feedAdapter.toggleBookmark(normalizeWritePayload('toggleBookmark', params)),
     })
   },
+  toggleCommentLike(params) {
+    return runWithApiErrorLogging({
+      endpoint: 'POST /comments/:commentId/like',
+      payload: params,
+      operation: () =>
+        feedAdapter.toggleCommentLike(normalizeWritePayload('toggleCommentLike', params)),
+    })
+  },
   createComment(params) {
     return runWithApiErrorLogging({
       endpoint: 'POST /clips/:clipId/comments',
@@ -467,6 +475,27 @@ export const feedService = {
       persist: () =>
         feedAdapter.persistBookmarkToggle(
           normalizeWritePayload('persistBookmarkToggle', { clipId, shouldBookmark })
+        ),
+    })
+  },
+
+  async optimisticToggleCommentLike({
+    clipId,
+    commentId,
+    shouldLike,
+    applyLocal,
+    rollbackLocal,
+    requestId,
+    correlationId,
+  }) {
+    return performOptimisticUpdate({
+      endpoint: 'POST /comments/:commentId/like/persist',
+      payload: { clipId, commentId, requestId, correlationId },
+      applyLocal,
+      rollbackLocal,
+      persist: () =>
+        feedAdapter.persistCommentLikeToggle(
+          normalizeWritePayload('persistCommentLikeToggle', { commentId, shouldLike })
         ),
     })
   },

@@ -167,6 +167,15 @@
   color: var(--accent-pink);
 }
 
+.comment-like.liked {
+  color: var(--accent-pink);
+}
+
+.comment-like:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
 .comments-input {
   display: flex;
   gap: var(--space-sm);

@@ -11,8 +11,11 @@ const INITIAL_UPLOAD = {
   movieId: 'admin_upload_1',
   title: 'Original title',
   description: 'Original movie description',
-  genreId: 'drama',
+  clipDescription: 'Original movie description',
+  watchUrl: 'https://example.com/watch/original-title',
+  genreIds: ['drama', 'thriller'],
   duration: '120m',
+  rating: 8.1,
   kinopoiskId: '101',
   status: 'ready',
   createdAt: 'now',
@@ -53,7 +56,11 @@ vi.mock('../context/useApp', async () => {
       }
 
       return {
-        user: { id: 'admin', isAdmin: true },
+        user: { id: 'admin', role: 'admin' },
+        genres: [
+          { id: 'drama', name: 'Drama' },
+          { id: 'thriller', name: 'Thriller' },
+        ],
         adminUploads,
         addAdminClip: vi.fn(),
         updateAdminClip,
@@ -78,7 +85,7 @@ describe('TASK-028: admin clip editing UI', () => {
     updateAdminClipSpy.mockClear()
   })
 
-  it('opens edit form with prefilled data', () => {
+  it('opens edit form with prefilled multi-genre data', () => {
     renderAdminPage()
 
     fireEvent.click(screen.getAllByRole('button', { name: /edit/i })[0])
@@ -88,21 +95,28 @@ describe('TASK-028: admin clip editing UI', () => {
     expect(screen.getByPlaceholderText('Full movie description...')).toHaveValue(
       'Original movie description'
     )
+    expect(screen.getByPlaceholderText('8.5')).toHaveValue(8.1)
+    expect(screen.getByRole('button', { name: 'Drama' })).toHaveClass('active')
+    expect(screen.getByRole('button', { name: 'Thriller' })).toHaveClass('active')
   })
 
-  it('saves edit through updateAdminClip and refreshes upload list', async () => {
+  it('saves edit through updateAdminClip and keeps full genreIds payload', async () => {
     renderAdminPage()
 
     fireEvent.click(screen.getAllByRole('button', { name: /edit/i })[0])
     fireEvent.change(screen.getByPlaceholderText('Enter movie title'), {
       target: { value: 'Updated title' },
     })
+    fireEvent.click(screen.getByRole('button', { name: 'Thriller' }))
 
-    fireEvent.click(screen.getByRole('button', { name: /save changes/i }))
+    fireEvent.submit(screen.getByRole('button', { name: /save changes/i }).closest('form'))
 
     expect(updateAdminClipSpy).toHaveBeenCalledWith(
       'admin_upload_1',
-      expect.objectContaining({ title: 'Updated title' })
+      expect.objectContaining({
+        title: 'Updated title',
+        genreIds: ['drama'],
+      })
     )
 
     await waitFor(() => {

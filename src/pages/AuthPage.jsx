@@ -1,26 +1,37 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/useApp'
 import { Film, Mail, Lock, User, Eye, EyeOff, ArrowRight } from 'lucide-react'
 import './AuthPage.css'
+
+const DEMO_PASSWORD = 'demo-password'
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true)
   const [showPassword, setShowPassword] = useState(false)
   const [formData, setFormData] = useState({ name: '', email: '', password: '' })
   const [loading, setLoading] = useState(false)
+  const [submitError, setSubmitError] = useState('')
   const { user, hasCompletedOnboarding, login, sessionExpired } = useApp()
   const navigate = useNavigate()
 
   useEffect(() => {
-    if (!user) return
-    navigate(hasCompletedOnboarding ? '/feed' : '/genres', { replace: true })
-  }, [user, hasCompletedOnboarding, navigate])
+    if (!user) {
+      return
+    }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    if (loading) return
+    navigate(hasCompletedOnboarding ? '/feed' : '/genres', { replace: true })
+  }, [hasCompletedOnboarding, navigate, user])
+
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+    if (loading) {
+      return
+    }
+
     setLoading(true)
+    setSubmitError('')
+
     try {
       await login(
         isLogin
@@ -33,6 +44,26 @@ export default function AuthPage() {
             }
       )
       navigate('/genres')
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : 'Authentication failed.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const signInDemo = async (email) => {
+    if (loading) {
+      return
+    }
+
+    setLoading(true)
+    setSubmitError('')
+
+    try {
+      await login({ email, password: DEMO_PASSWORD, mode: 'signin' })
+      navigate('/genres')
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : 'Authentication failed.')
     } finally {
       setLoading(false)
     }
@@ -74,6 +105,7 @@ export default function AuthPage() {
           {sessionExpired && (
             <p className="auth-session-expired">Session expired. Please sign in again.</p>
           )}
+          {submitError && <p className="auth-session-expired">{submitError}</p>}
 
           <form className="auth-form" onSubmit={handleSubmit}>
             {!isLogin && (
@@ -84,7 +116,7 @@ export default function AuthPage() {
                     type="text"
                     placeholder="Your name"
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(event) => setFormData({ ...formData, name: event.target.value })}
                     required={!isLogin}
                   />
                 </div>
@@ -98,7 +130,7 @@ export default function AuthPage() {
                   type="email"
                   placeholder="Email address"
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  onChange={(event) => setFormData({ ...formData, email: event.target.value })}
                   required
                 />
               </div>
@@ -111,7 +143,7 @@ export default function AuthPage() {
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Password"
                   value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  onChange={(event) => setFormData({ ...formData, password: event.target.value })}
                   required
                 />
                 <button
@@ -146,28 +178,11 @@ export default function AuthPage() {
           </div>
 
           <div className="auth-social">
-            <button
-              className="auth-social-btn glass"
-              onClick={() => {
-                login({
-                  name: 'Demo User',
-                  email: 'demo@clipflow.com',
-                  avatar: null,
-                  isAdmin: false,
-                })
-                navigate('/genres')
-              }}
-            >
+            <button className="auth-social-btn glass" onClick={() => signInDemo('user@local.dev')}>
               <span className="auth-social-icon">🎬</span>
               <span>Demo Account</span>
             </button>
-            <button
-              className="auth-social-btn glass"
-              onClick={() => {
-                login({ name: 'Admin', email: 'admin@clipflow.com', avatar: null, isAdmin: true })
-                navigate('/genres')
-              }}
-            >
+            <button className="auth-social-btn glass" onClick={() => signInDemo('admin@local.dev')}>
               <span className="auth-social-icon">👑</span>
               <span>Admin Demo</span>
             </button>

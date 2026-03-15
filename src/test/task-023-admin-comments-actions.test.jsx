@@ -4,9 +4,22 @@ import { MemoryRouter } from 'react-router-dom'
 
 import AdminCommentsPage from '../pages/AdminCommentsPage'
 
+const DEFAULT_ROWS = [
+  {
+    id: 'c1',
+    clipId: 'clip1',
+    clipTitle: 'Clip #1',
+    authorId: 'author-1',
+    authorName: 'Author One',
+    text: 'Needs moderation',
+    createdAt: '2026-01-01T10:00:00.000Z',
+    isBlockedAuthor: false,
+  },
+]
+
 const { mockUseAppState, mockFeedService } = vi.hoisted(() => ({
   mockUseAppState: {
-    user: { id: 'admin-1', name: 'Admin', isAdmin: true },
+    user: { id: 'admin-1', name: 'Admin', role: 'admin' },
     comments: {
       clip1: [
         {
@@ -25,19 +38,8 @@ const { mockUseAppState, mockFeedService } = vi.hoisted(() => ({
     deleteCommentsByUser: vi.fn(),
   },
   mockFeedService: {
-    getFeed: vi.fn(() => [{ id: 'clip1', title: 'Clip #1' }]),
-    getAllCommentsForModeration: vi.fn(() => [
-      {
-        id: 'c1',
-        clipId: 'clip1',
-        clipTitle: 'Clip #1',
-        authorId: 'author-1',
-        authorName: 'Author One',
-        text: 'Needs moderation',
-        createdAt: '2026-01-01T10:00:00.000Z',
-        isBlockedAuthor: false,
-      },
-    ]),
+    getFeed: vi.fn(),
+    getAllCommentsForModeration: vi.fn(),
   },
 }))
 
@@ -65,6 +67,27 @@ describe('TASK-023: admin moderation actions states', () => {
     cleanup()
     vi.clearAllMocks()
     vi.spyOn(window, 'confirm').mockReturnValue(true)
+
+    mockUseAppState.user = { id: 'admin-1', name: 'Admin', role: 'admin' }
+    mockUseAppState.comments = {
+      clip1: [
+        {
+          id: 'c1',
+          clipId: 'clip1',
+          authorId: 'author-1',
+          authorName: 'Author One',
+          text: 'Needs moderation',
+          createdAt: '2026-01-01T10:00:00.000Z',
+        },
+      ],
+    }
+    mockUseAppState.blockedCommentUsers = {}
+    mockUseAppState.blockUserComments.mockResolvedValue(true)
+    mockUseAppState.deleteComment.mockResolvedValue(true)
+    mockUseAppState.deleteCommentsByUser.mockResolvedValue(true)
+
+    mockFeedService.getFeed.mockResolvedValue([{ id: 'clip1', title: 'Clip #1' }])
+    mockFeedService.getAllCommentsForModeration.mockResolvedValue(DEFAULT_ROWS)
   })
 
   it('shows loading and empty states for moderation list', async () => {

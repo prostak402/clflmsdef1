@@ -35,6 +35,16 @@ function formatTimeLabel(createdAt, fallbackTimeLabel = 'Just now') {
   return `${days} day${days === 1 ? '' : 's'} ago`
 }
 
+function toSafeLikeCount(value) {
+  const normalized = Number(value)
+
+  if (!Number.isFinite(normalized) || normalized < 0) {
+    return 0
+  }
+
+  return Math.trunc(normalized)
+}
+
 export function normalizeComment(comment = {}, clipId = '') {
   const hasValidCreatedAt = isIsoDateString(comment.createdAt)
   const resolvedCreatedAt = hasValidCreatedAt ? comment.createdAt : new Date().toISOString()
@@ -63,9 +73,10 @@ export function normalizeComment(comment = {}, clipId = '') {
         : 'anonymous',
     authorName,
     avatar:
-      typeof comment.avatar === 'string' && comment.avatar.trim() ? comment.avatar.trim() : '👤',
+      typeof comment.avatar === 'string' && comment.avatar.trim() ? comment.avatar.trim() : 'Movie',
     text: typeof comment.text === 'string' ? comment.text : '',
-    likes: Number.isFinite(comment.likes) ? comment.likes : 0,
+    likes: toSafeLikeCount(comment.likes),
+    likedByViewer: Boolean(comment.likedByViewer),
     createdAt: resolvedCreatedAt,
     timeLabel: hasValidCreatedAt
       ? formatTimeLabel(resolvedCreatedAt, fallbackTimeLabel)

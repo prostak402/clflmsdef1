@@ -1,17 +1,15 @@
-import { useState, useEffect, useCallback } from 'react'
-import { useApp } from '../context/useApp'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Bookmark, ExternalLink, Trash2, Share2 } from 'lucide-react'
-import { feedService } from '../services/feed-service'
-import { contentService } from '../services/content-service'
+import { useApp } from '../context/useApp'
 import { createGenreLookup, toClipViewModel } from '../services/clip-view-model'
+import { feedService } from '../services/feed-service'
 import DataState from '../components/DataState'
 import './BookmarksPage.css'
 
-const GENRE_LOOKUP = createGenreLookup(contentService.getGenres())
-
 export default function BookmarksPage() {
-  const { getBookmarkedClips, toggleBookmark } = useApp()
+  const { getBookmarkedClips, toggleBookmark, genres = [] } = useApp()
+  const genreLookup = useMemo(() => createGenreLookup(genres), [genres])
   const navigate = useNavigate()
   const [clips, setClips] = useState([])
   const [loadState, setLoadState] = useState({ status: 'loading', error: '' })
@@ -22,12 +20,14 @@ export default function BookmarksPage() {
     try {
       await feedService.wait(250)
       const items = await getBookmarkedClips()
-      setClips((Array.isArray(items) ? items : []).map((clip) => toClipViewModel(clip, GENRE_LOOKUP)))
+      setClips(
+        (Array.isArray(items) ? items : []).map((clip) => toClipViewModel(clip, genreLookup))
+      )
       setLoadState({ status: 'ready', error: '' })
     } catch {
       setLoadState({ status: 'error', error: 'Failed to load bookmarks.' })
     }
-  }, [getBookmarkedClips])
+  }, [genreLookup, getBookmarkedClips])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -40,9 +40,9 @@ export default function BookmarksPage() {
   const handleShare = async (clip) => {
     try {
       if (navigator.share) {
-        await navigator.share({ title: clip.title, url: clip.externalUrl })
+        await navigator.share({ title: clip.title, url: clip.watchUrl })
       } else {
-        await navigator.clipboard.writeText(clip.externalUrl)
+        await navigator.clipboard.writeText(clip.watchUrl)
       }
     } catch {
       // user cancelled share
@@ -52,7 +52,7 @@ export default function BookmarksPage() {
   const handleRemoveBookmark = async (clipId) => {
     await toggleBookmark(clipId)
     const items = await getBookmarkedClips()
-    setClips((Array.isArray(items) ? items : []).map((clip) => toClipViewModel(clip, GENRE_LOOKUP)))
+    setClips((Array.isArray(items) ? items : []).map((clip) => toClipViewModel(clip, genreLookup)))
   }
 
   return (
@@ -111,7 +111,7 @@ export default function BookmarksPage() {
                 <div className="bookmark-poster-overlay">
                   <button
                     className="bookmark-play"
-                    onClick={() => window.open(clip.externalUrl, '_blank')}
+                    onClick={() => window.open(clip.watchUrl, '_blank')}
                   >
                     <ExternalLink size={20} />
                   </button>
@@ -120,17 +120,17 @@ export default function BookmarksPage() {
               <div className="bookmark-info">
                 <h3 className="bookmark-title">{clip.title}</h3>
                 <div className="bookmark-meta">
-                  <span className="bookmark-year">{clip.genreName}</span>
+                  <span className="bookmark-year">{clip.genreLabel || clip.genreName}</span>
                   <span className="bookmark-rating">{clip.durationLabel}</span>
                 </div>
                 <p className="bookmark-desc">{clip.description}</p>
                 <div className="bookmark-genres">
-                  <span className="bookmark-genre">{clip.genreName}</span>
+                  <span className="bookmark-genre">{clip.genreLabel || clip.genreName}</span>
                 </div>
                 <div className="bookmark-actions">
                   <button
                     className="bookmark-action-btn watch"
-                    onClick={() => window.open(clip.externalUrl, '_blank')}
+                    onClick={() => window.open(clip.watchUrl, '_blank')}
                   >
                     <ExternalLink size={14} />
                     Watch

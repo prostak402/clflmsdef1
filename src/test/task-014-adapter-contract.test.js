@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
 import { feedService } from '../services/feed-service'
-import { contentService } from '../services/content-service'
 import { createGenreLookup, toClipViewModel } from '../services/clip-view-model'
 
 const REQUIRED_CLIP_VM_FIELDS = [
@@ -10,19 +9,34 @@ const REQUIRED_CLIP_VM_FIELDS = [
   'description',
   'thumbnailUrl',
   'videoUrl',
-  'externalUrl',
+  'watchUrl',
   'durationSec',
   'durationLabel',
+  'genreIds',
   'genreId',
+  'genreNames',
   'genreName',
+  'genreLabel',
   'likesCount',
   'commentsCount',
   'sharesCount',
   'bookmarksCount',
 ]
 
-const REQUIRED_PROFILE_FIELDS = ['name', 'email', 'avatar', 'bookmarkCount', 'likeCount']
-const GENRE_LOOKUP = createGenreLookup(contentService.getGenres())
+const REQUIRED_PROFILE_FIELDS = [
+  'name',
+  'email',
+  'avatar',
+  'bookmarkCount',
+  'likeCount',
+  'selectedGenres',
+  'draftPreferences',
+]
+const GENRE_LOOKUP = createGenreLookup([
+  { id: 'action', name: 'Action' },
+  { id: 'drama', name: 'Drama' },
+  { id: 'scifi', name: 'Sci-Fi' },
+])
 
 describe('TASK-014: feed adapter response contract', () => {
   it('maps feed items to clip view-model with stable API-compatible fields', async () => {
@@ -41,6 +55,9 @@ describe('TASK-014: feed adapter response contract', () => {
     expect(typeof firstClipVm.id).toBe('string')
     expect(typeof firstClipVm.title).toBe('string')
     expect(typeof firstClipVm.durationSec).toBe('number')
+    expect(Array.isArray(firstClipVm.genreIds)).toBe(true)
+    expect(Array.isArray(firstClipVm.genreNames)).toBe(true)
+    expect(typeof firstClipVm.genreLabel).toBe('string')
     expect(typeof firstClipVm.likesCount).toBe('number')
     expect(typeof firstClipVm.commentsCount).toBe('number')
     expect(typeof firstClipVm.bookmarksCount).toBe('number')
@@ -63,5 +80,13 @@ describe('TASK-014: feed adapter response contract', () => {
     expect(typeof profile.avatar).toBe('string')
     expect(typeof profile.bookmarkCount).toBe('number')
     expect(typeof profile.likeCount).toBe('number')
+    expect(Array.isArray(profile.selectedGenres)).toBe(true)
+    expect(profile.draftPreferences).toEqual(
+      expect.objectContaining({
+        notificationsEnabled: expect.any(Boolean),
+        autoplayEnabled: expect.any(Boolean),
+        preferredLanguage: expect.any(String),
+      })
+    )
   })
 })

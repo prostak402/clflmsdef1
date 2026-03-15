@@ -13,7 +13,8 @@ vi.mock('../services/admin-upload-service', () => ({
 
 vi.mock('../context/useApp', () => ({
   useApp: () => ({
-    user: { id: 'admin', isAdmin: true },
+    user: { id: 'admin', role: 'admin' },
+    genres: [{ id: 'drama', name: 'Drama' }],
     adminUploads: [],
     addAdminClip: addAdminClipMock,
     updateAdminClip: vi.fn(() => true),
@@ -48,6 +49,18 @@ describe('TASK-030: admin upload retry UX', () => {
     fireEvent.change(screen.getByPlaceholderText('Enter movie title'), {
       target: { value: 'Movie' },
     })
+    fireEvent.change(screen.getByPlaceholderText('8.5'), {
+      target: { value: '7.8' },
+    })
+    fireEvent.change(screen.getByPlaceholderText('Full movie description...'), {
+      target: { value: 'Movie description' },
+    })
+    fireEvent.change(screen.getByPlaceholderText('Short clip description...'), {
+      target: { value: 'Clip description' },
+    })
+    fireEvent.change(screen.getByPlaceholderText('https://example.com/watch'), {
+      target: { value: 'https://movie.example/watch/retry' },
+    })
     fireEvent.click(screen.getByRole('button', { name: 'Drama' }))
 
     const videoUploadZone = screen.getByText('Choose video file').closest('.admin-upload-zone')
@@ -73,6 +86,8 @@ describe('TASK-030: admin upload retry UX', () => {
       expect(addAdminClipMock).toHaveBeenCalledTimes(1)
     })
 
-    expect(addAdminClipMock).toHaveBeenCalledWith(expect.objectContaining({ status: 'ready' }))
+    expect(addAdminClipMock).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'ready', rating: 7.8 })
+    )
   })
 })

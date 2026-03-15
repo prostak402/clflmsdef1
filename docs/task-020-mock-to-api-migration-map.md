@@ -1,8 +1,10 @@
-# TASK-020 — Карта миграции `mock.js` → API schemas
+# TASK-020 — Historical mock dataset → API schema migration map
 
-Цель: перевести фронтенд с `src/data/mock.js` на контракт из `docs/api-contract.md` без потерь по пользовательским сценариям (лента, каталог, комментарии, лайки, закладки, профиль).
+_Status: completed migration record. Runtime mock dataset, mock adapter, and selector-based fallback are removed from the API-only baseline._
 
-## 1) Мэппинг `src/data/mock.js` → сущности API
+Цель: перевести фронтенд с legacy mock dataset на контракт из `docs/api-contract.md` без потерь по пользовательским сценариям (лента, каталог, комментарии, лайки, закладки, профиль).
+
+## 1) Мэппинг legacy mock dataset → сущности API
 
 ## 1.1 `GENRES` → `Genre`
 
@@ -108,26 +110,14 @@
 1. **Multi-genre (`genres[]`) vs `genreId`** — в API один жанр на клип.
 2. **Нет полей movie metadata** (`year`, `rating`, `director`) — потеря контента на карточке/каталоге.
 3. **Нет `watchUrl` и `sharesCount`** — UX-функции недоописаны контрактом.
-4. **Комментарий хранит только `authorId`** — нужен join/expand автора в ответах (`author` объект) или дополнительный запрос.
-
----
-
-## 3) План миграции по этапам
-
-1. **Freeze текущей формы данных**
-   - Зафиксировать текущие shape-типизации в адаптере (JSDoc/contract tests).
-2. **Ввести слой нормализации API → UI model**
-   - Централизованный mapper `apiClipToViewModel`, `apiCommentToViewModel`, `apiGenreToViewModel`.
-3. **Сделать обратный mapper для операций записи**
-   - `createComment`, toggles like/bookmark, фильтры по жанрам.
-4. **Переключить read-path по флагу**
-   - Фича-флаг `VITE_DATA_SOURCE` (`mock` / `api`); mock оставить fallback.
+4. **Read-path cutover completed**
+   - Runtime is API-only; selector-based switching and runtime data-source selector support are removed.
 5. **Переключить write-path**
    - Лайки/закладки/комментарии через реальные endpoints + optimistic update.
 6. **Удалить mock-only поля из UI-потребления**
    - Убрать использование `year/rating/director/watchUrl/shares` или заменить на API-backed поля.
-7. **Final cleanup**
-   - Удалить `src/data/mock.js` после стабилизации и прохождения smoke/regression.
+7. **Final cleanup completed**
+   - Legacy mock dataset and adapter were removed after the regression baseline stabilized.
 
 ---
 
@@ -196,33 +186,30 @@
 
 ### 5.1 Текущий прогресс по DoD
 
-| Пункт DoD                                  | Статус  | Подтверждение (файлы/модули)                                                                                                                                                                             |
-| ------------------------------------------ | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Поля `mock.js` размечены по статусам       | ✅ Done | Разделы 1.1–1.4 этого документа фиксируют `keep/rename/remove/transform` для жанров, клипов, комментариев и профиля.                                                                                     |
-| UI не зависит от mock-only полей           | ✅ Done | Каталог и профиль читаются через сервисы (`src/services/content-service.js`, `src/services/feed-service.js`), UI использует нормализованные поля (`genreName`, `durationLabel`).                         |
-| Seed покрывает ключевые сценарии           | ✅ Done | Seed и smoke-проверки backend фиксируют сценарии feed/comments/bookmarks/profile/moderation (`scripts/db/seed.py`, `src/test/backend-api-smoke.test.js`).                                                |
-| Read/write флоу через единый adapter layer | ✅ Done | Единый API adapter закрывает feed/comments/likes/bookmarks/moderation/profile (`src/services/api-feed-adapter.js`, `src/services/feed-service.js`), catalog — через `content-service`.                   |
-| Mock отключаем без деградации              | ✅ Done | Cutover-check пройден в API-режиме (`VITE_DATA_SOURCE=api`): подтверждены критические сценарии auth/onboarding/feed/likes-bookmarks/comments/admin moderation и добавлен регрессионный smoke `task-034`. |
+| Пункт DoD                                  | Статус  | Подтверждение (файлы/модули)                                                                                                                                                           |
+| ------------------------------------------ | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Поля `mock.js` размечены по статусам       | ✅ Done | Разделы 1.1–1.4 этого документа фиксируют `keep/rename/remove/transform` для жанров, клипов, комментариев и профиля.                                                                   |
+| UI не зависит от mock-only полей           | ✅ Done | Каталог и профиль читаются через сервисы (`src/services/content-service.js`, `src/services/feed-service.js`), UI использует нормализованные поля (`genreName`, `durationLabel`).       |
+| Seed покрывает ключевые сценарии           | ✅ Done | Seed и smoke-проверки backend фиксируют сценарии feed/comments/bookmarks/profile/moderation (`scripts/db/seed.py`, `src/test/backend-api-smoke.test.js`).                              |
+| Read/write флоу через единый adapter layer | ✅ Done | Единый API adapter закрывает feed/comments/likes/bookmarks/moderation/profile (`src/services/api-feed-adapter.js`, `src/services/feed-service.js`), catalog — через `content-service`. |
+| API-only runtime baseline                  | ✅ Done | Application runs in a single API-only mode; runtime selector and mock fallback were removed.                                                                                           |
 
 ### 5.2 Открытые блокеры
 
 На текущем этапе блокеры по cutover `mock.js` отсутствуют; дальнейшие риски относятся к post-cutover задачам (реальная auth-модель и media pipeline).
 
-### 5.3 Критерий "`mock.js` отключается без деградации" и условия проверки
-
 **Критерий считается выполненным, если одновременно выполнены условия:**
 
-1. Приложение запускается с `VITE_DATA_SOURCE=api`, без импортов/вызовов `src/data/mock.js` в runtime-пути пользовательских экранов.
-2. Smoke-проход на API-режиме подтверждает read/write для: feed, comments, likes/bookmarks, moderation, profile, catalog.
-3. UX-паритет сохранён: ключевые экраны (`/`, `/catalog`, `/bookmarks`, `/profile`, `/admin`) открываются без ошибок и с корректными fallback-значениями UI-моделей.
-4. Переключение обратно в `mock` остаётся доступным как rollback-механизм до финального удаления `mock.js`.
+1. Приложение запускается без runtime-переключателя источника данных, а legacy mock fallback отсутствует в коде.
+2. Smoke-проход в API-only режиме подтверждает read/write для feed, comments, likes/bookmarks, moderation, profile и catalog.
+3. UX-паритет сохранён: ключевые экраны (/, /catalog, /bookmarks, /profile, /admin) открываются без ошибок и с корректными API-backed fallback-значениями.
 
 **Минимальная проверка (Definition of Verification):**
 
 - Запуск unit/integration: `npm run test` (включая `api-feed-adapter` и мапперы).
 - Запуск backend smoke: `npm run test:smoke` (или `src/test/backend-api-smoke.test.js`) с проверкой endpoint-ов `feed/comments/bookmarks/me/moderation`.
 - Ручной smoke маршрутов в API-режиме: `/`, `/catalog`, `/bookmarks`, `/profile`, `/admin/comments`.
-- Контрольный чек: в DevTools/логах нет обращений к `mockFeedAdapter` при `VITE_DATA_SOURCE=api`.
+- Контрольный чек: в runtime-коде отсутствуют импорты удалённых mock-модулей и нет зависимости от selector-based data source switching.
 
 ---
 
@@ -350,19 +337,18 @@
 
 ### 6.4 Применение в адаптерах
 
-- `api-feed-adapter` и `mock-feed-adapter` обязаны возвращать одинаковую UI-форму через shared mapper-функции.
+- `api-feed-adapter` возвращает единую UI-форму через shared mapper-функции.
 - Компоненты UI не должны дублировать fallback-логику для этих полей; fallback централизован в `src/services/mappers/*`.
-
 
 ## 10) Новый baseline после cutover
 
-- `src/data/mock.js` и `src/services/mock-feed-adapter.js` удалены из runtime-пути.
+- legacy mock dataset и legacy mock adapter module удалены из runtime-пути.
 - `createFeedAdapter` всегда возвращает `apiFeedAdapter`; fallback на mock больше не существует.
 - `toClipUiModel` и `normalizeComment` работают по API-контракту без legacy/mock alias-полей (`clipDescription`, `poster`, `clipUrl`, `watchUrl`, `time`, `user`).
 - Для UI-иконок/цветов жанров используется фронтовый справочник `src/constants/genre-ui-meta.js`, а список жанров в onboarding/admin/catalog — `src/constants/genres.js` (без зависимости от mock dataset).
 
 ### Acceptance baseline
 
-1. Runtime-импорты `src/data/mock.js` отсутствуют.
-2. Runtime-импорты `src/services/mock-feed-adapter.js` отсутствуют.
+1. Runtime imports of removed legacy mock modules are absent.
+2. Adapter/service runtime depends only on the API adapter path.
 3. Тесты сервисов/мапперов валидируют API-only поведение и дефолты без mock payload-веток.

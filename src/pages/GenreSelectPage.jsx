@@ -1,8 +1,6 @@
-import { useNavigate } from 'react-router-dom'
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/useApp'
-import { contentService } from '../services/content-service'
-import { GENRE_SELECTION_MIN, GENRE_SELECTION_MAX } from '../constants/onboarding'
 import { getGenreUiMeta } from '../constants/genre-ui-meta'
 import {
   Sword,
@@ -19,6 +17,7 @@ import {
   Compass,
   ArrowRight,
   Sparkles,
+  CheckCheck,
 } from 'lucide-react'
 import './GenreSelectPage.css'
 
@@ -38,41 +37,50 @@ const ICON_MAP = {
 }
 
 export default function GenreSelectPage() {
-  const { selectedGenres, toggleGenre, setHasCompletedOnboarding } = useApp()
+  const {
+    genres = [],
+    selectedGenres,
+    toggleGenre,
+    selectAllGenres = () => {},
+    setHasCompletedOnboarding,
+  } = useApp()
   const navigate = useNavigate()
-  const [error, setError] = useState('')
 
+  const [submitError, setSubmitError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const selectionCount = selectedGenres.length
-  const canContinue = selectionCount >= GENRE_SELECTION_MIN && selectionCount <= GENRE_SELECTION_MAX
+  const totalGenres = genres.length
+  const allGenresSelected = totalGenres > 0 && selectionCount === totalGenres
+  const canContinue = true
 
   const helperText = useMemo(() => {
-    if (selectionCount < GENRE_SELECTION_MIN) {
-      return `Choose at least ${GENRE_SELECTION_MIN} genres to continue`
+    if (selectionCount === 0) {
+      return 'No genres selected. Feed will show all clips.'
     }
 
-    return `${selectionCount} genres selected`
-  }, [selectionCount])
+    if (allGenresSelected) {
+      return 'All genres selected'
+    }
 
-  const handleToggleGenre = (genreId) => {
-    const isSelected = selectedGenres.includes(genreId)
+    return `${selectionCount} genre${selectionCount === 1 ? '' : 's'} selected`
+  }, [allGenresSelected, selectionCount])
 
-    if (!isSelected && selectionCount >= GENRE_SELECTION_MAX) {
-      setError(`You can choose up to ${GENRE_SELECTION_MAX} genres`)
+  const handleContinue = async () => {
+    if (isSubmitting) {
       return
     }
 
-    setError('')
-    toggleGenre(genreId)
-  }
+    setSubmitError('')
+    setIsSubmitting(true)
 
-  const handleContinue = () => {
-    if (selectionCount < GENRE_SELECTION_MIN) {
-      setError(`Please choose at least ${GENRE_SELECTION_MIN} genres`)
-      return
+    try {
+      await setHasCompletedOnboarding(true)
+      navigate('/feed')
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : 'Failed to complete onboarding.')
+    } finally {
+      setIsSubmitting(false)
     }
-
-    setHasCompletedOnboarding(true)
-    navigate('/feed')
   }
 
   return (
@@ -92,7 +100,7 @@ export default function GenreSelectPage() {
         </div>
 
         <div className="genre-grid">
-          {contentService.getGenres().map((genre, index) => {
+          {genres.map((genre, index) => {
             const { icon, color } = getGenreUiMeta(genre.id)
             const Icon = ICON_MAP[icon] || Film
             const isSelected = selectedGenres.includes(genre.id)
@@ -100,7 +108,7 @@ export default function GenreSelectPage() {
               <button
                 key={genre.id}
                 className={`genre-chip ${isSelected ? 'selected' : ''}`}
-                onClick={() => handleToggleGenre(genre.id)}
+                onClick={() => toggleGenre(genre.id)}
                 style={{
                   '--chip-color': color,
                   '--chip-delay': `${index * 50}ms`,
@@ -129,16 +137,23 @@ export default function GenreSelectPage() {
         </div>
 
         <div className="genre-footer">
+          <div className="genre-footer-actions">
+            <button
+              type="button"
+              className="genre-select-all"
+              onClick={selectAllGenres}
+              disabled={totalGenres === 0 || allGenresSelected}
+            >
+              <CheckCheck size={18} />
+              <span>{allGenresSelected ? 'All selected' : 'Select all genres'}</span>
+            </button>
+          </div>
           <p className="genre-count">{helperText}</p>
-          {error && (
-            <p className="genre-error" role="alert">
-              {error}
-            </p>
-          )}
+          {submitError && <p className="genre-error">{submitError}</p>}
           <button
             className={`genre-continue ${canContinue ? 'active' : ''}`}
             onClick={handleContinue}
-            disabled={!canContinue}
+            disabled={!canContinue || isSubmitting}
           >
             <span>Explore clips</span>
             <ArrowRight size={20} />

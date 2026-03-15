@@ -10,12 +10,7 @@ const BACKEND_CONSTRAINTS = Object.freeze({
     maxLength: 500,
     trim: true,
   }),
-  userName: Object.freeze({
-    required: false,
-    minLength: 2,
-    maxLength: 50,
-    trim: true,
-  }),
+
   authorId: Object.freeze({
     required: false,
     minLength: 2,
@@ -58,22 +53,6 @@ function normalizeCommentText(value) {
   }
 
   return text.slice(0, maxLength)
-}
-
-function normalizeUserName(value) {
-  const userName = normalizeString(value)
-
-  if (!userName) {
-    return undefined
-  }
-
-  const { minLength, maxLength } = BACKEND_CONSTRAINTS.userName
-
-  if (userName.length < minLength) {
-    return undefined
-  }
-
-  return userName.slice(0, maxLength)
 }
 
 function normalizeCommentId(value) {
@@ -135,13 +114,24 @@ export function normalizeWritePayload(operation, payload = {}) {
         bookmarks: Array.isArray(payload.bookmarks) ? payload.bookmarks : [],
       }
 
+    case 'toggleCommentLike':
+      return {
+        clipId: normalizeClipId(payload.clipId),
+        commentId: normalizeCommentId(payload.commentId),
+        comments: payload.comments && typeof payload.comments === 'object' ? payload.comments : {},
+      }
+
+    case 'persistCommentLikeToggle':
+      return {
+        commentId: normalizeCommentId(payload.commentId),
+        ...(typeof payload.shouldLike === 'boolean' ? { shouldLike: payload.shouldLike } : {}),
+      }
+
     case 'createComment':
       return {
         clipId: normalizeClipId(payload.clipId),
         text: normalizeCommentText(payload.text),
         comments: payload.comments && typeof payload.comments === 'object' ? payload.comments : {},
-        userName: normalizeUserName(payload.userName),
-        authorId: normalizeAuthorId(payload.authorId),
       }
 
     case 'blockUserComments': {

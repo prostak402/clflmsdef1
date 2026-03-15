@@ -1,24 +1,21 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest'
-import { render, screen, cleanup } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
 import GenreSelectPage from '../pages/GenreSelectPage'
 
-vi.mock('../services/content-service', () => ({
-  contentService: {
-    getGenres: vi.fn(() => [
-      { id: 'action', name: 'Action' },
-      { id: 'mystery', name: 'Mystery' },
-    ]),
-  },
-}))
+const mockUseAppState = {
+  genres: [
+    { id: 'action', name: 'Action' },
+    { id: 'mystery', name: 'Mystery' },
+  ],
+  selectedGenres: [],
+  toggleGenre: vi.fn(),
+  setHasCompletedOnboarding: vi.fn(),
+}
 
 vi.mock('../context/useApp', () => ({
-  useApp: () => ({
-    selectedGenres: [],
-    toggleGenre: vi.fn(),
-    setHasCompletedOnboarding: vi.fn(),
-  }),
+  useApp: () => mockUseAppState,
 }))
 
 describe('TASK-022: genre page UI meta fallback', () => {

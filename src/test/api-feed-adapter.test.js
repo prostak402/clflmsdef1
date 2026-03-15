@@ -2,6 +2,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { apiFeedAdapter } from '../services/api-feed-adapter'
 
+function pathnameOf(url) {
+  return new URL(url).pathname + new URL(url).search
+}
+
 describe('apiFeedAdapter write contract', () => {
   afterEach(() => {
     vi.restoreAllMocks()
@@ -18,13 +22,10 @@ describe('apiFeedAdapter write contract', () => {
 
     await apiFeedAdapter.getFeed()
 
-    expect(fetchSpy).toHaveBeenCalledWith(
-      '/api/v1/feed/clips',
-      expect.objectContaining({ method: 'GET' })
-    )
+    expect(pathnameOf(fetchSpy.mock.calls[0][0])).toBe('/api/v1/feed/clips')
   })
 
-  it('loads catalog from GET /clips in api mode', async () => {
+  it('loads catalog from GET /clips', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(
         JSON.stringify({
@@ -34,6 +35,8 @@ describe('apiFeedAdapter write contract', () => {
               title: 'Catalog Item',
               genreId: 'drama',
               durationSec: 5400,
+              rating: 8.4,
+              watchUrl: 'https://movie.example/catalog-item',
             },
           ],
         }),
@@ -43,14 +46,12 @@ describe('apiFeedAdapter write contract', () => {
 
     const catalog = await apiFeedAdapter.getCatalog()
 
-    expect(fetchSpy).toHaveBeenCalledWith(
-      '/api/v1/clips',
-      expect.objectContaining({ method: 'GET' })
-    )
+    expect(pathnameOf(fetchSpy.mock.calls[0][0])).toBe('/api/v1/clips')
     expect(catalog).toEqual([
       expect.objectContaining({
         id: 'clip-1',
         title: 'Catalog Item',
+        rating: 8.4,
       }),
     ])
   })
@@ -88,10 +89,8 @@ describe('apiFeedAdapter write contract', () => {
 
     await apiFeedAdapter.toggleLike({ clipId: 'clip-1', likes: { 'clip-1': false } })
 
-    expect(fetchSpy).toHaveBeenCalledWith(
-      '/api/v1/clips/clip-1/like',
-      expect.objectContaining({ method: 'POST' })
-    )
+    expect(pathnameOf(fetchSpy.mock.calls[0][0])).toBe('/api/v1/clips/clip-1/like')
+    expect(fetchSpy.mock.calls[0][1]).toEqual(expect.objectContaining({ method: 'POST' }))
   })
 
   it('uses DELETE /like when clip is currently liked', async () => {
@@ -101,10 +100,8 @@ describe('apiFeedAdapter write contract', () => {
 
     await apiFeedAdapter.toggleLike({ clipId: 'clip-1', likes: { 'clip-1': true } })
 
-    expect(fetchSpy).toHaveBeenCalledWith(
-      '/api/v1/clips/clip-1/like',
-      expect.objectContaining({ method: 'DELETE' })
-    )
+    expect(pathnameOf(fetchSpy.mock.calls[0][0])).toBe('/api/v1/clips/clip-1/like')
+    expect(fetchSpy.mock.calls[0][1]).toEqual(expect.objectContaining({ method: 'DELETE' }))
   })
 
   it('uses POST/DELETE for bookmark toggle based on current local state', async () => {
@@ -116,15 +113,73 @@ describe('apiFeedAdapter write contract', () => {
     await apiFeedAdapter.toggleBookmark({ clipId: 'clip-1', bookmarks: [] })
     await apiFeedAdapter.toggleBookmark({ clipId: 'clip-1', bookmarks: ['clip-1'] })
 
-    expect(fetchSpy).toHaveBeenNthCalledWith(
-      1,
-      '/api/v1/clips/clip-1/bookmark',
-      expect.objectContaining({ method: 'POST' })
+    expect(pathnameOf(fetchSpy.mock.calls[0][0])).toBe('/api/v1/clips/clip-1/bookmark')
+    expect(fetchSpy.mock.calls[0][1]).toEqual(expect.objectContaining({ method: 'POST' }))
+    expect(pathnameOf(fetchSpy.mock.calls[1][0])).toBe('/api/v1/clips/clip-1/bookmark')
+    expect(fetchSpy.mock.calls[1][1]).toEqual(expect.objectContaining({ method: 'DELETE' }))
+  })
+
+  it('uses POST/DELETE for comment like toggle and returns updated comment state', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            comment: {
+              id: 'cm_1',
+              clipId: 'clip-1',
+              likes: 4,
+              likedByViewer: true,
+            },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            comment: {
+              id: 'cm_1',
+              clipId: 'clip-1',
+              likes: 3,
+              likedByViewer: false,
+            },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      )
+
+    const initialComments = {
+      'clip-1': [
+        {
+          id: 'cm_1',
+          clipId: 'clip-1',
+          text: 'Hello',
+          likes: 3,
+          likedByViewer: false,
+        },
+      ],
+    }
+
+    const likedComments = await apiFeedAdapter.toggleCommentLike({
+      clipId: 'clip-1',
+      commentId: 'cm_1',
+      comments: initialComments,
+    })
+    const unlikedComments = await apiFeedAdapter.toggleCommentLike({
+      clipId: 'clip-1',
+      commentId: 'cm_1',
+      comments: likedComments,
+    })
+
+    expect(pathnameOf(fetchSpy.mock.calls[0][0])).toBe('/api/v1/comments/cm_1/like')
+    expect(fetchSpy.mock.calls[0][1]).toEqual(expect.objectContaining({ method: 'POST' }))
+    expect(fetchSpy.mock.calls[1][1]).toEqual(expect.objectContaining({ method: 'DELETE' }))
+    expect(likedComments['clip-1'][0]).toEqual(
+      expect.objectContaining({ likes: 4, likedByViewer: true })
     )
-    expect(fetchSpy).toHaveBeenNthCalledWith(
-      2,
-      '/api/v1/clips/clip-1/bookmark',
-      expect.objectContaining({ method: 'DELETE' })
+    expect(unlikedComments['clip-1'][0]).toEqual(
+      expect.objectContaining({ likes: 3, likedByViewer: false })
     )
   })
 
@@ -138,6 +193,7 @@ describe('apiFeedAdapter write contract', () => {
             text: 'Hello',
             authorName: 'Backend User',
             authorId: 'author-from-backend',
+            likedByViewer: false,
             createdAt: '2026-01-01T00:00:00Z',
           },
         }),
@@ -149,12 +205,10 @@ describe('apiFeedAdapter write contract', () => {
       clipId: ' clip-1 ',
       text: '  Hello  ',
       comments: { 'clip-1': [] },
-      userName: '  John  ',
-      authorId: 'local-author',
     })
 
-    expect(fetchSpy).toHaveBeenCalledWith(
-      '/api/v1/clips/clip-1/comments',
+    expect(pathnameOf(fetchSpy.mock.calls[0][0])).toBe('/api/v1/clips/clip-1/comments')
+    expect(fetchSpy.mock.calls[0][1]).toEqual(
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({
@@ -169,46 +223,7 @@ describe('apiFeedAdapter write contract', () => {
         text: 'Hello',
         authorName: 'Backend User',
         authorId: 'author-from-backend',
-      })
-    )
-  })
-
-  it('supports temporary legacy createComment payload mode via explicit env flag', async () => {
-    vi.stubEnv('VITE_API_CREATE_COMMENT_LEGACY_AUTHOR_PAYLOAD', 'true')
-
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          comment: {
-            id: 'cm_legacy',
-            clipId: 'clip-1',
-            text: 'Legacy payload mode',
-            authorName: 'Backend User',
-            authorId: 'backend-author',
-            createdAt: '2026-01-01T00:00:00Z',
-          },
-        }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } }
-      )
-    )
-
-    await apiFeedAdapter.createComment({
-      clipId: 'clip-1',
-      text: 'Legacy payload mode',
-      comments: { 'clip-1': [] },
-      userName: 'Legacy User',
-      authorId: 'legacy-author-id',
-    })
-
-    expect(fetchSpy).toHaveBeenCalledWith(
-      '/api/v1/clips/clip-1/comments',
-      expect.objectContaining({
-        method: 'POST',
-        body: JSON.stringify({
-          body: 'Legacy payload mode',
-          userName: 'Legacy User',
-          authorId: 'legacy-author-id',
-        }),
+        likedByViewer: false,
       })
     )
   })
@@ -219,6 +234,12 @@ describe('apiFeedAdapter write contract', () => {
         JSON.stringify({
           displayName: 'API User',
           email: 'api@example.com',
+          selectedGenres: ['action', 'drama'],
+          preferences: {
+            notificationsEnabled: false,
+            autoplayEnabled: false,
+            preferredLanguage: 'ru',
+          },
           counts: {
             bookmarks: 11,
             likes: 7,
@@ -238,10 +259,16 @@ describe('apiFeedAdapter write contract', () => {
     expect(profile).toEqual({
       name: 'API User',
       email: 'api@example.com',
-      avatar: '🎬',
+      avatar: 'Movie',
       bookmarkCount: 11,
       likeCount: 7,
       watchedCount: 5,
+      selectedGenres: ['action', 'drama'],
+      draftPreferences: {
+        notificationsEnabled: false,
+        autoplayEnabled: false,
+        preferredLanguage: 'ru',
+      },
     })
   })
 
@@ -258,10 +285,16 @@ describe('apiFeedAdapter write contract', () => {
     expect(profile).toEqual({
       name: 'Movie Explorer',
       email: 'hello@movieexplorer.app',
-      avatar: '🎬',
+      avatar: 'Movie',
       bookmarkCount: 0,
       likeCount: 0,
       watchedCount: 0,
+      selectedGenres: [],
+      draftPreferences: {
+        notificationsEnabled: true,
+        autoplayEnabled: true,
+        preferredLanguage: 'en',
+      },
     })
   })
 

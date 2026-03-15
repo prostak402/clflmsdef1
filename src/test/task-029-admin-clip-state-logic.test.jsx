@@ -89,7 +89,7 @@ function createBaseState() {
         id: 'admin_upload_1',
         title: 'Movie One',
         rating: 0,
-        genreId: 'drama',
+        genreIds: ['drama'],
         poster: '',
         description: 'desc 1',
         duration: '100m',
@@ -100,7 +100,7 @@ function createBaseState() {
         id: 'admin_upload_2',
         title: 'Movie Two',
         rating: 0,
-        genreId: 'action',
+        genreIds: ['action'],
         poster: '',
         description: 'desc 2',
         duration: '90m',
@@ -119,7 +119,7 @@ describe('TASK-029: AppContext admin clip state logic', () => {
       getCurrent().addAdminClip({
         title: 'Contract Clip',
         description: 'contract description',
-        genreId: 'comedy',
+        genreIds: ['comedy'],
         durationSec: 90,
         duration: '1m',
         videoUrl: 'https://cdn.example.com/clip.mp4',
@@ -127,6 +127,7 @@ describe('TASK-029: AppContext admin clip state logic', () => {
         externalUrl: 'https://cinema.example.com/watch/contract',
         watchUrl: 'https://cinema.example.com/watch/contract',
         clipDescription: 'contract clip description',
+        rating: 8.4,
       })
     })
 
@@ -136,12 +137,14 @@ describe('TASK-029: AppContext admin clip state logic', () => {
     expect(createdUpload).toBeTruthy()
     expect(createdUpload).toEqual(
       expect.objectContaining({
-        genreId: 'comedy',
+        genreIds: ['comedy'],
         durationSec: 90,
         watchUrl: 'https://cinema.example.com/watch/contract',
         clipDescription: 'contract clip description',
+        rating: 8.4,
       })
     )
+    expect(createdUpload).not.toHaveProperty('genreId')
     expect(createdUpload).not.toHaveProperty('year')
     expect(createdUpload).not.toHaveProperty('director')
     expect(createdUpload).toHaveProperty('watchUrl')
@@ -150,21 +153,25 @@ describe('TASK-029: AppContext admin clip state logic', () => {
     await act(async () => {
       const updated = getCurrent().updateAdminClip(createdUpload.movieId, {
         title: 'Contract Clip Updated',
-        genreId: 'drama',
+        genreIds: ['drama', 'thriller'],
         durationSec: 120,
+        rating: 9.1,
       })
       expect(updated).toBe(true)
     })
 
     const editedUpload = getCurrent().adminUploads.find((upload) => upload.id === createdUpload.id)
+    expect(editedUpload).not.toHaveProperty('genreId')
     expect(editedUpload).toEqual(
       expect.objectContaining({
         title: 'Contract Clip Updated',
-        genreId: 'drama',
+        genreIds: ['drama', 'thriller'],
         durationSec: 120,
+        rating: 9.1,
       })
     )
   })
+
   it('updateAdminClip updates only target clip', async () => {
     const { getCurrent } = await renderAppContextWithState(createBaseState())
 

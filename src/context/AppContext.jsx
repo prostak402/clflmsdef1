@@ -1,14 +1,12 @@
-import { useState, useCallback, useEffect } from 'react'
-import { GENRE_SELECTION_MAX } from '../constants/onboarding'
-import { feedService } from '../services/feed-service'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { authService } from '../services/auth-service'
 import { validateCommentText } from '../services/comment-validation'
 import { contentService } from '../services/content-service'
+import { feedService } from '../services/feed-service'
 
 import { AppContext } from './app-context'
 
 const STORAGE_KEY = 'app_state_v1'
-const LEGACY_STORAGE_KEY = 'clipflow.app-state'
 const STATE_VERSION = 1
 
 const DEFAULT_DRAFT_PREFERENCES = {
@@ -22,15 +20,136 @@ const COMMENT_BLOCKED_ERROR = 'comment_blocked'
 const COMMENT_UNAUTHORIZED_ERROR = 'comment_unauthorized'
 
 const DEFAULT_STATE = {
-  user: null,
-  hasCompletedOnboarding: false,
-  selectedGenres: [],
   bookmarks: [],
   likes: {},
   blockedCommentUsers: {},
-  draftPreferences: DEFAULT_DRAFT_PREFERENCES,
   adminUploads: [],
   adminCatalogMovies: [],
+}
+
+function normalizeGenreId(value) {
+  if (typeof value !== 'string') {
+    return ''
+  }
+
+  const normalized = value.trim().toLowerCase()
+  if (!normalized) {
+    return ''
+  }
+
+  return normalized === 'sci-fi' ? 'scifi' : normalized
+}
+
+function normalizeGenreIds(...values) {
+  const normalized = []
+  const seen = new Set()
+
+  values.flat(Infinity).forEach((value) => {
+    const genreId = normalizeGenreId(value)
+
+    if (!genreId || seen.has(genreId)) {
+      return
+    }
+
+    seen.add(genreId)
+    normalized.push(genreId)
+  })
+
+  return normalized
+}
+
+function areSameGenreLists(left, right) {
+  const leftGenres = normalizeGenreIds(left)
+  const rightGenres = normalizeGenreIds(right)
+
+  if (leftGenres.length !== rightGenres.length) {
+    return false
+  }
+
+  return leftGenres.every((genreId, index) => genreId === rightGenres[index])
+}
+
+function normalizeDraftPreferences(value = {}) {
+  const safeValue = value && typeof value === 'object' && !Array.isArray(value) ? value : {}
+
+  return {
+    notificationsEnabled:
+      typeof safeValue.notificationsEnabled === 'boolean'
+        ? safeValue.notificationsEnabled
+        : DEFAULT_DRAFT_PREFERENCES.notificationsEnabled,
+    autoplayEnabled:
+      typeof safeValue.autoplayEnabled === 'boolean'
+        ? safeValue.autoplayEnabled
+        : DEFAULT_DRAFT_PREFERENCES.autoplayEnabled,
+    preferredLanguage:
+      typeof safeValue.preferredLanguage === 'string' && safeValue.preferredLanguage.trim()
+        ? safeValue.preferredLanguage.trim()
+        : DEFAULT_DRAFT_PREFERENCES.preferredLanguage,
+  }
+}
+
+function areSameDraftPreferences(left, right) {
+  const leftPreferences = normalizeDraftPreferences(left)
+  const rightPreferences = normalizeDraftPreferences(right)
+
+  return (
+    leftPreferences.notificationsEnabled === rightPreferences.notificationsEnabled &&
+    leftPreferences.autoplayEnabled === rightPreferences.autoplayEnabled &&
+    leftPreferences.preferredLanguage === rightPreferences.preferredLanguage
+  )
+}
+
+function resolveProfileSyncErrorMessage(error) {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message
+  }
+
+  return 'Failed to save preferences.'
+}
+
+function normalizeWatchUrl(value, fallback = '#') {
+  return typeof value === 'string' && value.trim() ? value.trim() : fallback
+}
+
+function normalizeRating(value) {
+  const parsed = Number(value)
+
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 10) {
+    return null
+  }
+
+  return Math.round(parsed * 10) / 10
+}
+
+function normalizeUserShape(value) {
+  if (!value || typeof value !== 'object') {
+    return null
+  }
+
+  const role = value.role || (value.isAdmin ? 'admin' : 'user')
+
+  return {
+    ...value,
+    role,
+    name: value.name || value.displayName || '',
+    avatar: value.avatar || value.avatarUrl || null,
+  }
+}
+
+function normalizeAdminMediaEntry(value) {
+  if (!value || typeof value !== 'object') {
+    return null
+  }
+
+  const { genreId: _legacyGenreId, genres: _legacyGenres, ...rest } = value
+  const genreIds = normalizeGenreIds(rest.genreIds)
+
+  return {
+    ...rest,
+    genreIds,
+    watchUrl: normalizeWatchUrl(rest.watchUrl || rest.externalUrl, '#'),
+    rating: normalizeRating(rest.rating),
+  }
 }
 
 function sanitizeBlockedCommentUsers(value) {
@@ -61,29 +180,36 @@ function sanitizeState(value) {
   }
 
   return {
-    user: value.user && typeof value.user === 'object' ? value.user : null,
-    hasCompletedOnboarding: Boolean(value.hasCompletedOnboarding),
-    selectedGenres: Array.isArray(value.selectedGenres) ? value.selectedGenres : [],
     bookmarks: Array.isArray(value.bookmarks) ? value.bookmarks : [],
     likes: value.likes && typeof value.likes === 'object' ? value.likes : {},
     blockedCommentUsers: sanitizeBlockedCommentUsers(value.blockedCommentUsers),
-    draftPreferences:
-      value.draftPreferences && typeof value.draftPreferences === 'object'
-        ? { ...DEFAULT_DRAFT_PREFERENCES, ...value.draftPreferences }
-        : DEFAULT_DRAFT_PREFERENCES,
-    adminUploads: Array.isArray(value.adminUploads) ? value.adminUploads : [],
-    adminCatalogMovies: Array.isArray(value.adminCatalogMovies) ? value.adminCatalogMovies : [],
+    adminUploads: Array.isArray(value.adminUploads)
+      ? value.adminUploads.map(normalizeAdminMediaEntry).filter(Boolean)
+      : [],
+    adminCatalogMovies: Array.isArray(value.adminCatalogMovies)
+      ? value.adminCatalogMovies.map(normalizeAdminMediaEntry).filter(Boolean)
+      : [],
   }
 }
 
 function persistStateSnapshot(state) {
-  if (typeof window === 'undefined') return
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  const snapshotState = {
+    bookmarks: Array.isArray(state?.bookmarks) ? state.bookmarks : [],
+    likes: state?.likes && typeof state.likes === 'object' ? state.likes : {},
+    blockedCommentUsers: sanitizeBlockedCommentUsers(state?.blockedCommentUsers),
+    adminUploads: Array.isArray(state?.adminUploads) ? state.adminUploads : [],
+    adminCatalogMovies: Array.isArray(state?.adminCatalogMovies) ? state.adminCatalogMovies : [],
+  }
 
   window.localStorage.setItem(
     STORAGE_KEY,
     JSON.stringify({
       version: STATE_VERSION,
-      state,
+      state: snapshotState,
     })
   )
 }
@@ -102,35 +228,21 @@ function parseVersionedState(raw) {
   return null
 }
 
-function migrateFromLegacyState() {
-  const rawLegacy = window.localStorage.getItem(LEGACY_STORAGE_KEY)
-  if (!rawLegacy) return DEFAULT_STATE
-
-  try {
-    const migrated = sanitizeState(JSON.parse(rawLegacy))
-    persistStateSnapshot(migrated)
-    window.localStorage.removeItem(LEGACY_STORAGE_KEY)
-    return migrated
-  } catch {
+function readPersistedState() {
+  if (typeof window === 'undefined') {
     return DEFAULT_STATE
   }
-}
-
-function readPersistedState() {
-  if (typeof window === 'undefined') return DEFAULT_STATE
 
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY)
     if (!raw) {
-      return migrateFromLegacyState()
+      return DEFAULT_STATE
     }
 
     const parsed = parseVersionedState(raw)
-    if (parsed) return parsed
-
-    return migrateFromLegacyState()
+    return parsed || DEFAULT_STATE
   } catch {
-    return migrateFromLegacyState()
+    return DEFAULT_STATE
   }
 }
 
@@ -161,29 +273,199 @@ function normalizeMovieTitle(value) {
 function areSameMovieByTitleAndGenre(left, right) {
   return (
     normalizeMovieTitle(left?.title) === normalizeMovieTitle(right?.title) &&
-    String(left?.genreId || '').trim() === String(right?.genreId || '').trim()
+    areSameGenreLists(left?.genreIds, right?.genreIds)
   )
+}
+
+function updateCommentLikeState(commentsByClip, clipId, commentId, shouldLike) {
+  const safeComments = commentsByClip && typeof commentsByClip === 'object' ? commentsByClip : {}
+  const clipComments = Array.isArray(safeComments[clipId]) ? safeComments[clipId] : []
+  let didChange = false
+
+  const nextClipComments = clipComments.map((comment) => {
+    if (comment?.id !== commentId) {
+      return comment
+    }
+
+    didChange = true
+
+    const currentLiked = Boolean(comment.likedByViewer)
+    const nextLiked = typeof shouldLike === 'boolean' ? shouldLike : !currentLiked
+    const delta = nextLiked === currentLiked ? 0 : nextLiked ? 1 : -1
+
+    return {
+      ...comment,
+      likedByViewer: nextLiked,
+      likes: Math.max(0, (Number(comment.likes) || 0) + delta),
+    }
+  })
+
+  if (!didChange) {
+    return safeComments
+  }
+
+  return {
+    ...safeComments,
+    [clipId]: nextClipComments,
+  }
 }
 
 export function AppProvider({ children }) {
   const [persistedState] = useState(() => readPersistedState())
-
-  const persistedUser = persistedState.user
-  const persistedOnboarding = persistedState.hasCompletedOnboarding
-
-  const [user, setUser] = useState(persistedUser)
-  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(persistedOnboarding)
-  const [selectedGenres, setSelectedGenres] = useState(persistedState.selectedGenres)
+  const [user, setUser] = useState(null)
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false)
+  const [selectedGenres, setSelectedGenresState] = useState([])
+  const selectedGenresRef = useRef([])
   const [bookmarks, setBookmarks] = useState(persistedState.bookmarks)
   const [likes, setLikes] = useState(persistedState.likes)
   const [blockedCommentUsers, setBlockedCommentUsers] = useState(persistedState.blockedCommentUsers)
-  const [draftPreferences, setDraftPreferences] = useState(persistedState.draftPreferences)
+  const [draftPreferences, setDraftPreferencesState] = useState(DEFAULT_DRAFT_PREFERENCES)
   const [comments, setComments] = useState({})
   const [adminUploads, setAdminUploads] = useState(persistedState.adminUploads)
   const [adminCatalogMovies, setAdminCatalogMovies] = useState(persistedState.adminCatalogMovies)
+  const [genres, setGenres] = useState(() => contentService.getCachedGenres())
+  const [genresStatus, setGenresStatus] = useState(
+    contentService.getCachedGenres().length > 0 ? 'ready' : 'loading'
+  )
   const [authStatus, setAuthStatus] = useState('checking')
   const [sessionExpired, setSessionExpired] = useState(false)
+  const [isProfileSyncing, setIsProfileSyncing] = useState(false)
+  const [profileSyncError, setProfileSyncError] = useState('')
 
+  const replaceSelectedGenres = useCallback((nextValue) => {
+    const nextGenres = normalizeGenreIds(nextValue)
+    selectedGenresRef.current = nextGenres
+    setSelectedGenresState(nextGenres)
+    return nextGenres
+  }, [])
+
+  const persistCurrentAppState = useCallback(() => {
+    persistStateSnapshot({
+      bookmarks,
+      likes,
+      blockedCommentUsers,
+      adminUploads,
+      adminCatalogMovies,
+    })
+  }, [adminCatalogMovies, adminUploads, blockedCommentUsers, bookmarks, likes])
+
+  const resetSessionState = useCallback(
+    ({ expired = false } = {}) => {
+      setUser(null)
+      setAuthStatus('anonymous')
+      setHasCompletedOnboarding(false)
+      replaceSelectedGenres([])
+      setBookmarks([])
+      setLikes({})
+      setDraftPreferencesState(DEFAULT_DRAFT_PREFERENCES)
+      setSessionExpired(expired)
+      setIsProfileSyncing(false)
+      setProfileSyncError('')
+    },
+    [replaceSelectedGenres]
+  )
+
+  const applyAuthenticatedSession = useCallback(
+    (sessionOrUser) => {
+      const sessionUser = sessionOrUser?.user || sessionOrUser
+      const normalizedUser = normalizeUserShape(sessionUser || {})
+
+      setUser(normalizedUser)
+      setSessionExpired(false)
+      setHasCompletedOnboarding(Boolean(sessionUser?.hasCompletedOnboarding))
+      replaceSelectedGenres(sessionUser?.selectedGenres)
+      setDraftPreferencesState(normalizeDraftPreferences(sessionUser?.preferences))
+      setAuthStatus('authenticated')
+      setProfileSyncError('')
+
+      return normalizedUser
+    },
+    [replaceSelectedGenres]
+  )
+
+  const persistUserProfilePatch = useCallback(
+    async (patch, { optimisticSelectedGenres, optimisticDraftPreferences } = {}) => {
+      if (!user) {
+        throw new Error('Authentication required.')
+      }
+
+      if (isProfileSyncing) {
+        throw new Error('Profile update already in progress.')
+      }
+
+      const previousSelectedGenres = selectedGenres
+      const previousDraftPreferences = draftPreferences
+      const hasOptimisticGenres = optimisticSelectedGenres !== undefined
+      const hasOptimisticPreferences = optimisticDraftPreferences !== undefined
+
+      if (hasOptimisticGenres) {
+        replaceSelectedGenres(optimisticSelectedGenres)
+      }
+
+      if (hasOptimisticPreferences) {
+        setDraftPreferencesState(optimisticDraftPreferences)
+      }
+
+      setIsProfileSyncing(true)
+      setProfileSyncError('')
+
+      try {
+        const nextSession = await authService.patchCurrentUser(patch)
+        const nextUser = applyAuthenticatedSession(nextSession)
+        return nextUser
+      } catch (error) {
+        if (hasOptimisticGenres) {
+          replaceSelectedGenres(previousSelectedGenres)
+        }
+
+        if (hasOptimisticPreferences) {
+          setDraftPreferencesState(previousDraftPreferences)
+        }
+
+        setProfileSyncError(resolveProfileSyncErrorMessage(error))
+        throw error
+      } finally {
+        setIsProfileSyncing(false)
+      }
+    },
+    [
+      applyAuthenticatedSession,
+      draftPreferences,
+      isProfileSyncing,
+      replaceSelectedGenres,
+      selectedGenres,
+      user,
+    ]
+  )
+
+  const loadGenres = useCallback(async ({ force = false } = {}) => {
+    setGenresStatus((current) => (current === 'ready' && !force ? current : 'loading'))
+
+    try {
+      const loadedGenres = await contentService.getGenres({ force })
+      setGenres(Array.isArray(loadedGenres) ? loadedGenres : [])
+      setGenresStatus('ready')
+      return loadedGenres
+    } catch {
+      setGenres((current) => current)
+      setGenresStatus('error')
+      return []
+    }
+  }, [])
+
+  useEffect(() => {
+    let isCancelled = false
+
+    queueMicrotask(() => {
+      if (!isCancelled) {
+        loadGenres()
+      }
+    })
+
+    return () => {
+      isCancelled = true
+    }
+  }, [loadGenres])
 
   useEffect(() => {
     let isMounted = true
@@ -219,158 +501,101 @@ export function AppProvider({ children }) {
           return
         }
 
-        setSessionExpired(Boolean(expired))
-
         if (!session?.user) {
-          if (!expired && persistedUser) {
-            const persistedRole = persistedUser.role || (persistedUser.isAdmin ? 'admin' : 'user')
-            setUser({ ...persistedUser, role: persistedRole })
-            setHasCompletedOnboarding(Boolean(persistedOnboarding))
-            setAuthStatus('authenticated')
-            return
-          }
-
-          setUser(null)
-          setHasCompletedOnboarding(false)
-          setAuthStatus('anonymous')
+          resetSessionState({ expired })
           return
         }
 
-        const normalizedUser = {
-          ...session.user,
-          name: session.user?.displayName || session.user?.name,
-          avatar: session.user?.avatarUrl || session.user?.avatar || null,
-        }
-
-        setUser(normalizedUser)
-        setHasCompletedOnboarding(Boolean(session.user?.hasCompletedOnboarding))
-        setAuthStatus('authenticated')
+        applyAuthenticatedSession(session)
+        setSessionExpired(Boolean(expired))
       })
       .catch(() => {
         if (!isMounted) {
           return
         }
 
-        setUser(null)
-        setSessionExpired(true)
-        setAuthStatus('anonymous')
+        resetSessionState({ expired: true })
       })
 
     return () => {
       isMounted = false
     }
-  }, [persistedOnboarding, persistedUser])
+  }, [applyAuthenticatedSession, resetSessionState])
 
   useEffect(() => {
     const unsubscribe = authService.subscribeToSessionEnded((reason) => {
-      setUser(null)
-      setAuthStatus('anonymous')
-      setHasCompletedOnboarding(false)
-      setSelectedGenres([])
-      setBookmarks([])
-      setLikes({})
-      setBlockedCommentUsers({})
-      setDraftPreferences(DEFAULT_DRAFT_PREFERENCES)
-      setSessionExpired(reason === 'expired')
+      resetSessionState({ expired: reason === 'expired' })
     })
 
     return unsubscribe
-  }, [])
+  }, [resetSessionState])
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
+    if (typeof window === 'undefined') {
+      return
+    }
 
-    persistStateSnapshot({
-      user,
-      hasCompletedOnboarding,
-      selectedGenres,
-      bookmarks,
-      likes,
-      blockedCommentUsers,
-      draftPreferences,
-      adminUploads,
-      adminCatalogMovies,
-    })
-  }, [
-    user,
-    hasCompletedOnboarding,
-    selectedGenres,
-    bookmarks,
-    likes,
-    blockedCommentUsers,
-    draftPreferences,
-    adminUploads,
-    adminCatalogMovies,
-  ])
+    persistCurrentAppState()
+  }, [persistCurrentAppState])
 
-  const login = useCallback(async (credentials = {}) => {
-    if (
-      credentials &&
-      (credentials.name || credentials.isAdmin !== undefined) &&
-      !credentials.mode
-    ) {
-      const legacyRole = credentials.role || (credentials.isAdmin ? 'admin' : 'user')
-      const legacyUser = {
-        ...credentials,
-        role: legacyRole,
+  const login = useCallback(
+    async (credentials = {}) => {
+      const session =
+        credentials?.mode === 'signup'
+          ? await authService.signUp(credentials)
+          : await authService.signIn(credentials)
+
+      return applyAuthenticatedSession(session)
+    },
+    [applyAuthenticatedSession]
+  )
+
+  const updateOnboardingStatus = useCallback(
+    async (nextValue) => {
+      if (!user) {
+        throw new Error('Authentication required.')
       }
-      setUser(legacyUser)
-      setSessionExpired(false)
-      setAuthStatus('authenticated')
-      return legacyUser
-    }
 
-    const session =
-      credentials?.mode === 'signup'
-        ? await authService.signUp(credentials)
-        : await authService.signIn(credentials)
+      const resolved =
+        typeof nextValue === 'function'
+          ? Boolean(nextValue(hasCompletedOnboarding))
+          : Boolean(nextValue)
 
-    const sessionUser = session?.user || {}
-    const normalizedUser = {
-      ...sessionUser,
-      name: sessionUser?.displayName || sessionUser?.name,
-      avatar: sessionUser?.avatarUrl || sessionUser?.avatar || null,
-    }
-
-    setUser(normalizedUser)
-    setSessionExpired(false)
-    setHasCompletedOnboarding(Boolean(sessionUser?.hasCompletedOnboarding))
-    setAuthStatus('authenticated')
-
-    return normalizedUser
-  }, [])
+      return persistUserProfilePatch(
+        resolved
+          ? { hasCompletedOnboarding: resolved, selectedGenres: selectedGenresRef.current }
+          : { hasCompletedOnboarding: resolved }
+      )
+    },
+    [hasCompletedOnboarding, persistUserProfilePatch, user]
+  )
 
   const logout = useCallback(async () => {
     await authService.logout()
-    setUser(null)
-    setAuthStatus('anonymous')
-    setSessionExpired(false)
-    setHasCompletedOnboarding(false)
-    setSelectedGenres([])
-    setBookmarks([])
-    setLikes({})
-    setBlockedCommentUsers({})
-    setDraftPreferences(DEFAULT_DRAFT_PREFERENCES)
-  }, [])
+    resetSessionState()
+  }, [resetSessionState])
 
-  const blockUserComments = useCallback(async (authorId) => {
-    if (typeof authorId !== 'string' || !authorId.trim()) {
-      return false
-    }
+  const blockUserComments = useCallback(
+    async (authorId) => {
+      if (typeof authorId !== 'string' || !authorId.trim()) {
+        return false
+      }
 
-    const normalizedAuthorId = authorId.trim()
-    const next = await feedService.blockUserComments({
-      authorId: normalizedAuthorId,
-      blockedUsers: blockedCommentUsers,
-    })
+      const normalizedAuthorId = authorId.trim()
+      const next = await feedService.blockUserComments({
+        authorId: normalizedAuthorId,
+        blockedUsers: blockedCommentUsers,
+      })
 
-    if (!next || typeof next !== 'object') {
-      return false
-    }
+      if (!next || typeof next !== 'object') {
+        return false
+      }
 
-    setBlockedCommentUsers(next)
-    return Boolean(next[normalizedAuthorId])
-  }, [blockedCommentUsers])
+      setBlockedCommentUsers(next)
+      return Boolean(next[normalizedAuthorId])
+    },
+    [blockedCommentUsers]
+  )
 
   const unblockUserComments = useCallback((authorId) => {
     if (typeof authorId !== 'string' || !authorId.trim()) {
@@ -402,78 +627,118 @@ export function AppProvider({ children }) {
     [blockedCommentUsers]
   )
 
-  const deleteComment = useCallback(async ({ clipId, commentId }) => {
-    if (!isValidClipId(clipId) || typeof commentId !== 'string' || !commentId.trim()) {
-      return false
-    }
-
-    const normalizedCommentId = commentId.trim()
-    const next = await feedService.deleteComment({
-      clipId,
-      commentId: normalizedCommentId,
-      comments,
-    })
-
-    const prevLength = Array.isArray(comments?.[clipId]) ? comments[clipId].length : 0
-    const nextLength = Array.isArray(next?.[clipId]) ? next[clipId].length : 0
-    const didDelete = nextLength < prevLength
-
-    if (didDelete) {
-      setComments(next)
-    }
-
-    return didDelete
-  }, [comments])
-
-  const deleteCommentsByUser = useCallback(async ({ authorId }) => {
-    if (typeof authorId !== 'string' || !authorId.trim()) {
-      return false
-    }
-
-    const normalizedAuthorId = authorId.trim()
-    const next = await feedService.deleteCommentsByUser({
-      authorId: normalizedAuthorId,
-      comments,
-    })
-
-    const prevCount = Object.values(comments).reduce(
-      (acc, clipComments) => acc + (clipComments?.length || 0),
-      0
-    )
-    const nextCount = Object.values(next || {}).reduce(
-      (acc, clipComments) => acc + (clipComments?.length || 0),
-      0
-    )
-    const didDelete = nextCount < prevCount
-
-    if (didDelete) {
-      setComments(next)
-    }
-
-    return didDelete
-  }, [comments])
-
-  const toggleGenre = useCallback((genreId) => {
-    setSelectedGenres((prev) => {
-      if (prev.includes(genreId)) {
-        return prev.filter((g) => g !== genreId)
-      }
-
-      if (prev.length >= GENRE_SELECTION_MAX) {
-        return prev
-      }
-
-      return [...prev, genreId]
-    })
-  }, [])
-
-  const toggleBookmark = useCallback(
-    async (clipId) => {
-      if (!user) {
+  const deleteComment = useCallback(
+    async ({ clipId, commentId }) => {
+      if (!isValidClipId(clipId) || typeof commentId !== 'string' || !commentId.trim()) {
         return false
       }
 
-      if (!isValidClipId(clipId)) {
+      const normalizedCommentId = commentId.trim()
+      const next = await feedService.deleteComment({
+        clipId,
+        commentId: normalizedCommentId,
+        comments,
+      })
+
+      const prevLength = Array.isArray(comments?.[clipId]) ? comments[clipId].length : 0
+      const nextLength = Array.isArray(next?.[clipId]) ? next[clipId].length : 0
+      const didDelete = nextLength < prevLength
+
+      if (didDelete) {
+        setComments(next)
+      }
+
+      return didDelete
+    },
+    [comments]
+  )
+
+  const deleteCommentsByUser = useCallback(
+    async ({ authorId }) => {
+      if (typeof authorId !== 'string' || !authorId.trim()) {
+        return false
+      }
+
+      const normalizedAuthorId = authorId.trim()
+      const next = await feedService.deleteCommentsByUser({
+        authorId: normalizedAuthorId,
+        comments,
+      })
+
+      const prevCount = Object.values(comments).reduce(
+        (acc, clipComments) => acc + (clipComments?.length || 0),
+        0
+      )
+      const nextCount = Object.values(next || {}).reduce(
+        (acc, clipComments) => acc + (clipComments?.length || 0),
+        0
+      )
+      const didDelete = nextCount < prevCount
+
+      if (didDelete) {
+        setComments(next)
+      }
+
+      return didDelete
+    },
+    [comments]
+  )
+
+  const setSelectedGenres = useCallback(
+    async (nextValue) => {
+      const currentSelectedGenres = selectedGenresRef.current
+      const nextGenres = normalizeGenreIds(
+        typeof nextValue === 'function' ? nextValue(currentSelectedGenres) : nextValue
+      )
+
+      if (areSameGenreLists(currentSelectedGenres, nextGenres)) {
+        setProfileSyncError('')
+        return nextGenres
+      }
+
+      if (!user || !hasCompletedOnboarding) {
+        replaceSelectedGenres(nextGenres)
+        setProfileSyncError('')
+        return nextGenres
+      }
+
+      try {
+        await persistUserProfilePatch(
+          { selectedGenres: nextGenres },
+          { optimisticSelectedGenres: nextGenres }
+        )
+        return nextGenres
+      } catch {
+        return selectedGenresRef.current
+      }
+    },
+    [hasCompletedOnboarding, persistUserProfilePatch, replaceSelectedGenres, user]
+  )
+
+  const toggleGenre = useCallback(
+    async (genreId) => {
+      const normalizedGenreId = normalizeGenreId(genreId)
+      if (!normalizedGenreId) {
+        return selectedGenresRef.current
+      }
+
+      return setSelectedGenres((currentSelectedGenres) =>
+        currentSelectedGenres.includes(normalizedGenreId)
+          ? currentSelectedGenres.filter((currentGenreId) => currentGenreId !== normalizedGenreId)
+          : [...currentSelectedGenres, normalizedGenreId]
+      )
+    },
+    [setSelectedGenres]
+  )
+
+  const selectAllGenres = useCallback(async () => {
+    const allGenreIds = genres.map((genre) => normalizeGenreId(genre?.id)).filter(Boolean)
+    return setSelectedGenres([...new Set(allGenreIds)])
+  }, [genres, setSelectedGenres])
+
+  const toggleBookmark = useCallback(
+    async (clipId) => {
+      if (!user || !isValidClipId(clipId)) {
         return false
       }
 
@@ -505,11 +770,7 @@ export function AppProvider({ children }) {
 
   const toggleLike = useCallback(
     async (clipId) => {
-      if (!user) {
-        return false
-      }
-
-      if (!isValidClipId(clipId)) {
+      if (!user || !isValidClipId(clipId)) {
         return false
       }
 
@@ -538,29 +799,63 @@ export function AppProvider({ children }) {
     [likes, user]
   )
 
+  const toggleCommentLike = useCallback(
+    async (clipId, commentId) => {
+      if (!user || !isValidClipId(clipId) || typeof commentId !== 'string' || !commentId.trim()) {
+        return false
+      }
+
+      const normalizedCommentId = commentId.trim()
+      const clipComments = Array.isArray(comments[clipId]) ? comments[clipId] : []
+      const targetComment = clipComments.find((comment) => comment.id === normalizedCommentId)
+
+      if (!targetComment) {
+        return false
+      }
+
+      const prevComments = comments
+      const shouldLike = !targetComment.likedByViewer
+
+      try {
+        return await feedService.optimisticToggleCommentLike({
+          clipId,
+          commentId: normalizedCommentId,
+          shouldLike,
+          applyLocal: () => {
+            setComments((current) =>
+              updateCommentLikeState(current, clipId, normalizedCommentId, shouldLike)
+            )
+          },
+          rollbackLocal: () => {
+            setComments(prevComments)
+          },
+        })
+      } catch {
+        setComments(prevComments)
+        return false
+      }
+    },
+    [comments, user]
+  )
+
   const addComment = useCallback(
     async (clipId, text) => {
       if (!user) {
-        return {
-          ok: false,
-          error: AUTH_REQUIRED_ERROR,
-        }
+        return { ok: false, error: AUTH_REQUIRED_ERROR }
       }
 
       const currentAuthorId = user?.id || user?.email
-      if (isUserCommentBlocked(currentAuthorId)) {
-        return {
-          ok: false,
-          error: COMMENT_BLOCKED_ERROR,
-        }
+      const currentUserEmail = typeof user?.email === 'string' ? user.email : ''
+      if (
+        isUserCommentBlocked(currentAuthorId) ||
+        (currentUserEmail && isUserCommentBlocked(currentUserEmail))
+      ) {
+        return { ok: false, error: COMMENT_BLOCKED_ERROR }
       }
 
       const validation = validateCommentText(text)
       if (!validation.valid) {
-        return {
-          ok: false,
-          error: validation.error,
-        }
+        return { ok: false, error: validation.error }
       }
 
       try {
@@ -568,31 +863,10 @@ export function AppProvider({ children }) {
           clipId,
           text: validation.normalizedText,
           comments,
-          userName: user?.name,
-          authorId: currentAuthorId,
         })
 
-        const patchedComments = { ...nextComments }
-        const clipComments = Array.isArray(patchedComments[clipId]) ? patchedComments[clipId] : []
-
-        if (clipComments.length > 0) {
-          const [firstComment, ...rest] = clipComments
-          patchedComments[clipId] = [
-            {
-              ...firstComment,
-              authorId: currentAuthorId || firstComment.authorId,
-              authorName: user?.name || firstComment.authorName,
-            },
-            ...rest,
-          ]
-        }
-
-        setComments(patchedComments)
-
-        return {
-          ok: true,
-          error: '',
-        }
+        setComments(nextComments)
+        return { ok: true, error: '' }
       } catch (error) {
         const message = error instanceof Error ? error.message : ''
         const isUnauthorizedError = /\(401\)|\(403\)/.test(message)
@@ -608,30 +882,76 @@ export function AppProvider({ children }) {
     [comments, isUserCommentBlocked, user]
   )
 
-  const updateDraftPreferences = useCallback((patch) => {
-    setDraftPreferences((prev) => ({ ...prev, ...patch }))
+  const setDraftPreferences = useCallback((nextValue) => {
+    setDraftPreferencesState((prev) =>
+      normalizeDraftPreferences(typeof nextValue === 'function' ? nextValue(prev) : nextValue)
+    )
+    setProfileSyncError('')
   }, [])
+
+  const updateDraftPreferences = useCallback((patch) => {
+    setDraftPreferencesState((prev) => normalizeDraftPreferences({ ...prev, ...patch }))
+    setProfileSyncError('')
+  }, [])
+
+  const saveProfilePreferences = useCallback(
+    async ({
+      selectedGenres: nextSelectedGenres = selectedGenres,
+      draftPreferences: nextDraftPreferences = draftPreferences,
+    } = {}) => {
+      if (!user) {
+        throw new Error('Authentication required.')
+      }
+
+      const normalizedGenres = normalizeGenreIds(nextSelectedGenres)
+      const normalizedPreferences = normalizeDraftPreferences(nextDraftPreferences)
+      const hasChanges =
+        !areSameGenreLists(selectedGenres, normalizedGenres) ||
+        !areSameDraftPreferences(draftPreferences, normalizedPreferences)
+
+      if (!hasChanges) {
+        setProfileSyncError('')
+        return user
+      }
+
+      return persistUserProfilePatch(
+        {
+          selectedGenres: normalizedGenres,
+          preferences: normalizedPreferences,
+        },
+        {
+          optimisticSelectedGenres: normalizedGenres,
+          optimisticDraftPreferences: normalizedPreferences,
+        }
+      )
+    },
+    [draftPreferences, persistUserProfilePatch, selectedGenres, user]
+  )
 
   const addAdminClip = useCallback((form) => {
     const uploadId = `upload_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
     const createdAt = new Date().toLocaleString()
     const poster = form.posterFile ? URL.createObjectURL(form.posterFile) : ''
+    const watchUrl = normalizeWatchUrl(form.watchUrl || form.externalUrl, '#')
+    const normalizedGenreIds = normalizeGenreIds(form.genreIds)
+    const normalizedRating = normalizeRating(form.rating)
+    const backendClipId = typeof form.id === 'string' && form.id.trim() ? form.id.trim() : ''
 
-    const catalogMovieId = `admin_${uploadId}`
+    const catalogMovieId = backendClipId ? `admin_${backendClipId}` : `admin_${uploadId}`
     const upload = {
       id: uploadId,
-      movieId: catalogMovieId,
+      movieId: backendClipId || catalogMovieId,
       title: form.title,
       description: form.description,
-      genreId: form.genreId,
+      genreIds: normalizedGenreIds,
       durationSec: form.durationSec,
       duration: form.duration,
       kinopoiskId: form.kinopoiskId,
       thumbnailUrl: form.thumbnailUrl,
+      rating: normalizedRating,
       videoUrl: form.videoUrl,
       clipDescription: form.clipDescription || form.description || '',
-      watchUrl: form.watchUrl || form.externalUrl || '#',
-      externalUrl: form.externalUrl || '#',
+      watchUrl,
       status: 'processing',
       createdAt,
       poster,
@@ -642,10 +962,9 @@ export function AppProvider({ children }) {
     const catalogMovie = {
       id: catalogMovieId,
       title: form.title,
-      rating: 0,
-      genreId: form.genreId || 'unknown',
+      rating: normalizedRating,
+      genreIds: normalizedGenreIds,
       poster,
-      externalUrl: form.externalUrl || '#',
       description: form.description,
       durationSec: Number(form.durationSec) || 0,
       duration: form.duration,
@@ -653,7 +972,7 @@ export function AppProvider({ children }) {
       thumbnailUrl: form.thumbnailUrl || poster,
       videoUrl: form.videoUrl || '',
       clipDescription: form.clipDescription || form.description || '',
-      watchUrl: form.watchUrl || form.externalUrl || '#',
+      watchUrl,
       createdAt,
     }
 
@@ -685,6 +1004,10 @@ export function AppProvider({ children }) {
       }
 
       const normalizedPatch = normalizeClipPatch(patchOrForm)
+      const nextWatchUrl =
+        Object.hasOwn(normalizedPatch, 'watchUrl') || Object.hasOwn(normalizedPatch, 'externalUrl')
+          ? normalizeWatchUrl(normalizedPatch.watchUrl || normalizedPatch.externalUrl, '')
+          : undefined
       const normalizedClipId = clipId.trim()
       const resolvedUploadId = normalizedClipId.startsWith('admin_')
         ? normalizedClipId.slice('admin_'.length)
@@ -695,12 +1018,18 @@ export function AppProvider({ children }) {
       const existingCatalogMovie = adminCatalogMovies.find(
         (movie) => movie.id === resolvedCatalogId
       )
+
       if (!existingCatalogMovie) {
         return false
       }
 
       const hasPosterFile = Boolean(normalizedPatch.posterFile)
       const hasClipFile = Boolean(normalizedPatch.clipFile)
+      const hasGenrePatch = Object.hasOwn(normalizedPatch, 'genreIds')
+      const nextGenreIds = hasGenrePatch ? normalizeGenreIds(normalizedPatch.genreIds) : undefined
+      if (hasGenrePatch && nextGenreIds.length === 0) {
+        return false
+      }
       const shouldRefreshCreatedAt = hasPosterFile || hasClipFile
       const nextCreatedAt = shouldRefreshCreatedAt ? new Date().toLocaleString() : undefined
 
@@ -726,15 +1055,8 @@ export function AppProvider({ children }) {
 
         const catalogPatch = {
           ...(Object.hasOwn(normalizedPatch, 'title') ? { title: normalizedPatch.title } : {}),
-          ...(Object.hasOwn(normalizedPatch, 'genreId')
-            ? { genreId: normalizedPatch.genreId }
-            : {}),
-          ...(Object.hasOwn(normalizedPatch, 'externalUrl')
-            ? { externalUrl: normalizedPatch.externalUrl }
-            : {}),
-          ...(Object.hasOwn(normalizedPatch, 'watchUrl')
-            ? { watchUrl: normalizedPatch.watchUrl }
-            : {}),
+          ...(hasGenrePatch ? { genreIds: nextGenreIds } : {}),
+          ...(nextWatchUrl !== undefined ? { watchUrl: nextWatchUrl } : {}),
           ...(Object.hasOwn(normalizedPatch, 'clipDescription')
             ? { clipDescription: normalizedPatch.clipDescription }
             : {}),
@@ -749,6 +1071,9 @@ export function AppProvider({ children }) {
             : {}),
           ...(Object.hasOwn(normalizedPatch, 'kinopoiskId')
             ? { kinopoiskId: normalizedPatch.kinopoiskId }
+            : {}),
+          ...(Object.hasOwn(normalizedPatch, 'rating')
+            ? { rating: normalizeRating(normalizedPatch.rating) }
             : {}),
           ...(Object.hasOwn(normalizedPatch, 'status') ? { status: normalizedPatch.status } : {}),
           ...(hasPosterFile || Object.hasOwn(normalizedPatch, 'poster')
@@ -766,6 +1091,7 @@ export function AppProvider({ children }) {
         prev.map((upload) => {
           const shouldUpdateUpload =
             upload.id === resolvedUploadId ||
+            upload.movieId === normalizedClipId ||
             upload.movieId === resolvedCatalogId ||
             (!upload.movieId &&
               normalizedClipId.startsWith('admin_') &&
@@ -780,9 +1106,7 @@ export function AppProvider({ children }) {
             ...(Object.hasOwn(normalizedPatch, 'description')
               ? { description: normalizedPatch.description }
               : {}),
-            ...(Object.hasOwn(normalizedPatch, 'genreId')
-              ? { genreId: normalizedPatch.genreId }
-              : {}),
+            ...(hasGenrePatch ? { genreIds: nextGenreIds } : {}),
             ...(Object.hasOwn(normalizedPatch, 'duration')
               ? { duration: normalizedPatch.duration }
               : {}),
@@ -792,12 +1116,10 @@ export function AppProvider({ children }) {
             ...(Object.hasOwn(normalizedPatch, 'kinopoiskId')
               ? { kinopoiskId: normalizedPatch.kinopoiskId }
               : {}),
-            ...(Object.hasOwn(normalizedPatch, 'externalUrl')
-              ? { externalUrl: normalizedPatch.externalUrl }
+            ...(Object.hasOwn(normalizedPatch, 'rating')
+              ? { rating: normalizeRating(normalizedPatch.rating) }
               : {}),
-            ...(Object.hasOwn(normalizedPatch, 'watchUrl')
-              ? { watchUrl: normalizedPatch.watchUrl }
-              : {}),
+            ...(nextWatchUrl !== undefined ? { watchUrl: nextWatchUrl } : {}),
             ...(Object.hasOwn(normalizedPatch, 'clipDescription')
               ? { clipDescription: normalizedPatch.clipDescription }
               : {}),
@@ -848,7 +1170,9 @@ export function AppProvider({ children }) {
 
       setAdminCatalogMovies((prevCatalogMovies) => {
         if (resolvedMovieId) {
-          return prevCatalogMovies.filter((movie) => movie.id !== resolvedMovieId)
+          return prevCatalogMovies.filter(
+            (movie) => movie.id !== resolvedMovieId && movie.id !== `admin_${resolvedMovieId}`
+          )
         }
 
         return prevCatalogMovies.filter(
@@ -893,12 +1217,18 @@ export function AppProvider({ children }) {
     draftPreferences,
     adminUploads,
     adminCatalogMovies,
+    genres,
+    genresStatus,
+    isProfileSyncing,
+    profileSyncError,
     login,
     logout,
-    setHasCompletedOnboarding,
+    setHasCompletedOnboarding: updateOnboardingStatus,
     toggleGenre,
+    selectAllGenres,
     toggleBookmark,
     toggleLike,
+    toggleCommentLike,
     blockUserComments,
     unblockUserComments,
     isUserCommentBlocked,
@@ -908,13 +1238,15 @@ export function AppProvider({ children }) {
     getFilteredClips,
     getBookmarkedClips,
     getProfile,
+    getCatalog,
+    reloadGenres: loadGenres,
     setSelectedGenres,
     setDraftPreferences,
     updateDraftPreferences,
+    saveProfilePreferences,
     addAdminClip,
     updateAdminClip,
     removeAdminUpload,
-    getCatalog,
   }
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

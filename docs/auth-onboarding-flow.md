@@ -1,44 +1,22 @@
-# TASK-001 — MVP flow входа/онбординга
+﻿# Auth to onboarding flow
 
-> Актуальная зафиксированная auth-модель для MVP вынесена в `docs/auth-mvp-model.md` (TASK-015).
+The canonical local flow is:
 
-## Целевой flow
+1. User opens `/`.
+2. User signs in or signs up through the API.
+3. Authenticated users land on `/genres` until onboarding is complete.
+4. On `/genres`, the user picks a saved default genre set locally.
+5. Pressing `Explore clips` calls `PATCH /me` with both `hasCompletedOnboarding: true` and the current `selectedGenres`.
+6. Only after a successful `PATCH /me` response does the app update `auth_session_v1` and route to `/feed`.
+7. After onboarding, the saved feed filter stays canonical in `auth_session_v1.user.selectedGenres` and is restored on reload/login.
+8. Later changes from the feed quick filter or the profile preferences card use the same `PATCH /me` write path.
+9. Signed-in users with completed onboarding can open `/feed`, `/bookmarks`, `/catalog`, and `/profile`.
+10. Admin users with completed onboarding can also open `/admin` and `/admin/comments`.
 
-### Экраны
+## Guard expectations
 
-1. `AuthPage` (`/`) — вход/регистрация.
-2. `GenreSelectPage` (`/genres`) — выбор жанров во время первого онбординга.
-3. `FeedPage` (`/feed`) — основная лента.
-
-### Состояния
-
-- `user === null` — неавторизованный пользователь.
-- `user !== null && hasCompletedOnboarding === false` — авторизован, но онбординг жанров не завершен.
-- `user !== null && hasCompletedOnboarding === true` — авторизован и онбординг завершен.
-
-### Переходы
-
-- `AuthPage` -> `GenreSelectPage` после успешного входа.
-- `GenreSelectPage` -> `FeedPage` по кнопке `Explore clips`, если выбрано от 3 до 5 жанров.
-- При выходе (`logout`) состояние сессии и онбординга сбрасывается.
-
-## Happy path (MVP)
-
-1. Пользователь открывает `/` и проходит авторизацию.
-2. После авторизации попадает на `/genres`.
-3. Выбирает 3–5 жанров.
-4. Переходит на `/feed` и работает с лентой.
-
-## Edge-case: повторный вход при активной сессии
-
-- Если пользователь уже авторизован и снова попадает на `/`, `AppRoutes` сразу редиректит:
-  - на `/genres`, если онбординг еще не завершен;
-  - на `/feed`, если онбординг уже завершен.
-- Дополнительно на `AuthPage` есть защитный `useEffect`, который выполняет такой же редирект, если сессия уже активна.
-
-## Session lifecycle (API mode)
-
-- При старте приложения `AppContext` вызывает `authService.restoreSession()`.
-- Если `accessToken` истек, выполняется `POST /auth/refresh`; затем `GET /me` синхронизирует профиль/роль.
-- Если refresh неуспешен, пользователь переводится в `anonymous`, guard редиректит на `/`, а на `AuthPage` показывается сообщение `Session expired. Please sign in again.`.
-- При явном `logout` выполняется `POST /auth/logout` (best-effort), локальная сессия очищается и пользователь редиректится на `/` без warning-баннера.
+- Visiting `/` with an active session redirects to `/genres` or `/feed`.
+- Visiting protected routes without a session redirects to `/`.
+- Visiting `/admin` or `/admin/comments` without `role=admin` redirects to `/feed`.
+- Malformed stored sessions are discarded before route resolution and behave the same as a signed-out state.
+- If refresh fails during app bootstrap, the app returns to `/` and shows `Session expired. Please sign in again.`.

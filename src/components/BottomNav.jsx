@@ -1,4 +1,4 @@
-import { useLocation, useNavigate } from 'react-router-dom'
+﻿import { useLocation, useNavigate } from 'react-router-dom'
 import { useApp } from '../context/useApp'
 import { Home, Search, Bookmark, User, Shield } from 'lucide-react'
 import './BottomNav.css'
@@ -16,8 +16,9 @@ export default function BottomNav() {
   const location = useLocation()
   const navigate = useNavigate()
   const { user } = useApp()
+  const isAdmin = user?.role === 'admin'
 
-  const items = user?.isAdmin
+  const items = isAdmin
     ? [...NAV_ITEMS, { path: '/admin', icon: Shield, label: 'Admin' }]
     : NAV_ITEMS
 

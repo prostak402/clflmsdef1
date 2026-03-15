@@ -40,7 +40,6 @@ describe('TASK-018: request metrics and key events', () => {
       clipId: 'clip_1',
       text: 'Great!',
       comments: { clip_1: [] },
-      userName: 'Tester',
     })
 
     const eventLog = logger.mock.calls.find(

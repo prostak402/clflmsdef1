@@ -1,18 +1,16 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 
 import App from '../App'
+import { persistAuthenticatedState } from './test-session-helpers'
 
-const STORAGE_KEY = 'app_state_v1'
+async function expectFeedRoute() {
+  await waitFor(() => {
+    expect(window.location.pathname).toBe('/feed')
+  })
 
-function setPersistedState(state) {
-  window.localStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify({
-      version: 1,
-      state,
-    })
-  )
+  const feedButtons = await screen.findAllByRole('button', { name: /Feed/i })
+  expect(feedButtons[0]).toHaveAttribute('aria-current', 'page')
 }
 
 describe('TASK-016: route guard behavior', () => {
@@ -31,8 +29,8 @@ describe('TASK-016: route guard behavior', () => {
   })
 
   it('redirects authenticated user without completed onboarding to /genres', async () => {
-    setPersistedState({
-      user: { name: 'Demo User', email: 'demo@clipflow.com', isAdmin: false },
+    persistAuthenticatedState({
+      user: { name: 'Demo User', email: 'user@local.dev', role: 'user' },
       hasCompletedOnboarding: false,
     })
     window.history.replaceState({}, '', '/catalog')
@@ -44,8 +42,8 @@ describe('TASK-016: route guard behavior', () => {
   })
 
   it('redirects onboarded users away from /genres to /feed', async () => {
-    setPersistedState({
-      user: { name: 'Demo User', email: 'demo@clipflow.com', isAdmin: false },
+    persistAuthenticatedState({
+      user: { name: 'Demo User', email: 'user@local.dev', role: 'user' },
       hasCompletedOnboarding: true,
       selectedGenres: ['action', 'drama', 'comedy'],
     })
@@ -53,15 +51,13 @@ describe('TASK-016: route guard behavior', () => {
 
     render(<App />)
 
-    expect(await screen.findByText(/Loading clips/i)).toBeInTheDocument()
-    expect(window.location.pathname).toBe('/feed')
+    await expectFeedRoute()
   })
 
   it('redirects admin user without onboarding from /admin to /genres', async () => {
-    setPersistedState({
-      user: { name: 'Admin User', email: 'admin@clipflow.com', isAdmin: true },
+    persistAuthenticatedState({
+      user: { name: 'Admin User', email: 'admin@local.dev', role: 'admin' },
       hasCompletedOnboarding: false,
-      selectedGenres: [],
     })
     window.history.replaceState({}, '', '/admin')
 
@@ -72,8 +68,8 @@ describe('TASK-016: route guard behavior', () => {
   })
 
   it('redirects non-admin users away from /admin to /feed', async () => {
-    setPersistedState({
-      user: { name: 'Demo User', email: 'demo@clipflow.com', isAdmin: false },
+    persistAuthenticatedState({
+      user: { name: 'Demo User', email: 'user@local.dev', role: 'user' },
       hasCompletedOnboarding: true,
       selectedGenres: ['action', 'drama', 'comedy'],
     })
@@ -81,13 +77,12 @@ describe('TASK-016: route guard behavior', () => {
 
     render(<App />)
 
-    expect(await screen.findByText(/Loading clips/i)).toBeInTheDocument()
-    expect(window.location.pathname).toBe('/feed')
+    await expectFeedRoute()
   })
 
   it('allows admin users with completed onboarding to access /admin', async () => {
-    setPersistedState({
-      user: { name: 'Admin User', email: 'admin@clipflow.com', isAdmin: true },
+    persistAuthenticatedState({
+      user: { name: 'Admin User', email: 'admin@local.dev', role: 'admin' },
       hasCompletedOnboarding: true,
       selectedGenres: ['action', 'drama', 'comedy'],
     })
@@ -100,8 +95,8 @@ describe('TASK-016: route guard behavior', () => {
   })
 
   it('redirects non-admin users away from /admin/comments to /feed', async () => {
-    setPersistedState({
-      user: { name: 'Demo User', email: 'demo@clipflow.com', isAdmin: false },
+    persistAuthenticatedState({
+      user: { name: 'Demo User', email: 'user@local.dev', role: 'user' },
       hasCompletedOnboarding: true,
       selectedGenres: ['action', 'drama', 'comedy'],
     })
@@ -109,13 +104,12 @@ describe('TASK-016: route guard behavior', () => {
 
     render(<App />)
 
-    expect(await screen.findByText(/Loading clips/i)).toBeInTheDocument()
-    expect(window.location.pathname).toBe('/feed')
+    await expectFeedRoute()
   })
 
   it('allows admin users with completed onboarding to access /admin/comments', async () => {
-    setPersistedState({
-      user: { name: 'Admin User', email: 'admin@clipflow.com', isAdmin: true },
+    persistAuthenticatedState({
+      user: { name: 'Admin User', email: 'admin@local.dev', role: 'admin' },
       hasCompletedOnboarding: true,
       selectedGenres: ['action', 'drama', 'comedy'],
     })

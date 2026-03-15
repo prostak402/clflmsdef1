@@ -1,16 +1,13 @@
-import { useState, useMemo, useEffect, useCallback } from 'react'
-import { contentService } from '../services/content-service'
-import { createGenreLookup, toCatalogItemViewModel } from '../services/clip-view-model'
-import { useApp } from '../context/useApp'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Search, ExternalLink, Filter, X } from 'lucide-react'
+import { useApp } from '../context/useApp'
+import { createGenreLookup, toCatalogItemViewModel } from '../services/clip-view-model'
 import DataState from '../components/DataState'
 import './CatalogPage.css'
 
-const GENRES = contentService.getGenres()
-const GENRE_LOOKUP = createGenreLookup(GENRES)
-
 export default function CatalogPage() {
-  const { getCatalog } = useApp()
+  const { getCatalog, genres = [] } = useApp()
+  const genreLookup = useMemo(() => createGenreLookup(genres), [genres])
   const [catalogItems, setCatalogItems] = useState([])
   const [loadState, setLoadState] = useState({ status: 'loading', error: '' })
   const [search, setSearch] = useState('')
@@ -23,7 +20,7 @@ export default function CatalogPage() {
     try {
       const nextCatalog = await getCatalog()
       const normalizedCatalog = Array.isArray(nextCatalog)
-        ? nextCatalog.map((movie) => toCatalogItemViewModel(movie, GENRE_LOOKUP))
+        ? nextCatalog.map((movie) => toCatalogItemViewModel(movie, genreLookup))
         : []
 
       setCatalogItems(normalizedCatalog)
@@ -32,7 +29,7 @@ export default function CatalogPage() {
       setCatalogItems([])
       setLoadState({ status: 'error', error: 'Failed to load catalog. Please try again.' })
     }
-  }, [getCatalog])
+  }, [genreLookup, getCatalog])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -45,10 +42,14 @@ export default function CatalogPage() {
   const filtered = useMemo(() => {
     return catalogItems.filter((movie) => {
       const matchesSearch = movie.title.toLowerCase().includes(search.toLowerCase())
-      const matchesGenre = activeGenre === 'all' || movie.genreId === activeGenre
+      const matchesGenre =
+        activeGenre === 'all' ||
+        (Array.isArray(movie.genreIds)
+          ? movie.genreIds.includes(activeGenre)
+          : movie.genreId === activeGenre)
       return matchesSearch && matchesGenre
     })
-  }, [search, activeGenre, catalogItems])
+  }, [activeGenre, catalogItems, search])
 
   return (
     <div className="catalog-page">
@@ -63,7 +64,7 @@ export default function CatalogPage() {
           type="text"
           placeholder="Search movies..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(event) => setSearch(event.target.value)}
           className="catalog-search-input"
         />
         {search && (
@@ -87,12 +88,11 @@ export default function CatalogPage() {
           >
             All
           </button>
-          {GENRES.map((genre) => (
+          {genres.map((genre) => (
             <button
               key={genre.id}
               className={`catalog-genre-btn ${activeGenre === genre.id ? 'active' : ''}`}
               onClick={() => setActiveGenre(genre.id)}
-              style={{ '--g-color': genre.color }}
             >
               {genre.name}
             </button>
@@ -132,13 +132,13 @@ export default function CatalogPage() {
                   <div className="catalog-poster-overlay">
                     <button
                       className="catalog-watch-btn"
-                      onClick={() => window.open(movie.externalUrl, '_blank')}
+                      onClick={() => window.open(movie.watchUrl, '_blank')}
                     >
                       <ExternalLink size={18} />
                       Watch
                     </button>
                   </div>
-                  <div className="catalog-rating-badge">{movie.genreName}</div>
+                  <div className="catalog-rating-badge">{movie.genreLabel || movie.genreName}</div>
                 </div>
                 <div className="catalog-card-info">
                   <h3 className="catalog-card-title">{movie.title}</h3>
